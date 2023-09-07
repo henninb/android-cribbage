@@ -7,10 +7,24 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.navigation.fragment.findNavController
 import com.bhenning.simple.databinding.SecondFragmentBinding
+import com.perimeterx.mobile_sdk.main.PXInterceptor
+import okhttp3.OkHttpClient
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
 class SecondFragment : Fragment() {
     private var _binding: SecondFragmentBinding? = null
     private val binding get() = _binding!!
+
+    private val okHttpClient = OkHttpClient.Builder()
+        .addInterceptor(PXInterceptor())
+        .build()
+
+    private val retrofit = Retrofit.Builder()
+        .baseUrl("https://cflare.bhenning.com/") // Replace with your API base URL
+        .client(okHttpClient)
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -28,6 +42,8 @@ class SecondFragment : Fragment() {
 
         // Set a click listener for the button
         nextButton.setOnClickListener {
+            val apiService = retrofit.create(ApiService::class.java)
+            val call = apiService.fetchData()
             // Navigate to the next fragment when the button is clicked
             findNavController().navigate(R.id.action_secondFragment_to_thirdFragment)
         }
