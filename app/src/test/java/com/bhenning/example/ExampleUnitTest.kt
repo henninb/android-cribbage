@@ -1,4 +1,4 @@
-package com.bhenning.simple
+package com.bhenning.example
 
 import org.junit.Test
 

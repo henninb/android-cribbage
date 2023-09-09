@@ -1,4 +1,4 @@
-package com.bhenning.simple
+package com.bhenning.example
 
 import android.os.Bundle
 import androidx.fragment.app.Fragment
@@ -6,7 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.navigation.fragment.findNavController
-import com.bhenning.simple.databinding.SecondFragmentBinding
+import com.bhenning.example.databinding.SecondFragmentBinding
 import com.perimeterx.mobile_sdk.main.PXInterceptor
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -21,7 +21,7 @@ class SecondFragment : Fragment() {
         .build()
 
     private val retrofit = Retrofit.Builder()
-        .baseUrl("https://cflare.bhenning.com/") // Replace with your API base URL
+        .baseUrl("https://cflare.bhenning.com/")
         .client(okHttpClient)
         .addConverterFactory(GsonConverterFactory.create())
         .build()

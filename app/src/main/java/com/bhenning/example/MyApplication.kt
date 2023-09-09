@@ -1,4 +1,4 @@
-package com.bhenning.simple
+package com.bhenning.example
 
 import android.app.Application
 import com.perimeterx.mobile_sdk.PerimeterX

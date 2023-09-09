@@ -1,4 +1,4 @@
-package com.bhenning.simple
+package com.bhenning.example
 
 import android.os.Bundle
 import androidx.fragment.app.Fragment
@@ -6,7 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.navigation.fragment.findNavController
-import com.bhenning.simple.databinding.FirstFragmentBinding
+import com.bhenning.example.databinding.FirstFragmentBinding
 
 class FirstFragment : Fragment() {
 

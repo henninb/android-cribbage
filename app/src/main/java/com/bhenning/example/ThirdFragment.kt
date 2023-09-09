@@ -1,4 +1,4 @@
-package com.bhenning.simple
+package com.bhenning.example
 
 import android.annotation.SuppressLint
 import android.os.Build
@@ -10,7 +10,7 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.annotation.RequiresApi
-import com.bhenning.simple.databinding.ThirdFragmentBinding
+import com.bhenning.example.databinding.ThirdFragmentBinding
 
 class ThirdFragment : Fragment() {
     private var _binding: ThirdFragmentBinding? = null

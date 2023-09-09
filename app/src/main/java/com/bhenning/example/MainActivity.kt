@@ -1,11 +1,11 @@
-package com.bhenning.simple
+package com.bhenning.example
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
-import com.bhenning.simple.databinding.ActivityMainBinding
+import com.bhenning.example.databinding.ActivityMainBinding
 import com.google.android.material.bottomnavigation.BottomNavigationView
 
 
