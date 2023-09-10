@@ -40,7 +40,6 @@ class SecondFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Find the Button by its ID
         val nextButton = binding.ApiCall
 
         nextButton.setOnClickListener {
@@ -48,29 +47,24 @@ class SecondFragment : Fragment() {
             val loginService = retrofit.create(LoginService::class.java)
             val call = loginService.login(loginRequest)
 
-            Log.d("SecondFragment", "button clicked")
-
             call.enqueue(object : Callback<String> {
                 override fun onResponse(call: Call<String>, response: Response<String>) {
-                    Log.d("SecondFragment", "onResponse")
                     if (response.isSuccessful) {
-                        // Handle a successful response here
                         val responseData = response.body()
-                        println(responseData)
-                        Log.d("SecondFragment", "API response: $responseData") // Log the response
+                        Log.d("SecondFragment", "API response: $responseData")
                     } else {
-                        println("failure")
-                        Log.d("SecondFragment", "API response: failure") // Log the response
-                        // Handle an unsuccessful response here
+                        Log.d("SecondFragment", "API response: failure")
                     }
                 }
 
                 override fun onFailure(call: Call<String>, t: Throwable) {
-                    // Handle failure here
+                    Log.e("SecondFragment", "API call failed", t)
+                    // Handle failure here (e.g., show an error message to the user)
                 }
             })
-            // Navigate to the next fragment when the button is clicked
-            //findNavController().navigate(R.id.action_secondFragment_to_thirdFragment)
+
+            // Disable the button or show a loading spinner to indicate the ongoing request
+            nextButton.isEnabled = false
         }
     }
 
@@ -79,3 +73,5 @@ class SecondFragment : Fragment() {
         _binding = null
     }
 }
+
+
