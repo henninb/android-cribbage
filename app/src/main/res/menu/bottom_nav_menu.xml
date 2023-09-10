@@ -12,9 +12,5 @@
     android:id="@+id/thirdFragment"
     android:title="Third"
     android:icon="@drawable/ic_third_fragment" />
-<!--<item-->
-<!--    android:id="@+id/webviewFragment"-->
-<!--    android:title="Web"-->
-<!--    android:icon="@drawable/ic_web_fragment" />-->
 
 </menu>

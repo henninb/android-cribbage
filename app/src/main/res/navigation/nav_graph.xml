@@ -15,7 +15,6 @@ app:startDestination="@id/firstFragment">
         app:destination="@id/secondFragment" />
 </fragment>
 
-
 <fragment
     android:id="@+id/secondFragment"
     android:name="com.bhenning.example.SecondFragment"

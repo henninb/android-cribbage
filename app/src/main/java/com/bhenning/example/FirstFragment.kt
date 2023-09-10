@@ -25,13 +25,13 @@ class FirstFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         // Find the Button by its ID
-        val nextButton = binding.nextButton
-
-        // Set a click listener for the button
-        nextButton.setOnClickListener {
-            // Navigate to the next fragment when the button is clicked
-            findNavController().navigate(R.id.action_firstFragment_to_secondFragment)
-        }
+//        val nextButton = binding.nextButton
+//
+//        // Set a click listener for the button
+//        nextButton.setOnClickListener {
+//            // Navigate to the next fragment when the button is clicked
+//            findNavController().navigate(R.id.action_firstFragment_to_secondFragment)
+//        }
     }
 
     override fun onDestroyView() {
