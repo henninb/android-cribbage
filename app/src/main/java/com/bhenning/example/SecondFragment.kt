@@ -21,6 +21,7 @@ class SecondFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val okHttpClient = OkHttpClient.Builder()
+        .addInterceptor(UserAgentInterceptor("BrianMobile-1.0"))
         .addInterceptor(PXInterceptor())
         .build()
 
@@ -46,14 +47,14 @@ class SecondFragment : Fragment() {
         val nextButton = binding.ApiCall
 
         nextButton.setOnClickListener {
-//            val loginRequest = LoginRequest("henninb@gmail.com", "monday1")
-//            val loginService = retrofit.create(LoginService::class.java)
-//            val call = loginService.login(loginRequest)
+            // Uncomment the lines below if you want to show a loading spinner
+            // nextButton.isEnabled = false
+            // showLoadingSpinner()
 
             val scheduleService = retrofit.create(ScheduleService::class.java)
             val call = scheduleService.schedule()
-            call.enqueue(object : Callback<Array<ApiResponse>> {
 
+            call.enqueue(object : Callback<Array<ApiResponse>> {
 
                 override fun onResponse(
                     call: Call<Array<ApiResponse>>,
@@ -72,28 +73,26 @@ class SecondFragment : Fragment() {
                     } else {
                         Log.d("SecondFragment", "API response: failure")
                     }
-//                    if (response.isSuccessful) {
-//                        val responseData: Array<ApiResponse>? = response.body()
-//
-//                        responseData?.firstOrNull()?.let { firstRow ->
-//                            Log.d("SecondFragment", "API response: $firstRow")
-//                        } ?: run {
-//                            Log.d("SecondFragment", "API response is empty or null")
-//                        }
-//                        //val firstRow: ApiResponse = responseData[0]
-//                        //Log.d("SecondFragment", "API response: $firstRow")
-//                    } else {
-//                        Log.d("SecondFragment", "API response: failure")
-//                    }
+
+                    // Enable the button on the main thread
+                    requireActivity().runOnUiThread {
+                        // Uncomment the lines below if you were showing a loading spinner
+                        // hideLoadingSpinner()
+                        nextButton.isEnabled = true
+                    }
                 }
 
                 override fun onFailure(call: Call<Array<ApiResponse>>, t: Throwable) {
                     Log.e("SecondFragment", "API call failed", t)
+
+                    // Enable the button on the main thread
+                    requireActivity().runOnUiThread {
+                        // Uncomment the lines below if you were showing a loading spinner
+                        // hideLoadingSpinner()
+                        nextButton.isEnabled = true
+                    }
                 }
             })
-
-            // Disable the button or show a loading spinner to indicate the ongoing request
-            nextButton.isEnabled = false
         }
     }
 

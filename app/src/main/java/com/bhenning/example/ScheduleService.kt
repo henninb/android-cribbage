@@ -13,12 +13,7 @@ interface ScheduleService {
     @POST("api/login")
     fun login(@Body loginRequest: LoginRequest): Call<String>
 
-//    @Headers({
-//        "Accept: application/vnd.yourapi.v1.full+json",
-//        "User-Agent: Your-App-Name"
-//    })
-
-    @Headers("Cache-Control: max-age=640000")
+    @Headers("x-px-block: 1", "x-px-mobile: 1")
     @GET("feed/json/nhl-2023/minnesota-wild")
     fun schedule() : Call<Array<ApiResponse>>
 }

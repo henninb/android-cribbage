@@ -1,6 +1,7 @@
 package com.bhenning.example
 
 import android.app.Application
+import android.util.Log
 import com.perimeterx.mobile_sdk.PerimeterX
 import com.perimeterx.mobile_sdk.PerimeterXDelegate
 import com.perimeterx.mobile_sdk.main.PXPolicy
@@ -9,8 +10,8 @@ class MyApplication : Application(), PerimeterXDelegate {
     override fun onCreate() {
         super.onCreate()
         val policy = PXPolicy()
-        val appId = "test"
-        policy.setDomains(arrayListOf("example.com"), appId)
+        val appId = "PXjJ0cYtn9"
+        policy.setDomains(arrayListOf("fixturedownload.com"), appId)
 
         try {
             PerimeterX.start(this, appId, this, policy)
@@ -28,14 +29,18 @@ class MyApplication : Application(), PerimeterXDelegate {
     }
 
     override fun perimeterxChallengeCancelledHandler(appId: String) {
+        Log.d("MyApplication", "ChallengeCancelledHandler")
     }
 
     override fun perimeterxChallengeSolvedHandler(appId: String) {
+        Log.d("MyApplication", "ChallengeSolvedHandler")
     }
 
     override fun perimeterxHeadersWereUpdated(headers: HashMap<String, String>, appId: String) {
+        Log.d("MyApplication", "HeadersWereUpdated")
     }
 
     override fun perimeterxRequestBlockedHandler(url: String?, appId: String) {
+        Log.d("MyApplication", "RequestBlockedHandler")
     }
 }
