@@ -11,10 +11,6 @@ import retrofit2.http.POST
 
 interface ScheduleService {
     @Headers("x-px-block: 1", "x-px-mobile: 1")
-    @POST("api/login")
-    fun login(@Body loginRequest: LoginResponse): Call<String>
-
-    @Headers("x-px-block: 1", "x-px-mobile: 1")
     @GET("feed/json/nhl-2023/minnesota-wild")
     fun schedule() : Call<Array<ScheduleResponse>>
 }

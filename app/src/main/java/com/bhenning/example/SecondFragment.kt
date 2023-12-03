@@ -49,6 +49,9 @@ class SecondFragment : Fragment() {
             val scheduleService = retrofit.create(ScheduleService::class.java)
             val call = scheduleService.schedule()
 
+
+            Log.i("SecondFragment", "test info message")
+
             call.enqueue(object : Callback<Array<ScheduleResponse>> {
 
                 override fun onResponse(
