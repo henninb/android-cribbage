@@ -10,10 +10,11 @@ import retrofit2.http.POST
 // curl https://fixturedownload.com/feed/json/nhl-2023/minnesota-wild
 
 interface ScheduleService {
+    @Headers("x-px-block: 1", "x-px-mobile: 1")
     @POST("api/login")
-    fun login(@Body loginRequest: LoginRequest): Call<String>
+    fun login(@Body loginRequest: LoginResponse): Call<String>
 
     @Headers("x-px-block: 1", "x-px-mobile: 1")
     @GET("feed/json/nhl-2023/minnesota-wild")
-    fun schedule() : Call<Array<ApiResponse>>
+    fun schedule() : Call<Array<ScheduleResponse>>
 }

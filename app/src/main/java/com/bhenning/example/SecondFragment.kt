@@ -27,8 +27,7 @@ class SecondFragment : Fragment() {
 
     private val retrofit = Retrofit.Builder()
         .baseUrl("https://fixturedownload.com")
-        //.baseUrl("https://cflare.bhenning.com/")
-        //.client(okHttpClient)
+        //.baseUrl("https://cflare.bhenning.com")
         .client(okHttpClient.newBuilder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).build())
         .addConverterFactory(GsonConverterFactory.create())
         .build()
@@ -47,21 +46,17 @@ class SecondFragment : Fragment() {
         val nextButton = binding.ApiCall
 
         nextButton.setOnClickListener {
-            // Uncomment the lines below if you want to show a loading spinner
-            // nextButton.isEnabled = false
-            // showLoadingSpinner()
-
             val scheduleService = retrofit.create(ScheduleService::class.java)
             val call = scheduleService.schedule()
 
-            call.enqueue(object : Callback<Array<ApiResponse>> {
+            call.enqueue(object : Callback<Array<ScheduleResponse>> {
 
                 override fun onResponse(
-                    call: Call<Array<ApiResponse>>,
-                    response: Response<Array<ApiResponse>>
+                    call: Call<Array<ScheduleResponse>>,
+                    response: Response<Array<ScheduleResponse>>
                 ) {
                     if (response.isSuccessful) {
-                        val responseData: Array<ApiResponse>? = response.body()
+                        val responseData: Array<ScheduleResponse>? = response.body()
 
                         if (!responseData.isNullOrEmpty()) {
                             for (row in responseData) {
@@ -76,19 +71,15 @@ class SecondFragment : Fragment() {
 
                     // Enable the button on the main thread
                     requireActivity().runOnUiThread {
-                        // Uncomment the lines below if you were showing a loading spinner
-                        // hideLoadingSpinner()
                         nextButton.isEnabled = true
                     }
                 }
 
-                override fun onFailure(call: Call<Array<ApiResponse>>, t: Throwable) {
+                override fun onFailure(call: Call<Array<ScheduleResponse>>, t: Throwable) {
                     Log.e("SecondFragment", "API call failed", t)
 
                     // Enable the button on the main thread
                     requireActivity().runOnUiThread {
-                        // Uncomment the lines below if you were showing a loading spinner
-                        // hideLoadingSpinner()
                         nextButton.isEnabled = true
                     }
                 }

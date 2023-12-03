@@ -1,17 +1,6 @@
 package com.bhenning.example
 
-
-//data class ApiResponse(
-//    val matchNumber: Int,
-//    val location: String,
-//    val homeTeam: String
-//
-//
-//    //[{"MatchNumber":14,"RoundNumber":1,"DateUtc":"2023-10-13 00:00:00Z","Location":"Xcel Energy Center","HomeTeam":"Minnesota Wild","AwayTeam":"Florida Panthers","Group":null,"HomeTeamScore":null,"AwayTeamScore":null},
-//)
-
-
-data class ApiResponse(
+data class ScheduleResponse(
     val MatchNumber: Int,
     val RoundNumber: Int,
     val DateUtc: String,

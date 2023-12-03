@@ -7,5 +7,6 @@
     <string name="second">Second</string>
     <string name="to_third">to_third</string>
     <string name="third">Third</string>
-    <string name="ApiCall">ApiCall</string>
+    <string name="ApiCall">Schedule</string>
+    <string name="loginCall">Login</string>
 </resources>
