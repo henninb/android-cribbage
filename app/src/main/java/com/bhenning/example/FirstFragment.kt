@@ -26,9 +26,13 @@ class FirstFragment : Fragment() {
         .addInterceptor(PXInterceptor())
         .build()
 
+    val baseUrl = "https://cflare.bhenning.com"
+
     private val retrofit = Retrofit.Builder()
-        .baseUrl("https://cflare.bhenning.com")
+        .baseUrl(baseUrl)
         .client(okHttpClient.newBuilder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).build())
+        //.addConverterFactory(ScalarsConverterFactory.create())
+        //.addConverterF.addConverterFactory(ScalarsConverterFactory.create()) actory()
         .addConverterFactory(GsonConverterFactory.create())
         .build()
 
@@ -50,24 +54,24 @@ class FirstFragment : Fragment() {
             val loginRequest = LoginRequest("henninb@gmail.com", "monday1")
             val call = loginService.login(loginRequest)
 
-            Log.i("SecondFragment", "test info message")
+            Log.i("SecondFragment", "Login API clicked.")
 
-            call.enqueue(object : Callback<String> {
+            call.enqueue(object : Callback<LoginResponse> {
 
                 override fun onResponse(
-                    call: Call<String>,
-                    response: Response<String>
+                    call: Call<LoginResponse>,
+                    response: Response<LoginResponse>
                 ) {
                     if (response.isSuccessful) {
-                        val responseData: String? = response.body()
+                        val responseData: LoginResponse? = response.body()
 
-                        if (!responseData.isNullOrEmpty()) {
-                            Log.d("FirstFragment", "API response: $responseData")
+                        if (responseData != null) {
+                            Log.i("FirstFragment", "Login API response: $responseData")
                         } else {
-                            Log.d("FirstFragment", "API response is empty or null")
+                            Log.i("FirstFragment", "Login API response is empty or null")
                         }
                     } else {
-                        Log.d("FirstFragment", "API response: failure")
+                        Log.i("FirstFragment", "Login API response: failure")
                     }
 
                     // Enable the button on the main thread
@@ -76,7 +80,7 @@ class FirstFragment : Fragment() {
                     }
                 }
 
-                override fun onFailure(call: Call<String>, t: Throwable) {
+                override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
                     Log.e("FirstFragment", "API call failed", t)
 
                     // Enable the button on the main thread
@@ -87,7 +91,6 @@ class FirstFragment : Fragment() {
             })
         }
     }
-
 
     override fun onDestroyView() {
         super.onDestroyView()

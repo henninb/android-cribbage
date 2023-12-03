@@ -49,8 +49,7 @@ class SecondFragment : Fragment() {
             val scheduleService = retrofit.create(ScheduleService::class.java)
             val call = scheduleService.schedule()
 
-
-            Log.i("SecondFragment", "test info message")
+            Log.i("SecondFragment", "Schedule API clicked.")
 
             call.enqueue(object : Callback<Array<ScheduleResponse>> {
 
@@ -63,13 +62,13 @@ class SecondFragment : Fragment() {
 
                         if (!responseData.isNullOrEmpty()) {
                             for (row in responseData) {
-                                Log.d("SecondFragment", "API response row: $row")
+                                Log.i("SecondFragment", "Schedule API response row: $row")
                             }
                         } else {
-                            Log.d("SecondFragment", "API response is empty or null")
+                            Log.i("SecondFragment", "Schedule API response is empty or null")
                         }
                     } else {
-                        Log.d("SecondFragment", "API response: failure")
+                        Log.i("SecondFragment", "Schedule API response: failure")
                     }
 
                     // Enable the button on the main thread
