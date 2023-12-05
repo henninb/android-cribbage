@@ -26,13 +26,11 @@ class FirstFragment : Fragment() {
         .addInterceptor(PXInterceptor())
         .build()
 
-    val baseUrl = "https://cflare.bhenning.com"
+    val baseUrl = "https://api.bhenning.com"
 
     private val retrofit = Retrofit.Builder()
         .baseUrl(baseUrl)
         .client(okHttpClient.newBuilder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).build())
-        //.addConverterFactory(ScalarsConverterFactory.create())
-        //.addConverterF.addConverterFactory(ScalarsConverterFactory.create()) actory()
         .addConverterFactory(GsonConverterFactory.create())
         .build()
 

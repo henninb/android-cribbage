@@ -11,7 +11,7 @@ class MyApplication : Application(), PerimeterXDelegate {
         super.onCreate()
         val policy = PXPolicy()
         val appId = "PXjJ0cYtn9"
-        policy.setDomains(arrayListOf("fixturedownload.com", "cflare.bhenning.com"), appId)
+        policy.setDomains(arrayListOf("fixturedownload.com", "cflare.bhenning.com", "api.bhenning.com"), appId)
 
         try {
             PerimeterX.start(this, appId, this, policy)
