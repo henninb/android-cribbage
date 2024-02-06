@@ -68,7 +68,7 @@ class SecondFragment : Fragment() {
                             Log.i("SecondFragment", "Schedule API response is empty or null")
                         }
                     } else {
-                        Log.i("SecondFragment", "Schedule API response: failure")
+                        Log.i("SecondFragment", "Schedule API response: ${response.code()}")
                     }
 
                     // Enable the button on the main thread

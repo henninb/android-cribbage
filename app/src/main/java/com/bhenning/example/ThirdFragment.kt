@@ -28,7 +28,7 @@ class ThirdFragment : Fragment() {
         mywebView = binding.webView
         mywebView.webViewClient = WebViewClient()
         mywebView.apply {
-            loadUrl("https://cflare.bhenning.com/")
+            loadUrl("https://www.bhenning.com/")
             settings.javaScriptEnabled = true
             settings.safeBrowsingEnabled = true
         }

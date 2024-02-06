@@ -5,13 +5,18 @@ import android.util.Log
 import com.perimeterx.mobile_sdk.PerimeterX
 import com.perimeterx.mobile_sdk.PerimeterXDelegate
 import com.perimeterx.mobile_sdk.main.PXPolicy
+import com.perimeterx.mobile_sdk.main.PXPolicyUrlRequestInterceptionType
+import com.perimeterx.mobile_sdk.main.PXStorageMethod
 
 class MyApplication : Application(), PerimeterXDelegate {
     override fun onCreate() {
         super.onCreate()
         val policy = PXPolicy()
         val appId = "PXjJ0cYtn9"
-        policy.setDomains(arrayListOf("fixturedownload.com", "cflare.bhenning.com", "api.bhenning.com"), appId)
+        //policy.setDomains(arrayListOf("fixturedownload.com", "www.bhenning.com"), appId)
+        policy.storageMethod = PXStorageMethod.DATA_STORE
+        policy.urlRequestInterceptionType = PXPolicyUrlRequestInterceptionType.INTERCEPT_AND_RETRY_REQUEST
+        //policy.doctorCheckEnabled = true
 
         try {
             PerimeterX.start(this, appId, this, policy)

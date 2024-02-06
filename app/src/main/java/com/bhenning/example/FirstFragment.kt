@@ -26,7 +26,7 @@ class FirstFragment : Fragment() {
         .addInterceptor(PXInterceptor())
         .build()
 
-    val baseUrl = "https://api.bhenning.com"
+    val baseUrl = "https://www.bhenning.com"
 
     private val retrofit = Retrofit.Builder()
         .baseUrl(baseUrl)
@@ -52,7 +52,7 @@ class FirstFragment : Fragment() {
             val loginRequest = LoginRequest("henninb@gmail.com", "monday1")
             val call = loginService.login(loginRequest)
 
-            Log.i("SecondFragment", "Login API clicked.")
+            Log.i("FirstFragment", "Login API clicked.")
 
             call.enqueue(object : Callback<LoginResponse> {
 
@@ -65,11 +65,13 @@ class FirstFragment : Fragment() {
 
                         if (responseData != null) {
                             Log.i("FirstFragment", "Login API response: $responseData")
+                            Log.i("FirstFragment", "Login API response: ${response.code()}")
                         } else {
                             Log.i("FirstFragment", "Login API response is empty or null")
                         }
                     } else {
-                        Log.i("FirstFragment", "Login API response: failure")
+                        Log.i("FirstFragment", "Login API response: ${response.code()}")
+                        Log.i("FirstFragment", "Login API response: ${response.errorBody().toString()}")
                     }
 
                     // Enable the button on the main thread
