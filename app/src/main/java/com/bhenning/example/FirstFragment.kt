@@ -7,7 +7,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import com.bhenning.example.databinding.FirstFragmentBinding
+import com.perimeterx.mobile_sdk.PerimeterX
 import com.perimeterx.mobile_sdk.main.PXInterceptor
+import com.perimeterx.mobile_sdk.main.PXTimeoutInterceptor
 import okhttp3.OkHttpClient
 import retrofit2.Call
 import retrofit2.Callback
@@ -22,7 +24,8 @@ class FirstFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val okHttpClient = OkHttpClient.Builder()
-        .addInterceptor(UserAgentInterceptor("BrianMobile-1.0"))
+        .addInterceptor(UserAgentInterceptor("BrianMobile-1.1"))
+        .addInterceptor(PXTimeoutInterceptor())
         .addInterceptor(PXInterceptor())
         .build()
 
@@ -52,7 +55,8 @@ class FirstFragment : Fragment() {
             val loginRequest = LoginRequest("henninb@gmail.com", "monday1")
             val call = loginService.login(loginRequest)
 
-            Log.i("FirstFragment", "Login API clicked.")
+            Log.i("FirstFragment", "SDK version: ${PerimeterX.sdkVersion()}")
+            Log.i("FirstFragment", "Login button clicked - abcde")
 
             call.enqueue(object : Callback<LoginResponse> {
 
@@ -70,6 +74,12 @@ class FirstFragment : Fragment() {
                             Log.i("FirstFragment", "Login API response is empty or null")
                         }
                     } else {
+                        val responseErrorBody1 = response.errorBody()?.string()
+                        val challengeServed = PerimeterX.isRequestBlockedError(responseErrorBody1.toString())
+                        if(challengeServed) {
+                            Log.i("FirstFragment", "challenge served")
+                        }
+
                         Log.i("FirstFragment", "Login API response: ${response.code()}")
                         Log.i("FirstFragment", "Login API response: ${response.errorBody().toString()}")
                     }

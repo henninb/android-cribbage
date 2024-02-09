@@ -7,7 +7,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import com.bhenning.example.databinding.SecondFragmentBinding
+import com.perimeterx.mobile_sdk.PerimeterX
 import com.perimeterx.mobile_sdk.main.PXInterceptor
+import com.perimeterx.mobile_sdk.main.PXTimeoutInterceptor
 import okhttp3.OkHttpClient
 import retrofit2.Call
 import retrofit2.Callback
@@ -21,13 +23,13 @@ class SecondFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val okHttpClient = OkHttpClient.Builder()
-        .addInterceptor(UserAgentInterceptor("BrianMobile-1.0"))
+        .addInterceptor(UserAgentInterceptor("BrianMobile-1.1"))
+        .addInterceptor(PXTimeoutInterceptor())
         .addInterceptor(PXInterceptor())
         .build()
 
     private val retrofit = Retrofit.Builder()
         .baseUrl("https://fixturedownload.com")
-        //.baseUrl("https://cflare.bhenning.com")
         .client(okHttpClient.newBuilder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).build())
         .addConverterFactory(GsonConverterFactory.create())
         .build()
@@ -50,6 +52,7 @@ class SecondFragment : Fragment() {
             val call = scheduleService.schedule()
 
             Log.i("SecondFragment", "Schedule API clicked.")
+            Log.i("SecondFragment", "SDK version: ${PerimeterX.sdkVersion()}")
 
             call.enqueue(object : Callback<Array<ScheduleResponse>> {
 

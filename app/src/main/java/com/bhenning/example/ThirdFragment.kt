@@ -11,6 +11,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.annotation.RequiresApi
 import com.bhenning.example.databinding.ThirdFragmentBinding
+import com.perimeterx.mobile_sdk.PerimeterX
 
 class ThirdFragment : Fragment() {
     private var _binding: ThirdFragmentBinding? = null
@@ -32,10 +33,9 @@ class ThirdFragment : Fragment() {
             settings.javaScriptEnabled = true
             settings.safeBrowsingEnabled = true
         }
+        //PerimeterX.setupWebView(mywebView, this)
         return binding.root
     }
-
-
 
     override fun onDestroyView() {
         super.onDestroyView()
