@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "example"
+rootProject.name = "cribbage"
 include ':app'
