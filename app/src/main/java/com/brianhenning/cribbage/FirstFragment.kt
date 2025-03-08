@@ -9,9 +9,6 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.brianhenning.cribbage.databinding.FirstFragmentBinding
-import com.brianhenning.cribbage.R
-import java.util.*
-import kotlin.collections.ArrayList
 import kotlin.random.Random
 
 class FirstFragment : Fragment() {
@@ -181,8 +178,8 @@ class FirstFragment : Fragment() {
     private fun createDeck(): MutableList<Card> {
         val deck = mutableListOf<Card>()
         
-        for (suit in Suit.values()) {
-            for (rank in Rank.values()) {
+        for (suit in Suit.entries) {
+            for (rank in Rank.entries) {
                 deck.add(Card(rank, suit))
             }
         }
