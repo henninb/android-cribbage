@@ -1,4 +1,4 @@
-package com.bhenning.example
+package com.brianhenning.cribbage
 
 import android.annotation.SuppressLint
 import android.os.Build
@@ -10,7 +10,8 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.annotation.RequiresApi
-import com.bhenning.example.databinding.ThirdFragmentBinding
+import com.brianhenning.cribbage.databinding.ThirdFragmentBinding
+import com.brianhenning.cribbage.R
 import com.perimeterx.mobile_sdk.PerimeterX
 
 class ThirdFragment : Fragment() {

@@ -1,4 +1,4 @@
-package com.bhenning.example
+package com.brianhenning.cribbage
 
 import android.os.Bundle
 import android.util.Log
@@ -6,7 +6,8 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import com.bhenning.example.databinding.SecondFragmentBinding
+import com.brianhenning.cribbage.databinding.SecondFragmentBinding
+import com.brianhenning.cribbage.R
 import com.perimeterx.mobile_sdk.PerimeterX
 import com.perimeterx.mobile_sdk.main.PXInterceptor
 import com.perimeterx.mobile_sdk.main.PXTimeoutInterceptor

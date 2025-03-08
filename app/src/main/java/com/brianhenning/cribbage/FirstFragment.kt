@@ -1,4 +1,4 @@
-package com.bhenning.example
+package com.brianhenning.cribbage
 
 import android.os.Bundle
 import android.util.Log
@@ -8,7 +8,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.content.ContextCompat
-import com.bhenning.example.databinding.FirstFragmentBinding
+import com.brianhenning.cribbage.databinding.FirstFragmentBinding
+import com.brianhenning.cribbage.R
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.random.Random
@@ -17,8 +18,7 @@ class FirstFragment : Fragment() {
 
     private var _binding: FirstFragmentBinding? = null
     private val binding get() = _binding!!
-    
-    // Game state variables
+
     private var gameStarted = false
     private var playerScore = 0
     private var opponentScore = 0
@@ -149,7 +149,7 @@ class FirstFragment : Fragment() {
         cardViews.forEach { it.text = "🂠" }
         
         // Update status
-        binding.textViewGameStatus.text = "Game started! Click 'Deal Cards' to continue."
+        binding.textViewGameStatus.text = getString(R.string.game_started)
         
         Log.i("FirstFragment", "New cribbage game started")
     }
@@ -173,7 +173,7 @@ class FirstFragment : Fragment() {
         // Update UI and game state
         binding.buttonDealCards.isEnabled = false
         binding.buttonSelectCrib.isEnabled = true
-        binding.textViewGameStatus.text = "Select 2 cards to place in the crib"
+        binding.textViewGameStatus.text = getString(R.string.select_cards_for_crib)
         
         Log.i("FirstFragment", "Cards dealt. Player hand: $playerHand")
     }
@@ -231,7 +231,7 @@ class FirstFragment : Fragment() {
     
     private fun selectCardsForCrib() {
         if (selectedCards.size != 2) {
-            binding.textViewGameStatus.text = "Please select exactly 2 cards for the crib"
+            binding.textViewGameStatus.text = getString(R.string.select_exactly_two)
             return
         }
         
@@ -257,7 +257,7 @@ class FirstFragment : Fragment() {
         
         // Disable crib selection button and update game status
         binding.buttonSelectCrib.isEnabled = false
-        binding.textViewGameStatus.text = "Cards selected for crib. Ready for next phase."
+        binding.textViewGameStatus.text = getString(R.string.crib_cards_selected)
     }
     
     private fun displayRemainingCards() {

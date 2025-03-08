@@ -1,4 +1,4 @@
-package com.bhenning.example
+package com.brianhenning.cribbage
 
 import retrofit2.Call
 import retrofit2.http.Body

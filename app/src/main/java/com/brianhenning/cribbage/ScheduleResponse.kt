@@ -1,4 +1,4 @@
-package com.bhenning.example
+package com.brianhenning.cribbage
 
 data class ScheduleResponse(
     val MatchNumber: Int,

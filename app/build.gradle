@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.bhenning.example'
+    namespace 'com.brianhenning.cribbage'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.bhenning.example"
+        applicationId "com.brianhenning.cribbage"
         minSdk 24
         targetSdk 33
         versionCode 1
@@ -54,15 +54,15 @@ dependencies {
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
 }
 
-// Use JDK 17 as the toolchain for both Java and Kotlin compilation
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
-    }
-}
-
-kotlin {
-    jvmToolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
-    }
-}
+//// Use JDK 17 as the toolchain for both Java and Kotlin compilation
+//java {
+//    toolchain {
+//        languageVersion = JavaLanguageVersion.of(17)
+//    }
+//}
+//
+//kotlin {
+//    jvmToolchain {
+//        languageVersion.set(JavaLanguageVersion.of(17))
+//    }
+//}

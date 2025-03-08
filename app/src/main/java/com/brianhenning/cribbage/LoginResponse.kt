@@ -1,3 +1,3 @@
-package com.bhenning.example
+package com.brianhenning.cribbage
 
 data class LoginResponse(val token : String)
