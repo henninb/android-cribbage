@@ -8,7 +8,7 @@ import com.perimeterx.mobile_sdk.main.PXPolicy
 import com.perimeterx.mobile_sdk.main.PXPolicyUrlRequestInterceptionType
 import com.perimeterx.mobile_sdk.main.PXStorageMethod
 
-class MyApplication : Application(), PerimeterXDelegate {
+class CribbageApplication : Application(), PerimeterXDelegate {
     override fun onCreate() {
         super.onCreate()
         val policy = PXPolicy()

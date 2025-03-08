@@ -1,23 +1,130 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
+    android:padding="16dp"
     tools:context=".FirstFragment">
 
-    <Button
-        android:id="@+id/loginCall"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/loginCall" />
-
     <TextView
+        android:id="@+id/textViewTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/first"
-        android:textSize="24sp" />
+        android:text="@string/cribbage_game"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
-</LinearLayout>
+    <TextView
+        android:id="@+id/textViewPlayerScore"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/your_score_0"
+        android:textSize="18sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/textViewTitle" />
+
+    <TextView
+        android:id="@+id/textViewOpponentScore"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/opponent_score_0"
+        android:textSize="18sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/textViewTitle" />
+
+    <LinearLayout
+        android:id="@+id/layoutPlayerHand"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        app:layout_constraintTop_toBottomOf="@id/textViewPlayerScore">
+
+        <TextView
+            android:id="@+id/textViewCard1"
+            style="@style/CribbageCardStyle"
+            android:text="🂠" />
+
+        <TextView
+            android:id="@+id/textViewCard2"
+            style="@style/CribbageCardStyle"
+            android:text="🂠" />
+
+        <TextView
+            android:id="@+id/textViewCard3"
+            style="@style/CribbageCardStyle"
+            android:text="🂠" />
+
+        <TextView
+            android:id="@+id/textViewCard4"
+            style="@style/CribbageCardStyle"
+            android:text="🂠" />
+
+        <TextView
+            android:id="@+id/textViewCard5"
+            style="@style/CribbageCardStyle"
+            android:text="🂠" />
+
+        <TextView
+            android:id="@+id/textViewCard6"
+            style="@style/CribbageCardStyle"
+            android:text="🂠" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/textViewDealer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="@string/dealer_you"
+        android:textSize="16sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layoutPlayerHand" />
+
+    <Button
+        android:id="@+id/buttonStartGame"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:text="@string/start_game"
+        app:layout_constraintTop_toBottomOf="@id/textViewDealer" />
+
+    <Button
+        android:id="@+id/buttonDealCards"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/deal_cards"
+        android:enabled="false"
+        app:layout_constraintTop_toBottomOf="@id/buttonStartGame" />
+
+    <Button
+        android:id="@+id/buttonSelectCrib"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/select_crib_cards"
+        android:enabled="false"
+        app:layout_constraintTop_toBottomOf="@id/buttonDealCards" />
+
+    <TextView
+        android:id="@+id/textViewGameStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:gravity="center"
+        android:text="@string/welcome_to_cribbage"
+        android:textSize="16sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/buttonSelectCrib"
+        app:layout_constraintVertical_bias="0.0" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

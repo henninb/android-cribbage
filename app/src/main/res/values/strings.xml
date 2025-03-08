@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">example</string>
+    <string name="app_name">Cribbage</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="first">First</string>
@@ -9,4 +9,15 @@
     <string name="third">Third</string>
     <string name="ApiCall">Schedule</string>
     <string name="loginCall">Login</string>
+    
+    <!-- Cribbage Game Strings -->
+    <string name="cribbage_game">Cribbage Game</string>
+    <string name="your_score_0">Your Score: 0</string>
+    <string name="opponent_score_0">Opponent Score: 0</string>
+    <string name="dealer_you">Dealer: You</string>
+    <string name="dealer_opponent">Dealer: Opponent</string>
+    <string name="start_game">Start New Game</string>
+    <string name="deal_cards">Deal Cards</string>
+    <string name="select_crib_cards">Select Cards for Crib</string>
+    <string name="welcome_to_cribbage">Welcome to Cribbage! Press Start to begin</string>
 </resources>
