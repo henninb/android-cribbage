@@ -34,7 +34,7 @@
     <string name="pegging_pairs">Pair! +2 points</string>
     <string name="pegging_three_of_a_kind">Three of a kind! +6 points</string>
     <string name="pegging_four_of_a_kind">Four of a kind! +12 points</string>
-    <string name="pegging_run">Run of %d! +%d points</string>
+    <string name="pegging_run" formatted="false">Run of %d! +%d points</string>
     <string name="pegging_fifteen">Fifteen! +2 points</string>
     <string name="pegging_thirtyone">Thirty-one! +2 points</string>
     <string name="pegging_last_card">Last card! +1 point</string>

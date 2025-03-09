@@ -7,6 +7,9 @@
 
     <style name="Theme.Simple" parent="Base.Theme.Simple" />
     
+    <!-- Compose theme -->
+    <style name="Theme.Cribbage" parent="Theme.Material3.DayNight.NoActionBar" />
+    
     <!-- Card style for cribbage cards -->
     <style name="CribbageCardStyle">
         <item name="android:layout_width">64dp</item>
