@@ -186,7 +186,37 @@ fun FirstScreen(navController: NavController) {
                 isPlayerTurn = false
                 gameStatus = context.getString(R.string.pegging_opponent_turn)
                 
-                // In a real implementation, simulate opponent's turn here
+                // Simulate opponent's turn
+                if (opponentHand.isNotEmpty()) {
+                    // Add a short delay to simulate thinking
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        // Find a playable card
+                        val playableCards = opponentHand.filter { card -> 
+                            card.getValue() + peggingCount <= 31 && !opponentCardsPlayed.contains(opponentHand.indexOf(card))
+                        }
+                        
+                        if (playableCards.isNotEmpty()) {
+                            // Choose a card to play
+                            val cardToPlay = playableCards.random()
+                            val cardIndex = opponentHand.indexOf(cardToPlay)
+                            
+                            // Play the card
+                            peggingPile = peggingPile + cardToPlay
+                            opponentCardsPlayed = opponentCardsPlayed + cardIndex
+                            peggingCount += cardToPlay.getValue()
+                            
+                            // Update UI
+                            gameStatus = "Opponent played ${cardToPlay.getSymbol()}"
+                            
+                            // Switch back to player's turn
+                            isPlayerTurn = true
+                        } else {
+                            // Opponent can't play
+                            gameStatus = "Opponent says GO!"
+                            isPlayerTurn = true
+                        }
+                    }, 1000)
+                }
             }
         }
     }

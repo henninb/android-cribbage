@@ -128,6 +128,10 @@ class FirstFragment : Fragment() {
         binding.buttonPlayCard.setOnClickListener {
             playSelectedCard()
         }
+        
+        binding.buttonSayGo.setOnClickListener {
+            sayGo()
+        }
     }
     
     private fun startNewGame() {
@@ -165,9 +169,12 @@ class FirstFragment : Fragment() {
         binding.buttonDealCards.isEnabled = true
         binding.buttonSelectCrib.isEnabled = false
         binding.buttonPlayCard.isEnabled = false
+        binding.buttonSayGo.isEnabled = false
+        binding.buttonSayGo.visibility = View.GONE
         
-        // Reset the pegging count display
+        // Reset the pegging count and cut card displays
         binding.textViewPeggingCount.visibility = View.GONE
+        binding.textViewCutCard.visibility = View.GONE
         
         // Set all cards to back face and reset opacity
         cardViews.forEach { 
@@ -244,6 +251,8 @@ class FirstFragment : Fragment() {
                 val cardValue = playerHand[cardIndex].getValue()
                 if (peggingCount + cardValue <= 31) {
                     selectedCards.add(cardIndex)
+                    binding.buttonSayGo.visibility = View.GONE
+                    binding.buttonPlayCard.isEnabled = true
                 } else {
                     binding.textViewGameStatus.text = getString(R.string.pegging_go)
                 }
@@ -261,6 +270,50 @@ class FirstFragment : Fragment() {
         }
         
         updateCardSelections()
+    }
+    
+    private fun sayGo() {
+        if (!isPeggingPhase || !isPlayerTurn) {
+            return
+        }
+        
+        // Player says "GO"
+        binding.textViewGameStatus.text = "You say GO!"
+        consecutiveGoes++
+        
+        // Check if both players have said GO or all cards are played
+        if (consecutiveGoes == 2 || allCardsPlayed()) {
+            // Last card point for opponent
+            opponentScore += 1
+            updateScores()
+            binding.textViewGameStatus.text = getString(R.string.pegging_last_card) + " (Opponent)"
+            
+            // Reset for next segment
+            peggingCount = 0
+            binding.textViewPeggingCount.text = getString(R.string.pegging_count_0)
+            consecutiveGoes = 0
+        }
+        
+        // Check if pegging is complete
+        if (checkIfPeggingIsComplete()) {
+            finishPeggingPhase()
+            return
+        }
+        
+        // Switch to opponent's turn
+        isPlayerTurn = false
+        binding.buttonPlayCard.isEnabled = false
+        binding.buttonSayGo.visibility = View.GONE
+        binding.textViewGameStatus.text = getString(R.string.pegging_opponent_turn)
+        
+        // Simulate opponent's turn after a short delay
+        playOpponentCard()
+    }
+    
+    private fun checkPlayerCanPlayAnyCard(): Boolean {
+        return playerHand.filterIndexed { index, card -> 
+            !playerCardsPlayed.contains(index) && card.getValue() + peggingCount <= 31 
+        }.isNotEmpty()
     }
     
     private fun updateCardSelections() {
@@ -302,11 +355,15 @@ class FirstFragment : Fragment() {
         
         // Disable crib selection button and update game status
         binding.buttonSelectCrib.isEnabled = false
-        binding.textViewGameStatus.text = getString(R.string.crib_cards_selected)
         
-        // Cut a card for the starter (not shown until after pegging)
+        // Cut a card for the starter and show it
         val deck = createDeck()
         starterCard = deck.first()
+        
+        // Show the cut card visually before starting pegging
+        binding.textViewCutCard.text = starterCard?.getSymbol()
+        binding.textViewCutCard.visibility = View.VISIBLE
+        binding.textViewGameStatus.text = "Cut card shown above. Ready for pegging."
         
         // Start the pegging phase
         startPeggingPhase()
@@ -341,16 +398,29 @@ class FirstFragment : Fragment() {
         isPlayerTurn = isPlayerDealer.not()
         
         // Update UI for pegging phase
-        binding.buttonPlayCard.isEnabled = true
         binding.textViewPeggingCount.visibility = View.VISIBLE
         binding.textViewPeggingCount.text = getString(R.string.pegging_count_0)
         
         if (isPlayerTurn) {
             binding.textViewGameStatus.text = getString(R.string.pegging_your_turn)
+            
+            // Check if player can play any card
+            if (checkPlayerCanPlayAnyCard()) {
+                binding.buttonPlayCard.isEnabled = selectedCards.isNotEmpty()
+                binding.buttonSayGo.visibility = View.GONE
+            } else {
+                binding.buttonPlayCard.isEnabled = false
+                binding.buttonSayGo.visibility = View.VISIBLE
+                binding.buttonSayGo.isEnabled = true
+                binding.textViewGameStatus.text = getString(R.string.pegging_go)
+            }
         } else {
+            binding.buttonPlayCard.isEnabled = false
+            binding.buttonSayGo.visibility = View.GONE
             binding.textViewGameStatus.text = getString(R.string.pegging_opponent_turn)
+            
             // Simulate opponent's turn after a short delay
-            playOpponentCard()
+            view?.postDelayed({ playOpponentCard() }, 1000)
         }
     }
     
@@ -390,6 +460,9 @@ class FirstFragment : Fragment() {
         selectedCards.clear()
         updateCardSelections()
         
+        // Reset consecutiveGoes since a card was played
+        consecutiveGoes = 0
+        
         // Check if pegging round is complete
         if (checkIfPeggingIsComplete()) {
             finishPeggingPhase()
@@ -405,13 +478,20 @@ class FirstFragment : Fragment() {
         
         // Switch to opponent's turn
         isPlayerTurn = false
+        binding.buttonPlayCard.isEnabled = false
+        binding.buttonSayGo.visibility = View.GONE
         binding.textViewGameStatus.text = getString(R.string.pegging_opponent_turn)
         
         // Simulate opponent's turn after a short delay
-        playOpponentCard()
+        view?.postDelayed({ playOpponentCard() }, 1000)
     }
     
     private fun playOpponentCard() {
+        // Check if it's actually opponent's turn
+        if (isPlayerTurn) {
+            return  // Don't proceed if it's not opponent's turn
+        }
+        
         // Simulate opponent thinking
         view?.postDelayed({
             // Find a valid card for opponent to play
@@ -421,7 +501,7 @@ class FirstFragment : Fragment() {
             
             if (playableCards.isEmpty()) {
                 // Opponent cannot play, declare "GO"
-                binding.textViewGameStatus.text = getString(R.string.pegging_go)
+                binding.textViewGameStatus.text = "Opponent says GO!"
                 consecutiveGoes++
                 
                 // Check if both players have said GO
@@ -471,6 +551,10 @@ class FirstFragment : Fragment() {
                     // Check again if pegging is complete
                     if (checkIfPeggingIsComplete()) {
                         finishPeggingPhase()
+                    } else {
+                        // If not complete, opponent gets another turn
+                        isPlayerTurn = false
+                        playOpponentCard()
                     }
                 }
                 
@@ -497,7 +581,7 @@ class FirstFragment : Fragment() {
             
             // Update UI
             binding.textViewPeggingCount.text = "Count: $peggingCount"
-            binding.textViewGameStatus.text = getString(R.string.pegging_your_turn)
+            binding.textViewGameStatus.text = "Opponent played a card. Count: $peggingCount"
             
             // Reset consecutive GOs
             consecutiveGoes = 0
@@ -517,19 +601,21 @@ class FirstFragment : Fragment() {
             
             // Switch back to player's turn
             isPlayerTurn = true
+            binding.textViewGameStatus.text = getString(R.string.pegging_your_turn)
             
             // Check if player can play
-            val playerCanPlay = playerHand.filterIndexed { index, card -> 
-                !playerCardsPlayed.contains(index) && card.getValue() + peggingCount <= 31 
-            }.isNotEmpty()
+            val playerCanPlay = checkPlayerCanPlayAnyCard()
             
-            if (!playerCanPlay && !allCardsPlayed()) {
+            if (playerCanPlay) {
+                // Player can play, show Play Card button if a card is selected
+                binding.buttonPlayCard.isEnabled = selectedCards.isNotEmpty()
+                binding.buttonSayGo.visibility = View.GONE
+            } else if (!allCardsPlayed()) {
+                // Player can't play, show GO button
+                binding.buttonPlayCard.isEnabled = false
+                binding.buttonSayGo.visibility = View.VISIBLE
+                binding.buttonSayGo.isEnabled = true
                 binding.textViewGameStatus.text = getString(R.string.pegging_go)
-                consecutiveGoes++
-                
-                // Player can't play - opponent gets another turn
-                isPlayerTurn = false
-                view?.postDelayed({ playOpponentCard() }, 1000)
             }
             
         }, 1000) // 1 second delay for opponent's "thinking"
@@ -623,8 +709,12 @@ class FirstFragment : Fragment() {
         // For now, just clean up the UI for pegging
         binding.textViewPeggingCount.visibility = View.GONE
         
-        // Show the starter card (would be used in hand scoring)
+        // Show the starter card again at the end of pegging (for scoring)
         Log.i("FirstFragment", "Pegging complete. Starter card: ${starterCard?.getSymbol()}")
+        // Make sure the cut card is still visible
+        binding.textViewCutCard.text = starterCard?.getSymbol()
+        binding.textViewCutCard.visibility = View.VISIBLE
+        binding.textViewGameStatus.text = "Pegging complete. See cut card above."
     }
 
     override fun onDestroyView() {

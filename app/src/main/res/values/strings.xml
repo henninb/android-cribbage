@@ -31,6 +31,7 @@
     <string name="pegging_select_card">Select a card to play</string>
     <string name="pegging_go">GO! Cannot play a card</string>
     <string name="pegging_complete">Pegging complete!</string>
+    <string name="say_go">Say "GO"</string>
     <string name="pegging_pairs">Pair! +2 points</string>
     <string name="pegging_three_of_a_kind">Three of a kind! +6 points</string>
     <string name="pegging_four_of_a_kind">Four of a kind! +12 points</string>
