@@ -114,6 +114,27 @@
         android:text="@string/select_crib_cards"
         android:enabled="false"
         app:layout_constraintTop_toBottomOf="@id/buttonDealCards" />
+        
+    <Button
+        android:id="@+id/buttonPlayCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/play_card"
+        android:enabled="false"
+        app:layout_constraintTop_toBottomOf="@id/buttonSelectCrib" />
+        
+    <TextView
+        android:id="@+id/textViewPeggingCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/pegging_count_0"
+        android:textSize="18sp"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/buttonPlayCard" />
 
     <TextView
         android:id="@+id/textViewGameStatus"
@@ -124,7 +145,7 @@
         android:text="@string/welcome_to_cribbage"
         android:textSize="16sp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/buttonSelectCrib"
+        app:layout_constraintTop_toBottomOf="@id/textViewPeggingCount"
         app:layout_constraintVertical_bias="0.0" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
