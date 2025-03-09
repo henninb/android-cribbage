@@ -283,10 +283,20 @@ class FirstFragment : Fragment() {
         
         // Check if both players have said GO or all cards are played
         if (consecutiveGoes == 2 || allCardsPlayed()) {
-            // Last card point for opponent
-            opponentScore += 1
-            updateScores()
-            binding.textViewGameStatus.text = getString(R.string.pegging_last_card) + " (Opponent)"
+            // Last card point for opponent (the last player who played a card)
+            if (peggingPile.isNotEmpty()) {
+                // Award point to the last player who played a card
+                val lastPlayer = if (peggingPile.last() in playerHand) "You" else "Opponent"
+                
+                if (lastPlayer == "You") {
+                    playerScore += 1
+                    binding.textViewGameStatus.text = getString(R.string.pegging_last_card) + " (You)"
+                } else {
+                    opponentScore += 1
+                    binding.textViewGameStatus.text = getString(R.string.pegging_last_card) + " (Opponent)"
+                }
+                updateScores()
+            }
             
             // Reset for next segment
             peggingCount = 0
@@ -471,6 +481,10 @@ class FirstFragment : Fragment() {
         
         // If count reached 31, reset for next segment
         if (peggingCount == 31) {
+            // Points for 31 are already awarded in checkPeggingScore
+            binding.textViewGameStatus.text = getString(R.string.pegging_thirtyone) + " +2 points for you!"
+            
+            // Reset count
             peggingCount = 0
             binding.textViewPeggingCount.text = getString(R.string.pegging_count_0)
             consecutiveGoes = 0
@@ -506,10 +520,20 @@ class FirstFragment : Fragment() {
                 
                 // Check if both players have said GO
                 if (consecutiveGoes == 2 || allCardsPlayed()) {
-                    // Last card point
-                    opponentScore += 1
-                    updateScores()
-                    binding.textViewGameStatus.text = getString(R.string.pegging_last_card)
+                    // Last card point to the last player who played a card
+                    if (peggingPile.isNotEmpty()) {
+                        // Award point to the last player who played a card
+                        val lastPlayer = if (peggingPile.last() in playerHand) "You" else "Opponent"
+                        
+                        if (lastPlayer == "You") {
+                            playerScore += 1
+                            binding.textViewGameStatus.text = getString(R.string.pegging_last_card) + " (You)"
+                        } else {
+                            opponentScore += 1
+                            binding.textViewGameStatus.text = getString(R.string.pegging_last_card) + " (Opponent)"
+                        }
+                        updateScores()
+                    }
                     
                     // Reset count for next segment
                     peggingCount = 0
@@ -537,10 +561,20 @@ class FirstFragment : Fragment() {
                     consecutiveGoes++
                     
                     if (consecutiveGoes == 2 || allCardsPlayed()) {
-                        // Last card point for player
-                        playerScore += 1
-                        updateScores()
-                        binding.textViewGameStatus.text = getString(R.string.pegging_last_card)
+                        // Last card point to the last player who played a card
+                        if (peggingPile.isNotEmpty()) {
+                            // Award point to the last player who played a card
+                            val lastPlayer = if (peggingPile.last() in playerHand) "You" else "Opponent"
+                            
+                            if (lastPlayer == "You") {
+                                playerScore += 1
+                                binding.textViewGameStatus.text = getString(R.string.pegging_last_card) + " (You)"
+                            } else {
+                                opponentScore += 1
+                                binding.textViewGameStatus.text = getString(R.string.pegging_last_card) + " (Opponent)"
+                            }
+                            updateScores()
+                        }
                         
                         // Reset for next segment
                         peggingCount = 0
@@ -594,6 +628,10 @@ class FirstFragment : Fragment() {
             
             // If count reached 31, reset for next segment
             if (peggingCount == 31) {
+                // Points for 31 are already awarded in checkPeggingScore
+                binding.textViewGameStatus.text = getString(R.string.pegging_thirtyone) + " +2 points for opponent!"
+                
+                // Reset count
                 peggingCount = 0
                 binding.textViewPeggingCount.text = getString(R.string.pegging_count_0)
                 consecutiveGoes = 0
@@ -654,16 +692,18 @@ class FirstFragment : Fragment() {
             }
         }
         
-        // Check for runs (sequences of 3 or more)
+        // Check for runs (sequences of 3 or more) - Fixed to handle all possible orderings
         for (runLength in 7 downTo 3) {
             if (peggingPile.size >= runLength) {
-                val potentialRun = peggingPile.takeLast(runLength).sortedBy { 
-                    it.rank.ordinal 
-                }
+                val lastCards = peggingPile.takeLast(runLength)
                 
+                // Get all ranks in the potential run and sort them
+                val ranks = lastCards.map { it.rank.ordinal }.sorted()
+                
+                // Check if they form a continuous sequence
                 var isRun = true
-                for (i in 0 until potentialRun.size - 1) {
-                    if (potentialRun[i + 1].rank.ordinal - potentialRun[i].rank.ordinal != 1) {
+                for (i in 0 until ranks.size - 1) {
+                    if (ranks[i + 1] - ranks[i] != 1) {
                         isRun = false
                         break
                     }
