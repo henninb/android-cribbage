@@ -1,5 +1,6 @@
 package com.brianhenning.cribbage.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -307,11 +309,19 @@ fun FirstScreen(navController: NavController) {
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = card?.getSymbol() ?: "🂠",
-                        fontSize = 28.sp,
-                        textAlign = TextAlign.Center
-                    )
+                    if (card != null) {
+                        Image(
+                            painter = painterResource(id = getCardResourceId(card)),
+                            contentDescription = card.toString(),
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = R.drawable.back_light),
+                            contentDescription = "Card back",
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
         }
@@ -385,31 +395,30 @@ data class Card(val rank: Rank, val suit: Suit) {
     }
     
     fun getSymbol(): String {
-        // Using card Unicode symbols
-        val suitOffset = when (suit) {
-            Suit.SPADES -> 0x1F0A0
-            Suit.HEARTS -> 0x1F0B0
-            Suit.DIAMONDS -> 0x1F0C0
-            Suit.CLUBS -> 0x1F0D0
+        val rankSymbol = when (rank) {
+            Rank.ACE -> "A"
+            Rank.TWO -> "2"
+            Rank.THREE -> "3"
+            Rank.FOUR -> "4"
+            Rank.FIVE -> "5"
+            Rank.SIX -> "6"
+            Rank.SEVEN -> "7"
+            Rank.EIGHT -> "8"
+            Rank.NINE -> "9"
+            Rank.TEN -> "10"
+            Rank.JACK -> "J"
+            Rank.QUEEN -> "Q"
+            Rank.KING -> "K"
         }
         
-        val rankOffset = when (rank) {
-            Rank.ACE -> 1
-            Rank.TWO -> 2
-            Rank.THREE -> 3
-            Rank.FOUR -> 4
-            Rank.FIVE -> 5
-            Rank.SIX -> 6
-            Rank.SEVEN -> 7
-            Rank.EIGHT -> 8
-            Rank.NINE -> 9
-            Rank.TEN -> 10
-            Rank.JACK -> 11
-            Rank.QUEEN -> 13
-            Rank.KING -> 14
+        val suitSymbol = when (suit) {
+            Suit.SPADES -> "♠"
+            Suit.HEARTS -> "♥"
+            Suit.DIAMONDS -> "♦"
+            Suit.CLUBS -> "♣"
         }
         
-        return String(Character.toChars(suitOffset + rankOffset))
+        return "$rankSymbol$suitSymbol"
     }
 }
 
@@ -424,4 +433,35 @@ fun createDeck(): List<Card> {
     }
     
     return deck
+}
+
+// Get the resource ID for a card
+fun getCardResourceId(card: Card): Int {
+    val suitName = when (card.suit) {
+        Suit.HEARTS -> "hearts"
+        Suit.DIAMONDS -> "diamonds"
+        Suit.CLUBS -> "clubs"
+        Suit.SPADES -> "spades"
+    }
+    
+    val rankName = when (card.rank) {
+        Rank.ACE -> "a"
+        Rank.TWO -> "2"
+        Rank.THREE -> "3"
+        Rank.FOUR -> "4"
+        Rank.FIVE -> "5"
+        Rank.SIX -> "6"
+        Rank.SEVEN -> "7"
+        Rank.EIGHT -> "8"
+        Rank.NINE -> "9"
+        Rank.TEN -> "10"
+        Rank.JACK -> "j"
+        Rank.QUEEN -> "q"
+        Rank.KING -> "k"
+    }
+    
+    // Convert string resource name to actual resource ID
+    val resourceName = "${suitName}_${rankName}"
+    val resourceField = R.drawable::class.java.getField(resourceName)
+    return resourceField.getInt(null)
 }
