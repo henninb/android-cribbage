@@ -1,5 +1,6 @@
 package com.brianhenning.cribbage.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,6 +27,11 @@ import kotlin.random.Random
 @Composable
 fun FirstScreen(navController: NavController) {
     val context = LocalContext.current
+    
+    // Log that the screen is being composed
+    LaunchedEffect(Unit) {
+        Log.i("CribbageGame", "FirstScreen composable is being rendered")
+    }
     
     // Game state
     var gameStarted by remember { mutableStateOf(false) }
@@ -55,6 +61,7 @@ fun FirstScreen(navController: NavController) {
     
     // Functions
     val startNewGame = {
+        Log.i("CribbageGame", "Starting new game")
         gameStarted = true
         playerScore = 0
         opponentScore = 0
@@ -71,6 +78,7 @@ fun FirstScreen(navController: NavController) {
         starterCard = null
         
         isPlayerDealer = Random.nextBoolean()
+        Log.i("CribbageGame", "Dealer: ${if (isPlayerDealer) "Player" else "Opponent"}")
         
         dealButtonEnabled = true
         selectCribButtonEnabled = false
@@ -81,10 +89,14 @@ fun FirstScreen(navController: NavController) {
     }
     
     val dealCards = {
+        Log.i("CribbageGame", "Dealing cards")
         val deck = createDeck().shuffled().toMutableList()
         
         playerHand = List(6) { deck.removeAt(0) }
         opponentHand = List(6) { deck.removeAt(0) }
+        
+        Log.i("CribbageGame", "Player hand: $playerHand")
+        Log.i("CribbageGame", "Opponent hand: $opponentHand")
         
         dealButtonEnabled = false
         selectCribButtonEnabled = true
@@ -92,14 +104,19 @@ fun FirstScreen(navController: NavController) {
     }
     
     val selectCardsForCrib = {
+        Log.i("CribbageGame", "Select cards for crib called, selected cards: ${selectedCards.size}")
         if (selectedCards.size != 2) {
             gameStatus = context.getString(R.string.select_exactly_two)
+            Log.i("CribbageGame", "Not enough cards selected for crib")
         } else {
             // Get indices of selected cards
             val selectedIndices = selectedCards.toList().sortedDescending()
+            val selectedPlayerCards = selectedIndices.map { playerHand[it] }
+            Log.i("CribbageGame", "Cards selected for crib: $selectedPlayerCards")
             
             // Randomly select two cards from opponent's hand for crib
             val opponentCribCards = opponentHand.shuffled().take(2)
+            Log.i("CribbageGame", "Opponent cards for crib: $opponentCribCards")
             
             // Remove selected cards from player's hand
             val remainingPlayerCards = playerHand.filterIndexed { index, _ -> !selectedCards.contains(index) }
@@ -115,6 +132,7 @@ fun FirstScreen(navController: NavController) {
             // Cut a card for the starter
             val newDeck = createDeck().shuffled()
             starterCard = newDeck.first()
+            Log.i("CribbageGame", "Starter card: ${starterCard?.getSymbol()}")
             
             // Start pegging phase
             isPeggingPhase = true
@@ -123,6 +141,7 @@ fun FirstScreen(navController: NavController) {
             showPeggingCount = true
             peggingCount = 0
             
+            Log.i("CribbageGame", "Starting pegging phase, player turn: $isPlayerTurn")
             if (isPlayerTurn) {
                 gameStatus = context.getString(R.string.pegging_your_turn)
             } else {
@@ -133,14 +152,17 @@ fun FirstScreen(navController: NavController) {
     }
     
     val toggleCardSelection = { cardIndex: Int ->
+        Log.i("CribbageGame", "Card selection toggled: $cardIndex")
         selectedCards = if (isPeggingPhase) {
             // During pegging, player can only select one playable card at a time
             if (isPlayerTurn && !playerCardsPlayed.contains(cardIndex)) {
                 // Check if card would exceed 31
                 val cardValue = playerHand[cardIndex].getValue()
                 if (peggingCount + cardValue <= 31) {
+                    Log.i("CribbageGame", "Card at index $cardIndex selected for play")
                     setOf(cardIndex)
                 } else {
+                    Log.i("CribbageGame", "Card at index $cardIndex cannot be played, would exceed 31")
                     gameStatus = context.getString(R.string.pegging_go)
                     emptySet()
                 }
@@ -150,8 +172,10 @@ fun FirstScreen(navController: NavController) {
         } else {
             // Original behavior for crib selection
             if (selectedCards.contains(cardIndex)) {
+                Log.i("CribbageGame", "Card at index $cardIndex deselected for crib")
                 selectedCards - cardIndex
             } else if (selectedCards.size < 2) {
+                Log.i("CribbageGame", "Card at index $cardIndex selected for crib")
                 selectedCards + cardIndex
             } else {
                 selectedCards
@@ -160,11 +184,14 @@ fun FirstScreen(navController: NavController) {
     }
     
     val playSelectedCard = {
+        Log.i("CribbageGame", "Play selected card called")
         if (isPeggingPhase && isPlayerTurn && selectedCards.isNotEmpty()) {
             val cardIndex = selectedCards.first()
+            Log.i("CribbageGame", "Playing card at index $cardIndex")
             
             if (cardIndex < playerHand.size && !playerCardsPlayed.contains(cardIndex)) {
                 val playedCard = playerHand[cardIndex]
+                Log.i("CribbageGame", "Player playing card: ${playedCard.getSymbol()}")
                 
                 // Add card to pegging pile
                 peggingPile = peggingPile + playedCard
@@ -172,6 +199,7 @@ fun FirstScreen(navController: NavController) {
                 
                 // Update pegging count
                 peggingCount += playedCard.getValue()
+                Log.i("CribbageGame", "New pegging count: $peggingCount")
                 
                 // Clear selection
                 selectedCards = emptySet()
@@ -180,6 +208,7 @@ fun FirstScreen(navController: NavController) {
                 
                 // Check if count reached 31
                 if (peggingCount == 31) {
+                    Log.i("CribbageGame", "Count reached 31; resetting to 0")
                     peggingCount = 0
                     consecutiveGoes = 0
                 }
@@ -187,6 +216,7 @@ fun FirstScreen(navController: NavController) {
                 // Switch to opponent's turn
                 isPlayerTurn = false
                 gameStatus = context.getString(R.string.pegging_opponent_turn)
+                Log.i("CribbageGame", "Switching to opponent's turn")
                 
                 // Simulate opponent's turn
                 if (opponentHand.isNotEmpty()) {
@@ -196,24 +226,29 @@ fun FirstScreen(navController: NavController) {
                         val playableCards = opponentHand.filter { card -> 
                             card.getValue() + peggingCount <= 31 && !opponentCardsPlayed.contains(opponentHand.indexOf(card))
                         }
+                        Log.i("CribbageGame", "Opponent has ${playableCards.size} playable cards")
                         
                         if (playableCards.isNotEmpty()) {
                             // Choose a card to play
                             val cardToPlay = playableCards.random()
                             val cardIndex = opponentHand.indexOf(cardToPlay)
+                            Log.i("CribbageGame", "Opponent playing card: ${cardToPlay.getSymbol()}")
                             
                             // Play the card
                             peggingPile = peggingPile + cardToPlay
                             opponentCardsPlayed = opponentCardsPlayed + cardIndex
                             peggingCount += cardToPlay.getValue()
+                            Log.i("CribbageGame", "New pegging count after opponent play: $peggingCount")
                             
                             // Update UI
                             gameStatus = "Opponent played ${cardToPlay.getSymbol()}"
                             
                             // Switch back to player's turn
                             isPlayerTurn = true
+                            Log.i("CribbageGame", "Switching back to player's turn")
                         } else {
                             // Opponent can't play
+                            Log.i("CribbageGame", "Opponent cannot play; says GO")
                             gameStatus = "Opponent says GO!"
                             isPlayerTurn = true
                         }

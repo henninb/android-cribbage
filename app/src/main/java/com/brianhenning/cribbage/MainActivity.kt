@@ -1,6 +1,7 @@
 package com.brianhenning.cribbage
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,7 +28,9 @@ import com.brianhenning.cribbage.ui.theme.CribbageTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.i("CribbageGame", "MainActivity onCreate")
         setContent {
+            Log.i("CribbageGame", "Setting up Compose content")
             CribbageTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -38,11 +41,22 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    
+    override fun onResume() {
+        super.onResume()
+        Log.i("CribbageGame", "MainActivity onResume")
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        Log.i("CribbageGame", "MainActivity onPause")
+    }
 }
 
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
+    Log.i("CribbageGame", "MainScreen composable function called")
     val items = listOf(
         Screen.First,
         Screen.Second,
@@ -63,12 +77,15 @@ fun MainScreen() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.First.route) {
+                Log.i("CribbageGame", "Navigating to FirstScreen")
                 FirstScreen(navController)
             }
             composable(Screen.Second.route) {
+                Log.i("CribbageGame", "Navigating to SecondScreen")
                 SecondScreen(navController)
             }
             composable(Screen.Third.route) {
+                Log.i("CribbageGame", "Navigating to ThirdScreen")
                 ThirdScreen(navController)
             }
         }
