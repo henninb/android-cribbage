@@ -37,6 +37,7 @@ class FirstFragment : Fragment() {
     private val opponentCardsPlayed = mutableSetOf<Int>()
     // The last player to successfully play a card ("player" or "opponent")
     private var lastPlayerWhoPlayed: String? = null
+    private var opponentSaidGo = false
 
     // Card representation
     enum class Suit { HEARTS, DIAMONDS, CLUBS, SPADES }
@@ -360,37 +361,53 @@ class FirstFragment : Fragment() {
             Log.i("FirstFragment", "Cannot play card: Not player's turn or no selection")
             return
         }
+        opponentSaidGo = false  // Clear the flag on human action.
         val cardIndex = selectedCards.first()
         if (cardIndex >= playerHand.size || playerCardsPlayed.contains(cardIndex)) {
             Log.i("FirstFragment", "Invalid card index $cardIndex or card already played")
             return
         }
-
-        // Process the play.
         processPlay(isPlayer = true, cardIndex = cardIndex)
         selectedCards.clear()
         updateCardSelections()
     }
 
-    // Called when the human player presses the Go button.
     private fun sayGo() {
         Log.i("FirstFragment", "sayGo called by player")
         if (!isPeggingPhase || !isPlayerTurn) return
+        opponentSaidGo = false  // Clear the flag when the player says Go.
         binding.textViewGameStatus.text = "You say GO!"
         Log.i("FirstFragment", "Player says GO!")
-        // Check if opponent can play.
         if (opponentCanPlay()) {
             isPlayerTurn = false
             Log.i("FirstFragment", "Opponent can play after GO; switching turn")
-            // Give the opponent a chance to play.
             view?.postDelayed({ playOpponentCard() }, 1000)
         } else {
             Log.i("FirstFragment", "Neither player can play after GO; awarding point and ending sub-round")
-            // Neither can play—award last card point and end the sub-round.
             awardGoPoint()
             endSubRound()
         }
     }
+
+//    // Called when the human player presses the Go button.
+//    private fun sayGo() {
+//        Log.i("FirstFragment", "sayGo called by player")
+//        if (!isPeggingPhase || !isPlayerTurn) return
+//        binding.textViewGameStatus.text = "You say GO!"
+//        Log.i("FirstFragment", "Player says GO!")
+//        // Check if opponent can play.
+//        if (opponentCanPlay()) {
+//            isPlayerTurn = false
+//            Log.i("FirstFragment", "Opponent can play after GO; switching turn")
+//            // Give the opponent a chance to play.
+//            view?.postDelayed({ playOpponentCard() }, 1000)
+//        } else {
+//            Log.i("FirstFragment", "Neither player can play after GO; awarding point and ending sub-round")
+//            // Neither can play—award last card point and end the sub-round.
+//            awardGoPoint()
+//            endSubRound()
+//        }
+//    }
 
     // Process a card play (by human or opponent)
     private fun processPlay(isPlayer: Boolean, cardIndex: Int) {
@@ -467,7 +484,7 @@ class FirstFragment : Fragment() {
         return canPlay
     }
 
-    // Opponent's turn.
+
     private fun playOpponentCard() {
         Log.i("FirstFragment", "Opponent's turn started")
         if (!isPeggingPhase) return
@@ -487,6 +504,7 @@ class FirstFragment : Fragment() {
             // Opponent cannot play. Simulate opponent saying GO.
             binding.textViewGameStatus.text = "Opponent says GO!"
             Log.i("FirstFragment", "Opponent cannot play; says GO")
+            opponentSaidGo = true
             // Now check if the human player can play.
             if (checkPlayerCanPlayAnyCard()) {
                 isPlayerTurn = true
@@ -515,14 +533,13 @@ class FirstFragment : Fragment() {
         }
     }
 
-    // Ends the current sub-round of pegging (resetting the running total)
     private fun endSubRound() {
         Log.i("FirstFragment", "Ending sub-round")
         peggingCount = 0
         binding.textViewPeggingCount.text = "Count: 0"
         peggingPile.clear()
-        // The next sub-round is led by the player who last played a card.
-        isPlayerTurn = (lastPlayerWhoPlayed == "player")
+        // The next sub-round is led by the player who did NOT play the last card.
+        isPlayerTurn = (lastPlayerWhoPlayed != "player")
         Log.i("FirstFragment", "Next sub-round lead: ${if (isPlayerTurn) "Player" else "Opponent"}")
         if (allCardsPlayed()) {
             finishPeggingPhase()
@@ -532,11 +549,35 @@ class FirstFragment : Fragment() {
         }
     }
 
+//    // Ends the current sub-round of pegging (resetting the running total)
+//    private fun endSubRound() {
+//        Log.i("FirstFragment", "Ending sub-round")
+//        peggingCount = 0
+//        binding.textViewPeggingCount.text = "Count: 0"
+//        peggingPile.clear()
+//        // The next sub-round is led by the player who last played a card.
+//        isPlayerTurn = (lastPlayerWhoPlayed != "player")
+//        Log.i("FirstFragment", "Next sub-round lead: ${if (isPlayerTurn) "Player" else "Opponent"}")
+//        if (allCardsPlayed()) {
+//            finishPeggingPhase()
+//        } else {
+//            binding.textViewGameStatus.append("\nNew sub-round begins. " + if (isPlayerTurn) "Your turn." else "Opponent's turn.")
+//            nextTurn()
+//        }
+//    }
+
     // Update UI for the human player's pegging turn.
     private fun updatePlayerPeggingUI() {
-        Log.i("FirstFragment", "updatePlayerPeggingUI called; isPlayerTurn = $isPlayerTurn")
+        Log.i("FirstFragment", "updatePlayerPeggingUI called; isPlayerTurn = $isPlayerTurn, opponentSaidGo = $opponentSaidGo")
         if (isPlayerTurn) {
-            if (checkPlayerCanPlayAnyCard()) {
+            if (opponentSaidGo) {
+                // Force show the Go button if the opponent just said GO.
+                binding.buttonPlayCard.isEnabled = false
+                binding.buttonSayGo.visibility = View.VISIBLE
+                binding.buttonSayGo.isEnabled = true
+                binding.textViewGameStatus.text = "Opponent said GO. Press Go if you can't (or don't want to) play a card."
+                Log.i("FirstFragment", "Opponent said GO; showing Go button")
+            } else if (checkPlayerCanPlayAnyCard()) {
                 binding.buttonPlayCard.isEnabled = selectedCards.isNotEmpty()
                 binding.buttonSayGo.visibility = View.GONE
                 Log.i("FirstFragment", "Player has playable cards; hiding Go button")
@@ -622,11 +663,20 @@ class FirstFragment : Fragment() {
         return score
     }
 
+
     private fun updateScores() {
         binding.textViewPlayerScore.text = "Your Score: $playerScore"
         binding.textViewOpponentScore.text = "Opponent Score: $opponentScore"
+        // Append a score update message so the user sees it.
+        binding.textViewGameStatus.append("\nScore updated: You $playerScore - Opponent $opponentScore")
         Log.i("FirstFragment", "Scores updated: Player: $playerScore, Opponent: $opponentScore")
     }
+
+//    private fun updateScores() {
+//        binding.textViewPlayerScore.text = "Your Score: $playerScore"
+//        binding.textViewOpponentScore.text = "Opponent Score: $opponentScore"
+//        Log.i("FirstFragment", "Scores updated: Player: $playerScore, Opponent: $opponentScore")
+//    }
 
     // Check if both players have played all their cards.
     private fun allCardsPlayed(): Boolean {
