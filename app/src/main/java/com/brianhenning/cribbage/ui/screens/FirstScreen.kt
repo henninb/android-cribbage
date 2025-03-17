@@ -59,29 +59,91 @@ fun FirstScreen(navController: NavController) {
     var goButtonEnabled by remember { mutableStateOf(false) }
     var showPeggingCount by remember { mutableStateOf(false) }
 
-    // Scoring function: checks for 15 or 31 and awards 2 points.
+    // Expanded scoring function: awards points for 15's, 31's, pairs, and runs.
     val checkPeggingScore: (Boolean, Card) -> Unit = { isPlayer, playedCard ->
+        // 15's & 31's
         if (peggingCount == 15) {
             if (isPlayer) {
                 playerScore += 2
                 gameStatus += "\nScored 2 for 15 by You!"
-                Log.i("CribbageGame", "Player scored 2 for fifteen. Count: $peggingCount")
             } else {
                 opponentScore += 2
                 gameStatus += "\nScored 2 for 15 by Opponent!"
-                Log.i("CribbageGame", "Opponent scored 2 for fifteen. Count: $peggingCount")
             }
+            Log.i("CribbageGame", "Scored 2 for fifteen. Count: $peggingCount")
         }
         if (peggingCount == 31) {
             if (isPlayer) {
                 playerScore += 2
                 gameStatus += "\nScored 2 for 31 by You!"
-                Log.i("CribbageGame", "Player scored 2 for thirty-one. Count: $peggingCount")
             } else {
                 opponentScore += 2
                 gameStatus += "\nScored 2 for 31 by Opponent!"
-                Log.i("CribbageGame", "Opponent scored 2 for thirty-one. Count: $peggingCount")
             }
+            Log.i("CribbageGame", "Scored 2 for thirty-one. Count: $peggingCount")
+        }
+        // Pairs scoring: count consecutive cards (including the just played card)
+        var sameRankCount = 1
+        for (i in peggingPile.size - 2 downTo 0) {
+            if (peggingPile[i].rank == playedCard.rank) {
+                sameRankCount++
+            } else {
+                break
+            }
+        }
+        when (sameRankCount) {
+            2 -> {
+                if (isPlayer) {
+                    playerScore += 2
+                    gameStatus += "\nScored 2 for a pair by You!"
+                } else {
+                    opponentScore += 2
+                    gameStatus += "\nScored 2 for a pair by Opponent!"
+                }
+                Log.i("CribbageGame", "Scored 2 for a pair.")
+            }
+            3 -> {
+                if (isPlayer) {
+                    playerScore += 6
+                    gameStatus += "\nScored 6 for three-of-a-kind by You!"
+                } else {
+                    opponentScore += 6
+                    gameStatus += "\nScored 6 for three-of-a-kind by Opponent!"
+                }
+                Log.i("CribbageGame", "Scored 6 for three-of-a-kind.")
+            }
+            in 4..Int.MAX_VALUE -> {
+                if (isPlayer) {
+                    playerScore += 12
+                    gameStatus += "\nScored 12 for four-of-a-kind by You!"
+                } else {
+                    opponentScore += 12
+                    gameStatus += "\nScored 12 for four-of-a-kind by Opponent!"
+                }
+                Log.i("CribbageGame", "Scored 12 for four-of-a-kind.")
+            }
+        }
+        // Runs scoring: only score the longest run at the tail (minimum 3 cards)
+        var runScore = 0
+        for (runLength in peggingPile.size downTo 3) {
+            if (peggingPile.size >= runLength) {
+                val lastCards = peggingPile.takeLast(runLength)
+                val ordinals = lastCards.map { it.rank.ordinal }.sorted()
+                if (ordinals.zipWithNext().all { (a, b) -> b - a == 1 }) {
+                    runScore = runLength
+                    break
+                }
+            }
+        }
+        if (runScore > 0) {
+            if (isPlayer) {
+                playerScore += runScore
+                gameStatus += "\nScored $runScore for a run by You!"
+            } else {
+                opponentScore += runScore
+                gameStatus += "\nScored $runScore for a run by Opponent!"
+            }
+            Log.i("CribbageGame", "Scored $runScore for a run.")
         }
     }
 
@@ -183,7 +245,6 @@ fun FirstScreen(navController: NavController) {
                         isPlayerTurn = true
                         gameStatus = context.getString(R.string.pegging_your_turn)
                     } else {
-                        // Added else branch to handle when no playable cards are available.
                         Log.i("CribbageGame", "Opponent cannot play; says GO")
                         gameStatus = "Opponent says GO!"
                         goButtonEnabled = true
@@ -191,7 +252,7 @@ fun FirstScreen(navController: NavController) {
                     }
                 }, 1000)
             } else {
-
+                Log.i("CribbageGame", "this branch needs to be fixed")
             }
         }
     }
@@ -284,34 +345,43 @@ fun FirstScreen(navController: NavController) {
     }
 
     val sayGo = {
-        Log.i("CribbageGame", "Player says GO")
-        gameStatus = "You say GO!"
-        Handler(Looper.getMainLooper()).postDelayed({
-            val opponentPlayable = opponentHand.filter { card ->
-                card.getValue() + peggingCount <= 31 &&
-                        !opponentCardsPlayed.contains(opponentHand.indexOf(card))
-            }
-            if (opponentPlayable.isNotEmpty()) {
-                isPlayerTurn = false
-                val cardToPlay = opponentPlayable.random()
-                val oppCardIndex = opponentHand.indexOf(cardToPlay)
-                Log.i("CribbageGame", "Opponent playing card after GO: ${cardToPlay.getSymbol()}")
-                peggingPile = peggingPile + cardToPlay
-                opponentCardsPlayed = opponentCardsPlayed + oppCardIndex
-                peggingCount += cardToPlay.getValue()
-                Log.i("CribbageGame", "New pegging count after opponent play: $peggingCount")
-                gameStatus = "Opponent played ${cardToPlay.getSymbol()}"
-                checkPeggingScore(false, cardToPlay)
-                isPlayerTurn = true
-                goButtonEnabled = false
-            } else {
-                Log.i("CribbageGame", "Neither player can play after GO; awarding point and resetting")
-                gameStatus = "No one can play. Resetting count."
-                peggingCount = 0
-                consecutiveGoes = 0
-                goButtonEnabled = false
-            }
-        }, 1000)
+        // Only allow GO if the player has no legal plays.
+        val playerPlayable = playerHand.filterIndexed { index, card ->
+            !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
+        }
+        if (playerPlayable.isNotEmpty()) {
+            Log.i("CribbageGame", "Player still has playable cards, cannot say GO")
+            gameStatus = "You still have playable cards, you cannot say GO."
+        } else {
+            Log.i("CribbageGame", "Player says GO")
+            gameStatus = "You say GO!"
+            Handler(Looper.getMainLooper()).postDelayed({
+                val opponentPlayable = opponentHand.filter { card ->
+                    card.getValue() + peggingCount <= 31 &&
+                            !opponentCardsPlayed.contains(opponentHand.indexOf(card))
+                }
+                if (opponentPlayable.isNotEmpty()) {
+                    isPlayerTurn = false
+                    val cardToPlay = opponentPlayable.random()
+                    val oppCardIndex = opponentHand.indexOf(cardToPlay)
+                    Log.i("CribbageGame", "Opponent playing card after GO: ${cardToPlay.getSymbol()}")
+                    peggingPile = peggingPile + cardToPlay
+                    opponentCardsPlayed = opponentCardsPlayed + oppCardIndex
+                    peggingCount += cardToPlay.getValue()
+                    Log.i("CribbageGame", "New pegging count after opponent play: $peggingCount")
+                    gameStatus = "Opponent played ${cardToPlay.getSymbol()}"
+                    checkPeggingScore(false, cardToPlay)
+                    isPlayerTurn = true
+                    goButtonEnabled = false
+                } else {
+                    Log.i("CribbageGame", "Neither player can play after GO; awarding point and resetting")
+                    gameStatus = "No one can play. Resetting count."
+                    peggingCount = 0
+                    consecutiveGoes = 0
+                    goButtonEnabled = false
+                }
+            }, 1000)
+        }
     }
 
     Column(
