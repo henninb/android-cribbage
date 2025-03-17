@@ -11,7 +11,7 @@ import androidx.core.content.ContextCompat
 import com.brianhenning.cribbage.databinding.FirstFragmentBinding
 import kotlin.random.Random
 
-class FirstFragment : Fragment() {
+class FirstScreen : Fragment() {
 
     private var _binding: FirstFragmentBinding? = null
     private val binding get() = _binding!!
