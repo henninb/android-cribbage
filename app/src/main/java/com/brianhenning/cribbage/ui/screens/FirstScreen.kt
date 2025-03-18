@@ -56,7 +56,6 @@ fun FirstScreen() {
     var dealButtonEnabled by remember { mutableStateOf(false) }
     var selectCribButtonEnabled by remember { mutableStateOf(false) }
     var playCardButtonEnabled by remember { mutableStateOf(false) }
-    var goButtonEnabled by remember { mutableStateOf(false) }
     var showPeggingCount by remember { mutableStateOf(false) }
 
     // Revised checkPeggingScore lambda with improved run scoring logic.
@@ -157,15 +156,23 @@ fun FirstScreen() {
         val opponentLegal = opponentHand.filterIndexed { index, card ->
             !opponentCardsPlayed.contains(index) && (card.getValue() + peggingCount <= 31)
         }
+        
         if (playerLegal.isEmpty() && opponentLegal.isEmpty()) {
             isPeggingPhase = false
             gameStatus += "\nPegging phase complete. Proceed to hand scoring."
             Log.i("CribbageGame", "No legal plays remain; pegging phase ended.")
         }
     }
-
-    // Changed resetSubRound from a lambda to a local function so that it is visible in nested lambdas.
-    fun resetSubRound(resetFor31: Boolean) {
+    
+    // Forward declarations to allow for mutual recursion
+    val resetSubRoundRef = remember { mutableStateOf<(Boolean) -> Unit>({_->}) }
+    val autoHandleGoRef = remember { mutableStateOf<() -> Unit>({}) }
+    val playSelectedCardRef = remember { mutableStateOf<() -> Unit>({}) }
+    
+    resetSubRoundRef.value = resetFn@ { resetFor31 ->
+        Log.i("CribbageGame", "Resetting sub-round (resetFor31=$resetFor31, lastPlayerWhoPlayed=$lastPlayerWhoPlayed)")
+        
+        // Award "go" point if applicable (when not resetting for 31 points)
         if (!resetFor31 && lastPlayerWhoPlayed != null) {
             if (lastPlayerWhoPlayed == "player") {
                 playerScore += 1
@@ -177,71 +184,181 @@ fun FirstScreen() {
                 Log.i("CribbageGame", "Opponent awarded 1 go point")
             }
         }
+        
+        // Reset pegging state for the new sub-round
         peggingCount = 0
         peggingPile = emptyList()
         consecutiveGoes = 0
+        
         // Determine who leads next sub-round based on who did not play last.
         isPlayerTurn = (lastPlayerWhoPlayed != "player")
         lastPlayerWhoPlayed = null
+        
         gameStatus += "\nNew sub-round begins. " + if (isPlayerTurn)
             context.getString(R.string.pegging_your_turn)
         else
             context.getString(R.string.pegging_opponent_turn)
-        // When it's the player's turn, re-enable the Play Card button and disable Go.
-        if (isPlayerTurn) {
-            playCardButtonEnabled = true
-            goButtonEnabled = false
-        }
-        // Check if any legal plays remain for either player.
+        
+        // Check if the entire pegging phase is complete
         checkPeggingPhaseComplete()
-        // If sub-round is still active and it's opponent's turn, trigger opponent move.
-        if (isPeggingPhase && !isPlayerTurn) {
+        
+        // If pegging phase is complete, don't continue
+        if (!isPeggingPhase) {
+            // Exit early without doing anything else
+            return@resetFn
+        }
+        
+        // Continue playing if the pegging phase is still active
+        if (isPlayerTurn) {
+            // It's player's turn, enable interaction
+            playCardButtonEnabled = true
+            // Check if player has any legal moves
+            val playerPlayable = playerHand.filterIndexed { index, card ->
+                !playerCardsPlayed.contains(index) && (card.getValue() <= 31)
+            }
+            
+            if (playerPlayable.isEmpty()) {
+                // Player has no legal moves, auto-handle go
+                Log.i("CribbageGame", "Player has no legal moves at start of new sub-round")
+                Handler(Looper.getMainLooper()).postDelayed({
+                    autoHandleGoRef.value()
+                }, 500)
+            }
+        } else {
+            // It's opponent's turn, trigger their move
             Handler(Looper.getMainLooper()).postDelayed({
                 val chosen = chooseSmartOpponentCard(opponentHand, opponentCardsPlayed, peggingCount, peggingPile)
+                
                 if (chosen != null) {
                     val (cardIndex, cardToPlay) = chosen
                     Log.i("CribbageGame", "Opponent playing card in new sub-round: ${cardToPlay.getSymbol()}")
+                    
                     peggingPile = peggingPile + cardToPlay
                     opponentCardsPlayed = opponentCardsPlayed + cardIndex
                     peggingCount += cardToPlay.getValue()
                     lastPlayerWhoPlayed = "opponent"
+                    
                     Log.i("CribbageGame", "New pegging count after opponent play in new sub-round: $peggingCount")
                     gameStatus = "Opponent played ${cardToPlay.getSymbol()}"
                     checkPeggingScore(false, cardToPlay)
+                    
                     if (peggingCount == 31) {
-                        resetSubRound(true)
+                        resetSubRoundRef.value(true)
                     } else {
                         consecutiveGoes = 0
                         isPlayerTurn = true
+                        
                         val playerPlayable = playerHand.filterIndexed { index, card ->
                             !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
                         }
+                        
                         if (playerPlayable.isEmpty()) {
-                            consecutiveGoes++
-                            gameStatus = "No playable card. Press Go."
-                            goButtonEnabled = true
+                            autoHandleGoRef.value()
                         } else {
                             playCardButtonEnabled = true
+                            gameStatus += "\n${context.getString(R.string.pegging_your_turn)}"
                         }
                     }
                 } else {
-                    consecutiveGoes++
-                    gameStatus = "Opponent says GO!"
-                    goButtonEnabled = true
-                    isPlayerTurn = true
+                    // Opponent has no legal moves
+                    Log.i("CribbageGame", "Opponent has no legal moves at start of new sub-round")
+                    autoHandleGoRef.value()
                 }
             }, 1000)
         }
     }
 
-    // Revised card selection behavior.
+    autoHandleGoRef.value = {
+        consecutiveGoes++
+        gameStatus = if (isPlayerTurn) "You say GO!" else "Opponent says GO!"
+        Log.i("CribbageGame", "Auto-handling GO for ${if (isPlayerTurn) "player" else "opponent"}")
+        
+        // If both players say GO, start a new sub-round
+        if (consecutiveGoes >= 2) {
+            Log.i("CribbageGame", "Both players said GO, resetting sub-round")
+            resetSubRoundRef.value(false)
+        } else {
+            Handler(Looper.getMainLooper()).postDelayed({
+                // Switch turn to the other player.
+                isPlayerTurn = !isPlayerTurn
+                
+                if (isPlayerTurn) {
+                    // Now it's player's turn.
+                    val playerPlayable = playerHand.filterIndexed { index, card ->
+                        !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
+                    }
+                    
+                    if (playerPlayable.isEmpty()) {
+                        Log.i("CribbageGame", "Player has no legal moves after GO")
+                        autoHandleGoRef.value()
+                    } else {
+                        playCardButtonEnabled = true
+                        gameStatus += "\n${context.getString(R.string.pegging_your_turn)}"
+                        Log.i("CribbageGame", "Player's turn after GO - ${playerPlayable.size} legal moves")
+                    }
+                } else {
+                    // Now it's opponent's turn.
+                    val chosen = chooseSmartOpponentCard(opponentHand, opponentCardsPlayed, peggingCount, peggingPile)
+                    
+                    if (chosen != null) {
+                        val (oppCardIndex, cardToPlay) = chosen
+                        Log.i("CribbageGame", "Opponent playing card after GO: ${cardToPlay.getSymbol()}")
+                        
+                        peggingPile = peggingPile + cardToPlay
+                        opponentCardsPlayed = opponentCardsPlayed + oppCardIndex
+                        peggingCount += cardToPlay.getValue()
+                        lastPlayerWhoPlayed = "opponent"
+                        gameStatus = "Opponent played ${cardToPlay.getSymbol()}"
+                        checkPeggingScore(false, cardToPlay)
+                        
+                        if (peggingCount == 31) {
+                            resetSubRoundRef.value(true)
+                        } else {
+                            // After opponent plays, switch turn back to player.
+                            consecutiveGoes = 0
+                            isPlayerTurn = true
+                            
+                            val playerPlayableAfter = playerHand.filterIndexed { index, card ->
+                                !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
+                            }
+                            
+                            if (playerPlayableAfter.isEmpty()) {
+                                autoHandleGoRef.value()
+                            } else {
+                                playCardButtonEnabled = true
+                                gameStatus += "\n${context.getString(R.string.pegging_your_turn)}"
+                            }
+                        }
+                    } else {
+                        // Opponent cannot play; needs to say GO.
+                        Log.i("CribbageGame", "Opponent has no legal moves after GO")
+                        autoHandleGoRef.value()
+                    }
+                }
+            }, 1000)
+        }
+    }
+
+    // Revised card selection behavior with auto-play during pegging phase
     val toggleCardSelection = { cardIndex: Int ->
         Log.i("CribbageGame", "Card selection toggled: $cardIndex")
         if (isPeggingPhase) {
             if (isPlayerTurn && !playerCardsPlayed.contains(cardIndex)) {
-                selectedCards = if (selectedCards.contains(cardIndex)) emptySet() else setOf(cardIndex)
+                val cardToPlay = playerHand[cardIndex]
+                // Check if this card can be legally played
+                if (peggingCount + cardToPlay.getValue() <= 31) {
+                    // Set the card as selected
+                    selectedCards = setOf(cardIndex)
+                    // Then automatically play it
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        playSelectedCardRef.value()
+                    }, 300) // Brief delay for visual feedback
+                } else {
+                    gameStatus = "Illegal move: ${cardToPlay.getSymbol()} would exceed 31."
+                }
             }
         } else {
+            // During crib selection phase, keep the original behavior
             selectedCards = if (selectedCards.contains(cardIndex)) {
                 selectedCards - cardIndex
             } else if (selectedCards.size < 2) {
@@ -275,7 +392,6 @@ fun FirstScreen() {
         dealButtonEnabled = true
         selectCribButtonEnabled = false
         playCardButtonEnabled = false
-        goButtonEnabled = false
         showPeggingCount = false
 
         gameStatus = context.getString(R.string.game_started)
@@ -331,7 +447,6 @@ fun FirstScreen() {
                 isPeggingPhase = true
                 isPlayerTurn = !isPlayerDealer
                 playCardButtonEnabled = true
-                goButtonEnabled = false
                 showPeggingCount = true
                 peggingCount = 0
                 gameStatus += "\nPegging phase begins. " + if (isPlayerTurn)
@@ -352,7 +467,7 @@ fun FirstScreen() {
                             gameStatus = "Opponent played ${cardToPlay.getSymbol()}"
                             checkPeggingScore(false, cardToPlay)
                             if (peggingCount == 31) {
-                                resetSubRound(true)
+                                resetSubRoundRef.value(true)
                             } else {
                                 consecutiveGoes = 0
                                 isPlayerTurn = true
@@ -360,18 +475,14 @@ fun FirstScreen() {
                                     !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
                                 }
                                 if (playerPlayable.isEmpty()) {
-                                    consecutiveGoes++
-                                    gameStatus = "No playable card. Press Go."
-                                    goButtonEnabled = true
+                                    autoHandleGoRef.value()
                                 } else {
                                     playCardButtonEnabled = true
                                 }
                             }
                         } else {
-                            consecutiveGoes++
-                            gameStatus = "Opponent says GO!"
-                            goButtonEnabled = true
                             isPlayerTurn = true
+                            autoHandleGoRef.value()
                         }
                     }, 1000)
                 }
@@ -379,7 +490,7 @@ fun FirstScreen() {
         }
     }
 
-    val playSelectedCard = let@{
+    playSelectedCardRef.value = {
         Log.i("CribbageGame", "Play selected card called")
         if (isPeggingPhase && isPlayerTurn && selectedCards.isNotEmpty()) {
             val cardIndex = selectedCards.first()
@@ -387,103 +498,67 @@ fun FirstScreen() {
             if (cardIndex < playerHand.size && !playerCardsPlayed.contains(cardIndex)) {
                 val playedCard = playerHand[cardIndex]
                 Log.i("CribbageGame", "Player playing card: ${playedCard.getSymbol()}")
+                
                 // Ensure that playing this card does not exceed 31.
-                if (peggingCount + playedCard.getValue() > 31) {
-                    gameStatus = "Illegal move: ${playedCard.getSymbol()} would exceed 31."
-                    Log.i("CribbageGame", "Illegal play attempted: count $peggingCount, card value ${playedCard.getValue()}")
-                    return@let
-                }
-                peggingPile = peggingPile + playedCard
-                playerCardsPlayed = playerCardsPlayed + cardIndex
-                peggingCount += playedCard.getValue()
-                lastPlayerWhoPlayed = "player"
-                Log.i("CribbageGame", "New pegging count: $peggingCount")
-                checkPeggingScore(true, playedCard)
-                selectedCards = emptySet()
-                if (peggingCount == 31) {
-                    Log.i("CribbageGame", "Count reached 31 after player's play")
-                    resetSubRound(true)
-                    return@let
-                }
-                isPlayerTurn = false
-                gameStatus = context.getString(R.string.pegging_opponent_turn)
-                Log.i("CribbageGame", "Switching to opponent's turn")
-                Handler(Looper.getMainLooper()).postDelayed({
-                    val chosen = chooseSmartOpponentCard(opponentHand, opponentCardsPlayed, peggingCount, peggingPile)
-                    if (chosen != null) {
-                        val (oppCardIndex, cardToPlay) = chosen
-                        Log.i("CribbageGame", "Opponent playing card: ${cardToPlay.getSymbol()}")
-                        peggingPile = peggingPile + cardToPlay
-                        opponentCardsPlayed = opponentCardsPlayed + oppCardIndex
-                        peggingCount += cardToPlay.getValue()
-                        lastPlayerWhoPlayed = "opponent"
-                        Log.i("CribbageGame", "New pegging count after opponent play: $peggingCount")
-                        gameStatus = "Opponent played ${cardToPlay.getSymbol()}"
-                        checkPeggingScore(false, cardToPlay)
-                        if (peggingCount == 31) {
-                            resetSubRound(true)
-                        } else {
-                            consecutiveGoes = 0
-                            isPlayerTurn = true
-                            val playerPlayable = playerHand.filterIndexed { index, card ->
-                                !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
-                            }
-                            if (playerPlayable.isEmpty()) {
-                                consecutiveGoes++
-                                gameStatus = "No playable card. Press Go."
-                                goButtonEnabled = true
-                            } else {
-                                playCardButtonEnabled = true
-                            }
-                        }
-                    } else {
-                        consecutiveGoes++
-                        gameStatus = "Opponent says GO!"
-                        goButtonEnabled = true
-                        isPlayerTurn = true
-                    }
-                }, 1000)
-            }
-        }
-    }
-
-    val sayGo = {
-        val playerPlayable = playerHand.filterIndexed { index, card ->
-            !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
-        }
-        if (playerPlayable.isNotEmpty()) {
-            Log.i("CribbageGame", "Player still has playable cards, cannot say GO")
-            gameStatus = "You still have playable cards; you cannot say GO."
-        } else {
-            Log.i("CribbageGame", "Player says GO")
-            consecutiveGoes++
-            gameStatus = "You say GO!"
-            Handler(Looper.getMainLooper()).postDelayed({
-                val chosen = chooseSmartOpponentCard(opponentHand, opponentCardsPlayed, peggingCount, peggingPile)
-                if (chosen != null) {
-                    isPlayerTurn = false
-                    val (oppCardIndex, cardToPlay) = chosen
-                    Log.i("CribbageGame", "Opponent playing card after GO: ${cardToPlay.getSymbol()}")
-                    peggingPile = peggingPile + cardToPlay
-                    opponentCardsPlayed = opponentCardsPlayed + oppCardIndex
-                    peggingCount += cardToPlay.getValue()
-                    lastPlayerWhoPlayed = "opponent"
-                    Log.i("CribbageGame", "New pegging count after opponent play: $peggingCount")
-                    gameStatus = "Opponent played ${cardToPlay.getSymbol()}"
-                    checkPeggingScore(false, cardToPlay)
+                if (peggingCount + playedCard.getValue() <= 31) {
+                    peggingPile = peggingPile + playedCard
+                    playerCardsPlayed = playerCardsPlayed + cardIndex
+                    peggingCount += playedCard.getValue()
+                    lastPlayerWhoPlayed = "player"
+                    Log.i("CribbageGame", "New pegging count: $peggingCount")
+                    gameStatus = "You played ${playedCard.getSymbol()}"
+                    checkPeggingScore(true, playedCard)
+                    selectedCards = emptySet()
+                    
                     if (peggingCount == 31) {
-                        resetSubRound(true)
+                        Log.i("CribbageGame", "Count reached 31 after player's play")
+                        resetSubRoundRef.value(true)
                     } else {
-                        consecutiveGoes = 0
-                        isPlayerTurn = true
-                        goButtonEnabled = false
+                        isPlayerTurn = false
+                        playCardButtonEnabled = false // Disable button during opponent's turn
+                        gameStatus += "\n${context.getString(R.string.pegging_opponent_turn)}"
+                        Log.i("CribbageGame", "Switching to opponent's turn")
+                        
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            val chosen = chooseSmartOpponentCard(opponentHand, opponentCardsPlayed, peggingCount, peggingPile)
+                            if (chosen != null) {
+                                val (oppCardIndex, cardToPlay) = chosen
+                                Log.i("CribbageGame", "Opponent playing card: ${cardToPlay.getSymbol()}")
+                                peggingPile = peggingPile + cardToPlay
+                                opponentCardsPlayed = opponentCardsPlayed + oppCardIndex
+                                peggingCount += cardToPlay.getValue()
+                                lastPlayerWhoPlayed = "opponent"
+                                Log.i("CribbageGame", "New pegging count after opponent play: $peggingCount")
+                                gameStatus = "Opponent played ${cardToPlay.getSymbol()}"
+                                checkPeggingScore(false, cardToPlay)
+                                
+                                if (peggingCount == 31) {
+                                    resetSubRoundRef.value(true)
+                                } else {
+                                    consecutiveGoes = 0
+                                    isPlayerTurn = true
+                                    val playerPlayable = playerHand.filterIndexed { index, card ->
+                                        !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
+                                    }
+                                    
+                                    if (playerPlayable.isEmpty()) {
+                                        autoHandleGoRef.value()
+                                    } else {
+                                        playCardButtonEnabled = true
+                                        gameStatus += "\n${context.getString(R.string.pegging_your_turn)}"
+                                    }
+                                }
+                            } else {
+                                isPlayerTurn = true
+                                autoHandleGoRef.value()
+                            }
+                        }, 1000)
                     }
                 } else {
-                    Log.i("CribbageGame", "Neither player can play after GO; ending sub-round")
-                    consecutiveGoes++
-                    resetSubRound(false)
+                    gameStatus = "Illegal move: ${playedCard.getSymbol()} would exceed 31."
+                    Log.i("CribbageGame", "Illegal play attempted: count $peggingCount, card value ${playedCard.getValue()}")
                 }
-            }, 1000)
+            }
         }
     }
 
@@ -632,20 +707,6 @@ fun FirstScreen() {
             ) {
                 Text(text = "Select for Crib")
             }
-            Button(
-                onClick = { playSelectedCard() },
-                enabled = playCardButtonEnabled && selectedCards.isNotEmpty(),
-                modifier = Modifier.padding(horizontal = 4.dp)
-            ) {
-                Text(text = "Play Card")
-            }
-            Button(
-                onClick = { sayGo() },
-                enabled = goButtonEnabled,
-                modifier = Modifier.padding(horizontal = 4.dp)
-            ) {
-                Text(text = "Go")
-            }
         }
     }
 }
@@ -738,7 +799,7 @@ fun getCardResourceId(card: Card): Int {
  * - Immediate scoring opportunities for 15 or 31.
  * - Pair potential (if the card matches the last card played).
  * - Run potential (if adding the card helps form a run of 3 or more).
- * - Leaving a high count (above 25) to limit the opponent’s moves.
+ * - Leaving a high count (above 25) to limit the opponent's moves.
  *
  * Returns a Pair of the card's index and the card itself.
  */
@@ -748,39 +809,56 @@ fun chooseSmartOpponentCard(
     currentCount: Int,
     peggingPile: List<Card>
 ): Pair<Int, Card>? {
+    // Filter for legal moves (cards that wouldn't exceed 31 when played)
     val legalMoves = hand.withIndex().filter { (index, card) ->
         !playedIndices.contains(index) && (currentCount + card.getValue() <= 31)
     }
     if (legalMoves.isEmpty()) return null
 
+    // Evaluate each possible move
     fun evaluateMove(card: Card): Int {
         var score = 0
         val newCount = currentCount + card.getValue()
-        // High bonus for immediate scoring opportunities.
+        
+        // High bonus for immediate scoring opportunities
         if (newCount == 15) score += 100
         if (newCount == 31) score += 100
 
-        // Bonus for forming a pair with the last card in the pegging pile.
+        // Bonus for forming a pair with the last card in the pegging pile
         if (peggingPile.isNotEmpty() && peggingPile.last().rank == card.rank) {
             score += 50
+            
+            // Check for three of a kind (even higher bonus)
+            if (peggingPile.size >= 2 && peggingPile[peggingPile.size - 2].rank == card.rank) {
+                score += 50  // Additional bonus for three of a kind
+            }
         }
 
-        // Check for run potential.
+        // Check for run potential
         val newPile = peggingPile + card
-        for (runLength in newPile.size downTo 3) {
+        for (runLength in minOf(newPile.size, 7) downTo 3) {  // Cap at 7 for performance
             val lastCards = newPile.takeLast(runLength)
-            val sortedRanks = lastCards.map { it.rank.ordinal }.sorted()
-            if (sortedRanks.distinct().size == runLength && sortedRanks.zipWithNext().all { it.second - it.first == 1 }) {
-                score += runLength * 10
+            val ranks = lastCards.map { it.rank.ordinal }
+            val distinctRanks = ranks.distinct().sorted()
+            
+            // Check if we have consecutive ranks forming a run
+            if (distinctRanks.size == runLength && 
+                distinctRanks.zipWithNext().all { (a, b) -> b - a == 1 }) {
+                score += runLength * 10  // Higher bonus for longer runs
                 break
             }
         }
-        // Bonus for leaving a high count to limit opponent options.
+        
+        // Bonus for leaving a high count to limit opponent options
         if (newCount >= 25) score += 20
+        
+        // Prefer cards with high value when count is low
+        if (currentCount < 10) score += card.getValue()
 
         return score
     }
 
-    val bestMove = legalMoves.maxByOrNull { evaluateMove(it.value) }
+    // Find the move with highest score
+    val bestMove = legalMoves.maxByOrNull { (_, card) -> evaluateMove(card) }
     return bestMove?.let { Pair(it.index, it.value) }
 }
