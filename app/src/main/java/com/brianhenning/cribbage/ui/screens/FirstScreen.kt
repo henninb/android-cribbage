@@ -23,6 +23,8 @@ import androidx.compose.ui.zIndex
 import com.brianhenning.cribbage.R
 import com.brianhenning.cribbage.ui.theme.CardBackground
 import com.brianhenning.cribbage.ui.theme.SelectedCard
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 @Composable
@@ -40,6 +42,7 @@ fun FirstScreen() {
     var isPlayerDealer by remember { mutableStateOf(false) }
     var playerHand by remember { mutableStateOf<List<Card>>(emptyList()) }
     var opponentHand by remember { mutableStateOf<List<Card>>(emptyList()) }
+    var cribHand by remember { mutableStateOf<List<Card>>(emptyList()) }  // new variable for the crib
     var selectedCards by remember { mutableStateOf<Set<Int>>(emptySet()) }
 
     // Pegging state variables
@@ -61,6 +64,9 @@ fun FirstScreen() {
     var playCardButtonEnabled by remember { mutableStateOf(false) }
     var showPeggingCount by remember { mutableStateOf(false) }
     var showHandCountingButton by remember { mutableStateOf(false) } // New state
+
+    // Remember a coroutine scope for the hand counting process
+    val scope = rememberCoroutineScope()
 
     // Revised checkPeggingScore lambda with improved run scoring logic.
     val checkPeggingScore: (Boolean, Card) -> Unit = { isPlayer, playedCard ->
@@ -349,6 +355,7 @@ fun FirstScreen() {
         opponentScore = 0
         playerHand = emptyList()
         opponentHand = emptyList()
+        cribHand = emptyList()
         selectedCards = emptySet()
 
         isPeggingPhase = false
@@ -375,6 +382,7 @@ fun FirstScreen() {
         opponentScore = 0
         playerHand = emptyList()
         opponentHand = emptyList()
+        cribHand = emptyList()
         selectedCards = emptySet()
 
         isPeggingPhase = false
@@ -423,6 +431,9 @@ fun FirstScreen() {
             Log.i("CribbageGame", "Cards selected for crib: $selectedPlayerCards")
             val opponentCribCards = opponentHand.shuffled().take(2)
             Log.i("CribbageGame", "Opponent cards for crib: $opponentCribCards")
+            // Save the crib hand (combining player’s selections and opponent’s crib cards)
+            cribHand = selectedPlayerCards + opponentCribCards
+
             playerHand = playerHand.filterIndexed { index, _ -> !selectedCards.contains(index) }
             playerHand = playerHand.sortedWith(compareBy({ it.rank.ordinal }, { it.suit.ordinal }))
             opponentHand = opponentHand.filter { !opponentCribCards.contains(it) }
@@ -562,13 +573,166 @@ fun FirstScreen() {
         }
     }
 
+    // Function to count a cribbage hand (hand + starter) and return the score along with a breakdown.
+    fun countHandScore(hand: List<Card>, starter: Card, isCrib: Boolean = false): Pair<Int, String> {
+        val allCards = hand + starter
+        var score = 0
+        val breakdown = StringBuilder()
+
+        // Count 15's: iterate through all non-empty subsets of the 5 cards.
+        fun countFifteens(): Int {
+            var fifteens = 0
+            val n = allCards.size
+            for (mask in 1 until (1 shl n)) {
+                var sum = 0
+                for (i in 0 until n) {
+                    if ((mask and (1 shl i)) != 0) {
+                        sum += allCards[i].getValue()
+                    }
+                }
+                if (sum == 15) {
+                    fifteens++
+                }
+            }
+            return fifteens
+        }
+        val fifteens = countFifteens()
+        if (fifteens > 0) {
+            val points = fifteens * 2
+            score += points
+            breakdown.append("15's: $points points ($fifteens combinations)\n")
+        }
+
+        // Count pairs
+        val rankCounts = allCards.groupingBy { it.rank }.eachCount()
+        var pairPoints = 0
+        for ((_, count) in rankCounts) {
+            if (count >= 2) {
+                val pairs = (count * (count - 1)) / 2
+                pairPoints += pairs * 2
+            }
+        }
+        if (pairPoints > 0) {
+            score += pairPoints
+            breakdown.append("Pairs: $pairPoints points\n")
+        }
+
+        // Count runs using a frequency map of rank ordinals.
+        val freq = allCards.groupingBy { it.rank.ordinal }.eachCount()
+        val sortedRanks = freq.keys.sorted()
+        var runPoints = 0
+        var longestRun = 0
+        var i = 0
+        while (i < sortedRanks.size) {
+            var runLength = 1
+            var runMultiplicative = freq[sortedRanks[i]] ?: 0
+            var j = i + 1
+            while (j < sortedRanks.size && sortedRanks[j] == sortedRanks[j - 1] + 1) {
+                runLength++
+                runMultiplicative *= freq[sortedRanks[j]] ?: 0
+                j++
+            }
+            if (runLength >= 3 && runLength > longestRun) {
+                longestRun = runLength
+                runPoints = runLength * runMultiplicative
+            } else if (runLength >= 3 && runLength == longestRun) {
+                runPoints += runLength * runMultiplicative
+            }
+            i = j
+        }
+        if (runPoints > 0) {
+            score += runPoints
+            breakdown.append("Runs: $runPoints points\n")
+        }
+
+        // Count flush.
+        if (hand.isNotEmpty()) {
+            val handSuit = hand.first().suit
+            if (hand.all { it.suit == handSuit }) {
+                if (!isCrib) {
+                    var flushPoints = 4
+                    if (starter.suit == handSuit) flushPoints++
+                    score += flushPoints
+                    breakdown.append("Flush: $flushPoints points\n")
+                } else {
+                    if (allCards.all { it.suit == handSuit }) {
+                        score += 5
+                        breakdown.append("Crib Flush: 5 points\n")
+                    }
+                }
+            }
+        }
+
+        // Count his nobs.
+        if (hand.any { it.rank == Rank.JACK && it.suit == starter.suit }) {
+            score += 1
+            breakdown.append("His Nobs: 1 point\n")
+        }
+
+        return Pair(score, breakdown.toString())
+    }
+
+    // Hand counting process triggered by the Hand Counting button.
+    // It counts the non-dealer hand, then the dealer hand, then the crib, pausing between each.
+    val countHands = {
+        scope.launch {
+            if (starterCard == null) {
+                gameStatus = "Starter card not set. Cannot count hands."
+                return@launch
+            }
+            // Determine which hand is non-dealer versus dealer.
+            val nonDealerHand: List<Card>
+            val dealerHand: List<Card>
+            if (isPlayerDealer) {
+                dealerHand = playerHand
+                nonDealerHand = opponentHand
+            } else {
+                dealerHand = opponentHand
+                nonDealerHand = playerHand
+            }
+            gameStatus = "Counting non-dealer hand..."
+            val (nonDealerScore, nonDealerBreakdown) = countHandScore(nonDealerHand, starterCard!!)
+            gameStatus += "\nNon-Dealer Hand Score: $nonDealerScore\n$nonDealerBreakdown"
+            // Tally score for non-dealer.
+            if (isPlayerDealer) {
+                opponentScore += nonDealerScore
+            } else {
+                playerScore += nonDealerScore
+            }
+            delay(3000)
+
+            gameStatus = "Counting dealer hand..."
+            val (dealerScoreValue, dealerBreakdown) = countHandScore(dealerHand, starterCard!!)
+            gameStatus += "\nDealer Hand Score: $dealerScoreValue\n$dealerBreakdown"
+            if (isPlayerDealer) {
+                playerScore += dealerScoreValue
+            } else {
+                opponentScore += dealerScoreValue
+            }
+            delay(3000)
+
+            gameStatus = "Counting crib hand..."
+            val (cribScoreValue, cribBreakdown) = countHandScore(cribHand, starterCard!!, isCrib = true)
+            gameStatus += "\nCrib Hand Score: $cribScoreValue\n$cribBreakdown"
+            // The crib always belongs to the dealer.
+            if (isPlayerDealer) {
+                playerScore += cribScoreValue
+            } else {
+                opponentScore += cribScoreValue
+            }
+            delay(3000)
+
+            gameStatus += "\nHand counting complete."
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Game header with scores
+        // Game header with scores.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -585,14 +749,14 @@ fun FirstScreen() {
             )
         }
 
-        // Dealer info
+        // Dealer info.
         Text(
             text = if (isPlayerDealer) "Dealer: You" else "Dealer: Opponent",
             modifier = Modifier.padding(bottom = 16.dp),
             style = MaterialTheme.typography.bodyMedium
         )
 
-        // Show cut card if available
+        // Show cut card if available.
         if (starterCard != null) {
             Text(
                 text = "Cut Card: ${starterCard?.getSymbol()}",
@@ -601,7 +765,7 @@ fun FirstScreen() {
             )
         }
 
-        // Game status
+        // Game status.
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -615,7 +779,7 @@ fun FirstScreen() {
             )
         }
 
-        // Pegging count
+        // Pegging count.
         if (showPeggingCount) {
             Text(
                 text = "Count: $peggingCount",
@@ -656,12 +820,12 @@ fun FirstScreen() {
             }
         }
 
-        // Show the undelt deck before the deal button is clicked.
+        // Show the undealt deck before the deal button is clicked.
         if (gameStarted && dealButtonEnabled) {
             Box(modifier = Modifier.padding(8.dp)) {
                 Image(
                     painter = painterResource(id = R.drawable.back_dark),
-                    contentDescription = "Undealt Deck",
+                    contentDescription = "Un dealt Deck",
                     modifier = Modifier.size(60.dp, 90.dp)
                 )
             }
@@ -694,7 +858,7 @@ fun FirstScreen() {
                         )
                         .alpha(if (isPlayed) 0.3f else 1.0f)
                         .clickable(
-                            enabled = gameStarted && card != null && !isPlayed,
+                            enabled = gameStarted && !isPlayed,
                             onClick = { toggleCardSelection(i) }
                         ),
                     contentAlignment = Alignment.Center
@@ -756,10 +920,7 @@ fun FirstScreen() {
             }
             if (showHandCountingButton) {
                 Button(
-                    onClick = {
-                        // Handle hand counting logic here
-                        gameStatus = "Hand counting initiated"
-                    },
+                    onClick = { countHands() },
                     modifier = Modifier.padding(horizontal = 4.dp)
                 ) {
                     Text(text = "Hand Counting")
