@@ -31,7 +31,7 @@ fun FirstScreen() {
         Log.i("CribbageGame", "FirstScreen composable is being rendered")
     }
 
-    // Game state
+    // Game state variables
     var gameStarted by remember { mutableStateOf(false) }
     var playerScore by remember { mutableStateOf(0) }
     var opponentScore by remember { mutableStateOf(0) }
@@ -40,7 +40,7 @@ fun FirstScreen() {
     var opponentHand by remember { mutableStateOf<List<Card>>(emptyList()) }
     var selectedCards by remember { mutableStateOf<Set<Int>>(emptySet()) }
 
-    // Pegging state
+    // Pegging state variables
     var isPeggingPhase by remember { mutableStateOf(false) }
     var isPlayerTurn by remember { mutableStateOf(false) }
     var peggingCount by remember { mutableStateOf(0) }
@@ -51,7 +51,7 @@ fun FirstScreen() {
     var lastPlayerWhoPlayed by remember { mutableStateOf<String?>(null) }
     var starterCard by remember { mutableStateOf<Card?>(null) }
 
-    // UI state
+    // UI state variables
     var gameStatus by remember { mutableStateOf(context.getString(R.string.welcome_to_cribbage)) }
     var dealButtonEnabled by remember { mutableStateOf(false) }
     var selectCribButtonEnabled by remember { mutableStateOf(false) }
@@ -59,9 +59,9 @@ fun FirstScreen() {
     var goButtonEnabled by remember { mutableStateOf(false) }
     var showPeggingCount by remember { mutableStateOf(false) }
 
-    // Define checkPeggingScore as a lambda that updates score and game status.
+    // Revised checkPeggingScore lambda with improved run scoring logic.
     val checkPeggingScore: (Boolean, Card) -> Unit = { isPlayer, playedCard ->
-        // Scoring for 15's
+        // Score for 15's
         if (peggingCount == 15) {
             if (isPlayer) {
                 playerScore += 2
@@ -72,7 +72,7 @@ fun FirstScreen() {
             }
             Log.i("CribbageGame", "Scored 2 for fifteen. Count: $peggingCount")
         }
-        // Scoring for 31's
+        // Score for 31's
         if (peggingCount == 31) {
             if (isPlayer) {
                 playerScore += 2
@@ -83,7 +83,7 @@ fun FirstScreen() {
             }
             Log.i("CribbageGame", "Scored 2 for thirty-one. Count: $peggingCount")
         }
-        // Scoring for pairs: count consecutive cards at tail of peggingPile.
+        // Score for pairs (check consecutive cards at tail)
         var sameRankCount = 1
         for (i in peggingPile.size - 2 downTo 0) {
             if (peggingPile[i].rank == playedCard.rank) {
@@ -122,13 +122,17 @@ fun FirstScreen() {
                 Log.i("CribbageGame", "Scored 12 for four-of-a-kind.")
             }
         }
-        // Scoring for runs: score longest run in the tail (min length 3)
+        // Revised run scoring logic:
         var runScore = 0
         for (runLength in peggingPile.size downTo 3) {
             val lastCards = peggingPile.takeLast(runLength)
-            val ordinals = lastCards.map { it.rank.ordinal }.sorted()
-            if (ordinals.zipWithNext().all { (a, b) -> b - a == 1 }) {
-                runScore = runLength
+            val groups = lastCards.groupBy { it.rank.ordinal }
+            val distinctRanks = groups.keys.sorted()
+            if (distinctRanks.size < 3) continue
+            val isConsecutive = distinctRanks.zipWithNext().all { (a, b) -> b - a == 1 }
+            if (isConsecutive) {
+                val numberOfRuns = distinctRanks.map { groups[it]?.size ?: 0 }.reduce { acc, count -> acc * count }
+                runScore = distinctRanks.size * numberOfRuns
                 break
             }
         }
@@ -144,9 +148,24 @@ fun FirstScreen() {
         }
     }
 
-    // Helper function to reset the current sub-round.
-    // If resetFor31 is true, then we simply reset (since 31 already awards points via checkPeggingScore)
-    // Otherwise, award a go point to the last player who played.
+    // This helper checks if either player has a legal play given the remaining unplayed cards.
+    val checkPeggingPhaseComplete = {
+        // When a sub-round resets, peggingCount becomes 0 so legal play is any unplayed card.
+        val playerLegal = playerHand.filterIndexed { index, card ->
+            !playerCardsPlayed.contains(index) && (card.getValue() <= 31)
+        }
+        val opponentLegal = opponentHand.filterIndexed { index, card ->
+            !opponentCardsPlayed.contains(index) && (card.getValue() <= 31)
+        }
+        if (playerLegal.isEmpty() && opponentLegal.isEmpty()) {
+            isPeggingPhase = false
+            gameStatus += "\nPegging phase complete. Proceed to hand scoring."
+            Log.i("CribbageGame", "No legal plays remain; pegging phase ended.")
+        }
+    }
+
+    // Revised resetSubRound: Reset sub-round state but leave played cards intact.
+    // Then check if any legal moves remain. If not, end pegging phase.
     val resetSubRound = { resetFor31: Boolean ->
         if (!resetFor31 && lastPlayerWhoPlayed != null) {
             if (lastPlayerWhoPlayed == "player") {
@@ -159,19 +178,36 @@ fun FirstScreen() {
                 Log.i("CribbageGame", "Opponent awarded 1 go point")
             }
         }
-        // Reset all sub-round state.
         peggingCount = 0
         peggingPile = emptyList()
-        playerCardsPlayed = emptySet()
-        opponentCardsPlayed = emptySet()
         consecutiveGoes = 0
-        // The next sub-round is led by the player who did NOT play last.
+        // Determine who leads next sub-round based on who did not play last.
         isPlayerTurn = (lastPlayerWhoPlayed != "player")
         lastPlayerWhoPlayed = null
         gameStatus += "\nNew sub-round begins. " + if (isPlayerTurn)
             context.getString(R.string.pegging_your_turn)
         else
             context.getString(R.string.pegging_opponent_turn)
+        // Check if any legal plays remain for either player.
+        checkPeggingPhaseComplete()
+    }
+
+    // Revised card selection behavior.
+    val toggleCardSelection = { cardIndex: Int ->
+        Log.i("CribbageGame", "Card selection toggled: $cardIndex")
+        if (isPeggingPhase) {
+            if (isPlayerTurn && !playerCardsPlayed.contains(cardIndex)) {
+                selectedCards = if (selectedCards.contains(cardIndex)) emptySet() else setOf(cardIndex)
+            }
+        } else {
+            selectedCards = if (selectedCards.contains(cardIndex)) {
+                selectedCards - cardIndex
+            } else if (selectedCards.size < 2) {
+                selectedCards + cardIndex
+            } else {
+                selectedCards
+            }
+        }
     }
 
     val startNewGame = {
@@ -186,8 +222,7 @@ fun FirstScreen() {
         isPeggingPhase = false
         peggingCount = 0
         peggingPile = emptyList()
-        playerCardsPlayed = emptySet()
-        opponentCardsPlayed = emptySet()
+        // Played cards are preserved for the duration of the hand; they are reset only when a new hand is dealt.
         consecutiveGoes = 0
         lastPlayerWhoPlayed = null
         starterCard = null
@@ -211,6 +246,9 @@ fun FirstScreen() {
         opponentHand = List(6) { deck.removeAt(0) }
         Log.i("CribbageGame", "Player hand: $playerHand")
         Log.i("CribbageGame", "Opponent hand: $opponentHand")
+        // Reset played card sets since a new hand is starting.
+        playerCardsPlayed = emptySet()
+        opponentCardsPlayed = emptySet()
         dealButtonEnabled = false
         selectCribButtonEnabled = true
         gameStatus = context.getString(R.string.select_cards_for_crib)
@@ -238,7 +276,6 @@ fun FirstScreen() {
             starterCard = newDeck.first()
             Log.i("CribbageGame", "Cut card: ${starterCard?.getSymbol()}")
             gameStatus = "Cut card: ${starterCard?.getSymbol()}"
-            // If the cut card is a Jack, award 2 points to the dealer.
             if (starterCard?.rank == Rank.JACK) {
                 if (isPlayerDealer) {
                     playerScore += 2
@@ -248,10 +285,8 @@ fun FirstScreen() {
                     gameStatus += "\nDealer gets 2 points for his heels."
                 }
             }
-            // Wait a moment before starting pegging.
             Handler(Looper.getMainLooper()).postDelayed({
                 isPeggingPhase = true
-                // Non-dealer leads.
                 isPlayerTurn = !isPlayerDealer
                 playCardButtonEnabled = true
                 goButtonEnabled = false
@@ -304,32 +339,7 @@ fun FirstScreen() {
         }
     }
 
-    val toggleCardSelection = { cardIndex: Int ->
-        Log.i("CribbageGame", "Card selection toggled: $cardIndex")
-        selectedCards = if (isPeggingPhase) {
-            if (isPlayerTurn && !playerCardsPlayed.contains(cardIndex)) {
-                val cardValue = playerHand[cardIndex].getValue()
-                if (peggingCount + cardValue <= 31) {
-                    Log.i("CribbageGame", "Card at index $cardIndex selected for play")
-                    setOf(cardIndex)
-                } else {
-                    Log.i("CribbageGame", "Card at index $cardIndex cannot be played, would exceed 31")
-                    gameStatus = context.getString(R.string.pegging_go)
-                    emptySet()
-                }
-            } else selectedCards
-        } else {
-            if (selectedCards.contains(cardIndex)) {
-                Log.i("CribbageGame", "Card at index $cardIndex deselected for crib")
-                selectedCards - cardIndex
-            } else if (selectedCards.size < 2) {
-                Log.i("CribbageGame", "Card at index $cardIndex selected for crib")
-                selectedCards + cardIndex
-            } else selectedCards
-        }
-    }
-
-    val playSelectedCard = postDelayed@{
+    val playSelectedCard = let@{
         Log.i("CribbageGame", "Play selected card called")
         if (isPeggingPhase && isPlayerTurn && selectedCards.isNotEmpty()) {
             val cardIndex = selectedCards.first()
@@ -344,11 +354,10 @@ fun FirstScreen() {
                 Log.i("CribbageGame", "New pegging count: $peggingCount")
                 checkPeggingScore(true, playedCard)
                 selectedCards = emptySet()
-                // If 31 is reached, immediately end the sub-round.
                 if (peggingCount == 31) {
                     Log.i("CribbageGame", "Count reached 31 after player's play")
                     resetSubRound(true)
-                    return@postDelayed
+                    return@let
                 }
                 isPlayerTurn = false
                 gameStatus = context.getString(R.string.pegging_opponent_turn)
@@ -399,7 +408,6 @@ fun FirstScreen() {
     }
 
     val sayGo = {
-        // Only allow GO if the player truly has no legal plays.
         val playerPlayable = playerHand.filterIndexed { index, card ->
             !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
         }
@@ -507,7 +515,7 @@ fun FirstScreen() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Player's hand
+        // Display player's hand
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -518,7 +526,6 @@ fun FirstScreen() {
                 val card = if (i < playerHand.size) playerHand[i] else null
                 val isSelected = selectedCards.contains(i)
                 val isPlayed = playerCardsPlayed.contains(i)
-
                 Box(
                     modifier = Modifier
                         .size(60.dp, 90.dp)
@@ -568,7 +575,6 @@ fun FirstScreen() {
             ) {
                 Text(text = "Start Game")
             }
-
             Button(
                 onClick = { dealCards() },
                 enabled = dealButtonEnabled,
@@ -577,7 +583,6 @@ fun FirstScreen() {
                 Text(text = "Deal Cards")
             }
         }
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -591,7 +596,6 @@ fun FirstScreen() {
             ) {
                 Text(text = "Select for Crib")
             }
-
             Button(
                 onClick = { playSelectedCard() },
                 enabled = playCardButtonEnabled && selectedCards.isNotEmpty(),
@@ -599,7 +603,6 @@ fun FirstScreen() {
             ) {
                 Text(text = "Play Card")
             }
-
             Button(
                 onClick = { sayGo() },
                 enabled = goButtonEnabled,
@@ -629,7 +632,6 @@ data class Card(val rank: Rank, val suit: Suit) {
             Rank.TEN, Rank.JACK, Rank.QUEEN, Rank.KING -> 10
         }
     }
-
     fun getSymbol(): String {
         val rankSymbol = when (rank) {
             Rank.ACE -> "A"
