@@ -381,6 +381,8 @@ fun FirstScreen() {
         Log.i("CribbageGame", "Dealing cards")
         val deck = createDeck().shuffled().toMutableList()
         playerHand = List(6) { deck.removeAt(0) }
+        // Sort the player's hand so it displays in order.
+        playerHand = playerHand.sortedWith(compareBy({ it.rank.ordinal }, { it.suit.ordinal }))
         opponentHand = List(6) { deck.removeAt(0) }
         Log.i("CribbageGame", "Player hand: $playerHand")
         Log.i("CribbageGame", "Opponent hand: $opponentHand")
@@ -403,7 +405,10 @@ fun FirstScreen() {
             val opponentCribCards = opponentHand.shuffled().take(2)
             Log.i("CribbageGame", "Opponent cards for crib: $opponentCribCards")
             playerHand = playerHand.filterIndexed { index, _ -> !selectedCards.contains(index) }
+            // Re-sort the hand after removing the crib cards.
+            playerHand = playerHand.sortedWith(compareBy({ it.rank.ordinal }, { it.suit.ordinal }))
             opponentHand = opponentHand.filter { !opponentCribCards.contains(it) }
+                .sortedWith(compareBy({ it.rank.ordinal }, { it.suit.ordinal }))
             selectedCards = emptySet()
             selectCribButtonEnabled = false
             gameStatus = context.getString(R.string.crib_cards_selected)
@@ -636,15 +641,16 @@ fun FirstScreen() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Display player's hand
+        // Display player's hand (sorted).
+        // Loop over the actual number of cards in the player's hand.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            for (i in 0 until 6) {
-                val card = if (i < playerHand.size) playerHand[i] else null
+            for (i in playerHand.indices) {
+                val card = playerHand[i]
                 val isSelected = selectedCards.contains(i)
                 val isPlayed = playerCardsPlayed.contains(i)
                 Box(
@@ -666,19 +672,11 @@ fun FirstScreen() {
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (card != null) {
-                        Image(
-                            painter = painterResource(id = getCardResourceId(card)),
-                            contentDescription = card.toString(),
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Image(
-                            painter = painterResource(id = R.drawable.back_dark),
-                            contentDescription = "Card back",
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
+                    Image(
+                        painter = painterResource(id = getCardResourceId(card)),
+                        contentDescription = card.toString(),
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
         }
