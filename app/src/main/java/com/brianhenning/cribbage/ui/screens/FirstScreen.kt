@@ -152,10 +152,10 @@ fun FirstScreen() {
     val checkPeggingPhaseComplete = {
         // When a sub-round resets, peggingCount becomes 0 so legal play is any unplayed card.
         val playerLegal = playerHand.filterIndexed { index, card ->
-            !playerCardsPlayed.contains(index) && (card.getValue() <= 31)
+            !playerCardsPlayed.contains(index) && (card.getValue() + peggingCount <= 31)
         }
         val opponentLegal = opponentHand.filterIndexed { index, card ->
-            !opponentCardsPlayed.contains(index) && (card.getValue() <= 31)
+            !opponentCardsPlayed.contains(index) && (card.getValue() + peggingCount <= 31)
         }
         if (playerLegal.isEmpty() && opponentLegal.isEmpty()) {
             isPeggingPhase = false
@@ -164,9 +164,8 @@ fun FirstScreen() {
         }
     }
 
-    // Revised resetSubRound: Reset sub-round state but leave played cards intact.
-    // Then check if any legal moves remain. If not, end pegging phase.
-    val resetSubRound = { resetFor31: Boolean ->
+    // Changed resetSubRound from a lambda to a local function so that it is visible in nested lambdas.
+    fun resetSubRound(resetFor31: Boolean) {
         if (!resetFor31 && lastPlayerWhoPlayed != null) {
             if (lastPlayerWhoPlayed == "player") {
                 playerScore += 1
@@ -188,8 +187,54 @@ fun FirstScreen() {
             context.getString(R.string.pegging_your_turn)
         else
             context.getString(R.string.pegging_opponent_turn)
+        // When it's the player's turn, re-enable the Play Card button and disable Go.
+        if (isPlayerTurn) {
+            playCardButtonEnabled = true
+            goButtonEnabled = false
+        }
         // Check if any legal plays remain for either player.
         checkPeggingPhaseComplete()
+        // If sub-round is still active and it's opponent's turn, trigger opponent move.
+        if (isPeggingPhase && !isPlayerTurn) {
+            Handler(Looper.getMainLooper()).postDelayed({
+                val playableCards = opponentHand.filterIndexed { index, card ->
+                    !opponentCardsPlayed.contains(index) && (card.getValue() + peggingCount <= 31)
+                }
+                if (playableCards.isNotEmpty()) {
+                    val cardToPlay = playableCards.random()
+                    val cardIndex = opponentHand.indexOf(cardToPlay)
+                    Log.i("CribbageGame", "Opponent playing card in new sub-round: ${cardToPlay.getSymbol()}")
+                    peggingPile = peggingPile + cardToPlay
+                    opponentCardsPlayed = opponentCardsPlayed + cardIndex
+                    peggingCount += cardToPlay.getValue()
+                    lastPlayerWhoPlayed = "opponent"
+                    Log.i("CribbageGame", "New pegging count after opponent play in new sub-round: $peggingCount")
+                    gameStatus = "Opponent played ${cardToPlay.getSymbol()}"
+                    checkPeggingScore(false, cardToPlay)
+                    if (peggingCount == 31) {
+                        resetSubRound(true)
+                    } else {
+                        consecutiveGoes = 0
+                        isPlayerTurn = true
+                        val playerPlayable = playerHand.filterIndexed { index, card ->
+                            !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
+                        }
+                        if (playerPlayable.isEmpty()) {
+                            consecutiveGoes++
+                            gameStatus = "No playable card. Press Go."
+                            goButtonEnabled = true
+                        } else {
+                            playCardButtonEnabled = true
+                        }
+                    }
+                } else {
+                    consecutiveGoes++
+                    gameStatus = "Opponent says GO!"
+                    goButtonEnabled = true
+                    isPlayerTurn = true
+                }
+            }, 1000)
+        }
     }
 
     // Revised card selection behavior.
@@ -318,6 +363,7 @@ fun FirstScreen() {
                             } else {
                                 consecutiveGoes = 0
                                 isPlayerTurn = true
+                                // Check if player has legal moves and re-enable Play Card if so.
                                 val playerPlayable = playerHand.filterIndexed { index, card ->
                                     !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
                                 }
@@ -325,6 +371,8 @@ fun FirstScreen() {
                                     consecutiveGoes++
                                     gameStatus = "No playable card. Press Go."
                                     goButtonEnabled = true
+                                } else {
+                                    playCardButtonEnabled = true
                                 }
                             }
                         } else {
@@ -347,6 +395,12 @@ fun FirstScreen() {
             if (cardIndex < playerHand.size && !playerCardsPlayed.contains(cardIndex)) {
                 val playedCard = playerHand[cardIndex]
                 Log.i("CribbageGame", "Player playing card: ${playedCard.getSymbol()}")
+                // Ensure that playing this card does not exceed 31.
+                if (peggingCount + playedCard.getValue() > 31) {
+                    gameStatus = "Illegal move: ${playedCard.getSymbol()} would exceed 31."
+                    Log.i("CribbageGame", "Illegal play attempted: count $peggingCount, card value ${playedCard.getValue()}")
+                    return@let
+                }
                 peggingPile = peggingPile + playedCard
                 playerCardsPlayed = playerCardsPlayed + cardIndex
                 peggingCount += playedCard.getValue()
@@ -393,6 +447,8 @@ fun FirstScreen() {
                                 consecutiveGoes++
                                 gameStatus = "No playable card. Press Go."
                                 goButtonEnabled = true
+                            } else {
+                                playCardButtonEnabled = true
                             }
                         }
                     } else {
