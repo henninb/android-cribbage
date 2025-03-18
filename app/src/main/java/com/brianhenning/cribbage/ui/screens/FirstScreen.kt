@@ -46,9 +46,7 @@ fun FirstScreen() {
     var isPeggingPhase by remember { mutableStateOf(false) }
     var isPlayerTurn by remember { mutableStateOf(false) }
     var peggingCount by remember { mutableIntStateOf(0) }
-    // This list is used for scoring (and resets every sub-round)
     var peggingPile by remember { mutableStateOf<List<Card>>(emptyList()) }
-    // This display pile accumulates all played cards and is never cleared until a new hand
     var peggingDisplayPile by remember { mutableStateOf<List<Card>>(emptyList()) }
     var playerCardsPlayed by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var opponentCardsPlayed by remember { mutableStateOf<Set<Int>>(emptySet()) }
@@ -62,6 +60,7 @@ fun FirstScreen() {
     var selectCribButtonEnabled by remember { mutableStateOf(false) }
     var playCardButtonEnabled by remember { mutableStateOf(false) }
     var showPeggingCount by remember { mutableStateOf(false) }
+    var showHandCountingButton by remember { mutableStateOf(false) } // New state
 
     // Revised checkPeggingScore lambda with improved run scoring logic.
     val checkPeggingScore: (Boolean, Card) -> Unit = { isPlayer, playedCard ->
@@ -154,7 +153,6 @@ fun FirstScreen() {
 
     // This helper checks if either player has a legal play given the remaining un-played cards.
     val checkPeggingPhaseComplete = {
-        // When a sub-round resets, peggingCount becomes 0 so legal play is any un-played card.
         val playerLegal = playerHand.filterIndexed { index, card ->
             !playerCardsPlayed.contains(index) && (card.getValue() + peggingCount <= 31)
         }
@@ -165,6 +163,7 @@ fun FirstScreen() {
         if (playerLegal.isEmpty() && opponentLegal.isEmpty()) {
             isPeggingPhase = false
             gameStatus += "\nPegging phase complete. Proceed to hand scoring."
+            showHandCountingButton = true
             Log.i("CribbageGame", "No legal plays remain; pegging phase ended.")
         }
     }
@@ -177,7 +176,6 @@ fun FirstScreen() {
     resetSubRoundRef.value = resetFn@ { resetFor31 ->
         Log.i("CribbageGame", "Resetting sub-round (resetFor31=$resetFor31, lastPlayerWhoPlayed=$lastPlayerWhoPlayed)")
 
-        // Award "go" point if applicable (when not resetting for 31 points)
         if (!resetFor31 && lastPlayerWhoPlayed != null) {
             if (lastPlayerWhoPlayed == "player") {
                 playerScore += 1
@@ -190,13 +188,10 @@ fun FirstScreen() {
             }
         }
 
-        // Reset scoring state for the new sub-round.
-        // NOTE: We do NOT clear peggingDisplayPile so that all played cards remain visible.
         peggingCount = 0
         peggingPile = emptyList()
         consecutiveGoes = 0
 
-        // Determine who leads next sub-round based on who did not play last.
         isPlayerTurn = (lastPlayerWhoPlayed != "player")
         lastPlayerWhoPlayed = null
 
@@ -205,15 +200,12 @@ fun FirstScreen() {
         else
             context.getString(R.string.pegging_opponent_turn)
 
-        // Check if the entire pegging phase is complete
         checkPeggingPhaseComplete()
 
-        // If pegging phase is complete, don't continue
         if (!isPeggingPhase) {
             return@resetFn
         }
 
-        // Continue playing if the pegging phase is still active
         if (isPlayerTurn) {
             playCardButtonEnabled = true
             val playerPlayable = playerHand.filterIndexed { index, card ->
@@ -349,6 +341,33 @@ fun FirstScreen() {
         }
     }
 
+    // New endGame lambda to reset game state
+    val endGame = {
+        Log.i("CribbageGame", "Ending game")
+        gameStarted = false
+        playerScore = 0
+        opponentScore = 0
+        playerHand = emptyList()
+        opponentHand = emptyList()
+        selectedCards = emptySet()
+
+        isPeggingPhase = false
+        peggingCount = 0
+        peggingPile = emptyList()
+        peggingDisplayPile = emptyList()
+        consecutiveGoes = 0
+        lastPlayerWhoPlayed = null
+        starterCard = null
+
+        dealButtonEnabled = false
+        selectCribButtonEnabled = false
+        playCardButtonEnabled = false
+        showPeggingCount = false
+        showHandCountingButton = false
+
+        gameStatus = context.getString(R.string.welcome_to_cribbage)
+    }
+
     val startNewGame = {
         Log.i("CribbageGame", "Starting new game")
         gameStarted = true
@@ -373,6 +392,7 @@ fun FirstScreen() {
         selectCribButtonEnabled = false
         playCardButtonEnabled = false
         showPeggingCount = false
+        showHandCountingButton = false
 
         gameStatus = context.getString(R.string.game_started)
     }
@@ -381,7 +401,6 @@ fun FirstScreen() {
         Log.i("CribbageGame", "Dealing cards")
         val deck = createDeck().shuffled().toMutableList()
         playerHand = List(6) { deck.removeAt(0) }
-        // Sort the player's hand so it displays in order.
         playerHand = playerHand.sortedWith(compareBy({ it.rank.ordinal }, { it.suit.ordinal }))
         opponentHand = List(6) { deck.removeAt(0) }
         Log.i("CribbageGame", "Player hand: $playerHand")
@@ -405,7 +424,6 @@ fun FirstScreen() {
             val opponentCribCards = opponentHand.shuffled().take(2)
             Log.i("CribbageGame", "Opponent cards for crib: $opponentCribCards")
             playerHand = playerHand.filterIndexed { index, _ -> !selectedCards.contains(index) }
-            // Re-sort the hand after removing the crib cards.
             playerHand = playerHand.sortedWith(compareBy({ it.rank.ordinal }, { it.suit.ordinal }))
             opponentHand = opponentHand.filter { !opponentCribCards.contains(it) }
                 .sortedWith(compareBy({ it.rank.ordinal }, { it.suit.ordinal }))
@@ -413,7 +431,6 @@ fun FirstScreen() {
             selectCribButtonEnabled = false
             gameStatus = context.getString(R.string.crib_cards_selected)
 
-            // Reveal the cut card.
             val newDeck = createDeck().shuffled()
             starterCard = newDeck.first()
             Log.i("CribbageGame", "Cut card: ${starterCard?.getSymbol()}")
@@ -433,6 +450,8 @@ fun FirstScreen() {
                 playCardButtonEnabled = true
                 showPeggingCount = true
                 peggingCount = 0
+                // Once pegging starts, hide the crib selection button.
+                selectCribButtonEnabled = false
                 gameStatus += "\nPegging phase begins. " + if (isPlayerTurn)
                     context.getString(R.string.pegging_your_turn)
                 else
@@ -605,17 +624,15 @@ fun FirstScreen() {
             )
         }
 
-        // Revised pegging display pile view:
-        // Instead of overlapping images with a negative offset, we now stagger them with a consistent horizontal (and optional vertical) offset.
+        // Revised pegging display pile view.
         if (showPeggingCount && peggingDisplayPile.isNotEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp) // increased height to accommodate vertical stagger if needed
+                    .height(120.dp)
             ) {
                 peggingDisplayPile.forEachIndexed { index, card ->
                     val offsetX = index * 30.dp
-                    // Optional vertical offset for a more dynamic stagger:
                     val offsetY = index * 5.dp
                     Box(
                         modifier = Modifier
@@ -639,10 +656,20 @@ fun FirstScreen() {
             }
         }
 
+        // Show the undelt deck before the deal button is clicked.
+        if (gameStarted && dealButtonEnabled) {
+            Box(modifier = Modifier.padding(8.dp)) {
+                Image(
+                    painter = painterResource(id = R.drawable.back_dark),
+                    contentDescription = "Undealt Deck",
+                    modifier = Modifier.size(60.dp, 90.dp)
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Display player's hand (sorted).
-        // Loop over the actual number of cards in the player's hand.
+        // Display player's hand.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -683,16 +710,25 @@ fun FirstScreen() {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Game control buttons
+        // Game control buttons.
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Button(
-                onClick = { startNewGame() },
-                modifier = Modifier.padding(horizontal = 4.dp)
-            ) {
-                Text(text = "Start Game")
+            if (!gameStarted) {
+                Button(
+                    onClick = { startNewGame() },
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    Text(text = "Start Game")
+                }
+            } else {
+                Button(
+                    onClick = { endGame() },
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    Text(text = "End Game")
+                }
             }
             Button(
                 onClick = { dealCards() },
@@ -702,18 +738,32 @@ fun FirstScreen() {
                 Text(text = "Deal Cards")
             }
         }
+        // Second row for crib selection / hand counting.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Button(
-                onClick = { selectCardsForCrib() },
-                enabled = selectCribButtonEnabled,
-                modifier = Modifier.padding(horizontal = 4.dp)
-            ) {
-                Text(text = "Select for Crib")
+            if (!isPeggingPhase && selectCribButtonEnabled) {
+                Button(
+                    onClick = { selectCardsForCrib() },
+                    enabled = selectCribButtonEnabled,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    Text(text = "Select for Crib")
+                }
+            }
+            if (showHandCountingButton) {
+                Button(
+                    onClick = {
+                        // Handle hand counting logic here
+                        gameStatus = "Hand counting initiated"
+                    },
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    Text(text = "Hand Counting")
+                }
             }
         }
     }
@@ -802,14 +852,6 @@ fun getCardResourceId(card: Card): Int {
 
 /**
  * Helper function for choosing a smart card for the opponent during pegging.
- *
- * It considers:
- * - Immediate scoring opportunities for 15 or 31.
- * - Pair potential (if the card matches the last card played).
- * - Run potential (if adding the card helps form a run of 3 or more).
- * - Leaving a high count (above 25) to limit the opponent's moves.
- *
- * Returns a Pair of the card's index and the card itself.
  */
 fun chooseSmartOpponentCard(
     hand: List<Card>,
