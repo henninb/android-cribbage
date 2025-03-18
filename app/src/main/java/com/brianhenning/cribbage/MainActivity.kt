@@ -78,7 +78,7 @@ fun MainScreen() {
         ) {
             composable(Screen.First.route) {
                 Log.i("CribbageGame", "Navigating to FirstScreen")
-                FirstScreen(navController)
+                FirstScreen()
             }
             composable(Screen.Second.route) {
                 Log.i("CribbageGame", "Navigating to SecondScreen")
