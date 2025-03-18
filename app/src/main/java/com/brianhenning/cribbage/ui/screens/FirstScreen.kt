@@ -14,7 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-//import androidx.compose.ui.draw.zIndex
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -36,8 +35,8 @@ fun FirstScreen() {
 
     // Game state variables
     var gameStarted by remember { mutableStateOf(false) }
-    var playerScore by remember { mutableStateOf(0) }
-    var opponentScore by remember { mutableStateOf(0) }
+    var playerScore by remember { mutableIntStateOf(0) }
+    var opponentScore by remember { mutableIntStateOf(0) }
     var isPlayerDealer by remember { mutableStateOf(false) }
     var playerHand by remember { mutableStateOf<List<Card>>(emptyList()) }
     var opponentHand by remember { mutableStateOf<List<Card>>(emptyList()) }
@@ -46,14 +45,14 @@ fun FirstScreen() {
     // Pegging state variables
     var isPeggingPhase by remember { mutableStateOf(false) }
     var isPlayerTurn by remember { mutableStateOf(false) }
-    var peggingCount by remember { mutableStateOf(0) }
+    var peggingCount by remember { mutableIntStateOf(0) }
     // This list is used for scoring (and resets every sub-round)
     var peggingPile by remember { mutableStateOf<List<Card>>(emptyList()) }
     // This display pile accumulates all played cards and is never cleared until a new hand
     var peggingDisplayPile by remember { mutableStateOf<List<Card>>(emptyList()) }
     var playerCardsPlayed by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var opponentCardsPlayed by remember { mutableStateOf<Set<Int>>(emptySet()) }
-    var consecutiveGoes by remember { mutableStateOf(0) }
+    var consecutiveGoes by remember { mutableIntStateOf(0) }
     var lastPlayerWhoPlayed by remember { mutableStateOf<String?>(null) }
     var starterCard by remember { mutableStateOf<Card?>(null) }
 
@@ -153,9 +152,9 @@ fun FirstScreen() {
         }
     }
 
-    // This helper checks if either player has a legal play given the remaining unplayed cards.
+    // This helper checks if either player has a legal play given the remaining un-played cards.
     val checkPeggingPhaseComplete = {
-        // When a sub-round resets, peggingCount becomes 0 so legal play is any unplayed card.
+        // When a sub-round resets, peggingCount becomes 0 so legal play is any un-played card.
         val playerLegal = playerHand.filterIndexed { index, card ->
             !playerCardsPlayed.contains(index) && (card.getValue() + peggingCount <= 31)
         }
@@ -172,8 +171,8 @@ fun FirstScreen() {
 
     // Forward declarations to allow for mutual recursion
     val resetSubRoundRef = remember { mutableStateOf<(Boolean) -> Unit>({ _ -> }) }
-    val autoHandleGoRef = remember { mutableStateOf<() -> Unit>({}) }
-    val playSelectedCardRef = remember { mutableStateOf<() -> Unit>({}) }
+    val autoHandleGoRef = remember { mutableStateOf({}) }
+    val playSelectedCardRef = remember { mutableStateOf({}) }
 
     resetSubRoundRef.value = resetFn@ { resetFor31 ->
         Log.i("CribbageGame", "Resetting sub-round (resetFor31=$resetFor31, lastPlayerWhoPlayed=$lastPlayerWhoPlayed)")
@@ -297,6 +296,7 @@ fun FirstScreen() {
                         opponentCardsPlayed = opponentCardsPlayed + oppCardIndex
                         peggingCount += cardToPlay.getValue()
                         lastPlayerWhoPlayed = "opponent"
+                        Log.i("CribbageGame", "New pegging count after opponent play: $peggingCount")
                         gameStatus = "Opponent played ${cardToPlay.getSymbol()}"
                         checkPeggingScore(false, cardToPlay)
                         if (peggingCount == 31) {
@@ -600,20 +600,22 @@ fun FirstScreen() {
             )
         }
 
-        // Display the pegging display pile (staggered view)
+        // Revised pegging display pile view:
+        // Instead of overlapping images with a negative offset, we now stagger them with a consistent horizontal (and optional vertical) offset.
         if (showPeggingCount && peggingDisplayPile.isNotEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(100.dp)
+                    .height(120.dp) // increased height to accommodate vertical stagger if needed
             ) {
                 peggingDisplayPile.forEachIndexed { index, card ->
-                    // Each card is offset horizontally so that only a slice is visible.
-                    val offsetX = index * 20.dp
+                    val offsetX = index * 30.dp
+                    // Optional vertical offset for a more dynamic stagger:
+                    val offsetY = index * 5.dp
                     Box(
                         modifier = Modifier
-                            .offset(x = offsetX)
-                            .zIndex(if (index == peggingDisplayPile.lastIndex) 1f else 0f)
+                            .offset(x = offsetX, y = offsetY)
+                            .zIndex((peggingDisplayPile.size - index).toFloat())
                             .size(60.dp, 90.dp)
                             .border(
                                 width = 1.dp,
@@ -622,23 +624,11 @@ fun FirstScreen() {
                             )
                             .background(CardBackground, shape = RoundedCornerShape(8.dp))
                     ) {
-                        if (index == peggingDisplayPile.lastIndex) {
-                            // The top card is shown in full
-                            Image(
-                                painter = painterResource(id = getCardResourceId(card)),
-                                contentDescription = card.toString(),
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } else {
-                            // Earlier cards are shifted so that only a slice is visible.
-                            Image(
-                                painter = painterResource(id = getCardResourceId(card)),
-                                contentDescription = card.toString(),
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .offset(x = (-30).dp)
-                            )
-                        }
+                        Image(
+                            painter = painterResource(id = getCardResourceId(card)),
+                            contentDescription = card.toString(),
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
                 }
             }
