@@ -788,16 +788,16 @@ fun FirstScreen() {
             )
         }
 
-        // Revised pegging display pile view.
+        // Adjusted pegging display pile view (cards overlay horizontally without vertical staggering).
         if (showPeggingCount && peggingDisplayPile.isNotEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp)
+                    .height(90.dp)
             ) {
                 peggingDisplayPile.forEachIndexed { index, card ->
                     val offsetX = index * 30.dp
-                    val offsetY = index * 5.dp
+                    val offsetY = 0.dp
                     Box(
                         modifier = Modifier
                             .offset(x = offsetX, y = offsetY)

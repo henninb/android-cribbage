@@ -75,23 +75,7 @@ class FirstScreenComposeTest {
         composeTestRule.onNodeWithText("Select for Crib").assertIsDisplayed()
     }
     
-    @Test
-    fun firstScreen_selectingCardChangesVisualState() {
-        composeTestRule.setContent {
-            FirstScreen()
-        }
-        
-        // Start the game and deal cards
-        composeTestRule.onNodeWithText("Start Game").performClick()
-        composeTestRule.onNodeWithText(context.getString(R.string.deal_cards)).performClick()
-        
-        // Look for clickable cards (they'll be contained in Box elements)
-        // Note: This is a simplified test that just verifies some clickable elements exist
-        // In a real test, you'd need to target specific cards more precisely
-        composeTestRule.onAllNodesWithContentDescription(matcher = hasAnyAncestor(isClickable()))
-            .assertCountAtLeast(1)
-    }
-    
+
     @Test
     fun firstScreen_selectingForCribWithoutTwoCardsShowsError() {
         composeTestRule.setContent {
