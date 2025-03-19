@@ -42,7 +42,7 @@ fun FirstScreen() {
     var isPlayerDealer by remember { mutableStateOf(false) }
     var playerHand by remember { mutableStateOf<List<Card>>(emptyList()) }
     var opponentHand by remember { mutableStateOf<List<Card>>(emptyList()) }
-    var cribHand by remember { mutableStateOf<List<Card>>(emptyList()) }  // new variable for the crib
+    var cribHand by remember { mutableStateOf<List<Card>>(emptyList()) }
     var selectedCards by remember { mutableStateOf<Set<Int>>(emptySet()) }
 
     // Pegging state variables
