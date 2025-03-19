@@ -676,6 +676,12 @@ fun FirstScreen() {
     // It counts the non-dealer hand, then the dealer hand, then the crib, pausing between each.
     val countHands = {
         scope.launch {
+            // When hand counting starts, reset the pegging pile and hide it.
+            isPeggingPhase = false
+            peggingPile = emptyList()
+            peggingDisplayPile = emptyList()
+            showPeggingCount = false
+
             if (starterCard == null) {
                 gameStatus = "Starter card not set. Cannot count hands."
                 return@launch
