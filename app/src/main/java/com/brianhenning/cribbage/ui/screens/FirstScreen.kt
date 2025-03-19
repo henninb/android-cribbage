@@ -64,6 +64,24 @@ fun FirstScreen() {
     var playCardButtonEnabled by remember { mutableStateOf(false) }
     var showPeggingCount by remember { mutableStateOf(false) }
     var showHandCountingButton by remember { mutableStateOf(false) } // New state
+    var gameOver by remember { mutableStateOf(false) } // New game over state
+
+    // Check game over function: if either score goes past 120, end the game.
+    val checkGameOverFunction: () -> Unit = {
+        if (playerScore > 120 || opponentScore > 120) {
+            gameOver = true
+            val winner = if (playerScore > opponentScore) "You" else "Opponent"
+            gameStatus += "\nGame Over: $winner wins!"
+            // Hide the cut card.
+            starterCard = null
+            // Disable game actions.
+            dealButtonEnabled = false
+            selectCribButtonEnabled = false
+            playCardButtonEnabled = false
+            showHandCountingButton = false
+            showPeggingCount = false
+        }
+    }
 
     // Remember a coroutine scope for the hand counting process
     val scope = rememberCoroutineScope()
@@ -155,6 +173,8 @@ fun FirstScreen() {
             }
             Log.i("CribbageGame", "Scored $runScore for a run.")
         }
+        // Check if the game should end after scoring.
+        checkGameOverFunction()
     }
 
     // This helper checks if either player has a legal play given the remaining un-played cards.
@@ -192,6 +212,8 @@ fun FirstScreen() {
                 gameStatus += "\nGo point for Opponent!"
                 Log.i("CribbageGame", "Opponent awarded 1 go point")
             }
+            // Check for game over after awarding a go point.
+            checkGameOverFunction()
         }
 
         peggingCount = 0
@@ -398,6 +420,7 @@ fun FirstScreen() {
         playCardButtonEnabled = false
         showPeggingCount = false
         showHandCountingButton = false
+        gameOver = false
 
         gameStatus = context.getString(R.string.welcome_to_cribbage)
     }
@@ -428,6 +451,7 @@ fun FirstScreen() {
         playCardButtonEnabled = false
         showPeggingCount = false
         showHandCountingButton = false
+        gameOver = false
 
         gameStatus = context.getString(R.string.game_started)
     }
@@ -481,6 +505,7 @@ fun FirstScreen() {
                     opponentScore += 2
                     gameStatus += "\nDealer gets 2 points for his heels."
                 }
+                checkGameOverFunction()
             }
             Handler(Looper.getMainLooper()).postDelayed({
                 isPeggingPhase = true
@@ -727,12 +752,13 @@ fun FirstScreen() {
             gameStatus = "Counting non-dealer hand..."
             val (nonDealerScore, nonDealerBreakdown) = countHandScore(nonDealerHand, starterCard!!)
             gameStatus += "\nNon-Dealer Hand Score: $nonDealerScore\n$nonDealerBreakdown"
-            // Tally score for non-dealer.
             if (isPlayerDealer) {
                 opponentScore += nonDealerScore
             } else {
                 playerScore += nonDealerScore
             }
+            checkGameOverFunction()
+            if (gameOver) return@launch
             delay(3000)
 
             gameStatus = "Counting dealer hand..."
@@ -743,6 +769,8 @@ fun FirstScreen() {
             } else {
                 opponentScore += dealerScoreValue
             }
+            checkGameOverFunction()
+            if (gameOver) return@launch
             delay(3000)
 
             gameStatus = "Counting crib hand..."
@@ -754,10 +782,13 @@ fun FirstScreen() {
             } else {
                 opponentScore += cribScoreValue
             }
+            checkGameOverFunction()
+            if (gameOver) return@launch
             delay(3000)
 
             gameStatus += "\nHand counting complete."
-            // Hide the Hand Counting button after counting is complete.
+            // Hide the cut card after counting is complete.
+            starterCard = null
 
             // Toggle dealer for next round just before showing the deal button again.
             isPlayerDealer = !isPlayerDealer
