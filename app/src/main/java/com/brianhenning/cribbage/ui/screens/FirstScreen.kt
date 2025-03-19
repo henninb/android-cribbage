@@ -723,6 +723,10 @@ fun FirstScreen() {
             delay(3000)
 
             gameStatus += "\nHand counting complete."
+            // Toggle dealer for next round just before showing the deal button again.
+            isPlayerDealer = !isPlayerDealer
+            gameStatus += "\nNew round: " + if (isPlayerDealer) "You are now the dealer." else "Opponent is now the dealer."
+            dealButtonEnabled = true
         }
     }
 
@@ -894,12 +898,14 @@ fun FirstScreen() {
                     Text(text = "End Game")
                 }
             }
-            Button(
-                onClick = { dealCards() },
-                enabled = dealButtonEnabled,
-                modifier = Modifier.padding(horizontal = 4.dp)
-            ) {
-                Text(text = "Deal Cards")
+            // Only show the Deal Cards button when appropriate.
+            if (dealButtonEnabled) {
+                Button(
+                    onClick = { dealCards() },
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    Text(text = "Deal Cards")
+                }
             }
         }
         // Second row for crib selection / hand counting.
