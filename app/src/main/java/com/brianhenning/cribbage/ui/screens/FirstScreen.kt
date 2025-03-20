@@ -370,7 +370,7 @@ fun FirstScreen() {
         }
     }
 
-    // Revised card selection behavior with auto-play during pegging phase
+    // Revised card selection behavior with auto-play during pegging phase.
     val toggleCardSelection = { cardIndex: Int ->
         Log.i("CribbageGame", "Card selection toggled: $cardIndex")
         if (isPeggingPhase) {
@@ -915,8 +915,11 @@ fun FirstScreen() {
                 val card = playerHand[i]
                 val isSelected = selectedCards.contains(i)
                 val isPlayed = playerCardsPlayed.contains(i)
+                // Apply a vertical offset to visually stagger selected cards.
+                val staggerOffset = if (isSelected) 10.dp else 0.dp
                 Box(
                     modifier = Modifier
+                        .offset(y = staggerOffset)
                         .size(60.dp, 90.dp)
                         .border(
                             width = 1.dp,
