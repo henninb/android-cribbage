@@ -143,6 +143,12 @@ Notable tests:
 
 The pegging run rule in this project follows the strict “distinct last N cards are consecutive” interpretation (no multiplicity during pegging). Multiplicity applies in hand/crib counting only.
 
+## Bug Reporting
+
+- In‑app: Tap “Report Bug” (on the main screen when a game is started). This opens your email client with a prefilled report containing app/device info and a snapshot of the current game state (scores, dealer, starter, pegging pile, hands, crib, and status log). Review, add steps to reproduce, and send.
+- Email target: configured via `res/values/strings.xml` as `feedback_email` (default: `support@example.com`). Update it to your preferred address.
+- GitHub: You can also create issues in your repository and link them here if desired.
+
 ### Pegging Logic and GO Flow
 
 - Core pegging scoring lives in `app/src/main/java/com/brianhenning/cribbage/logic/PeggingScorer.kt` and is unit-tested by `PeggingScorerTest.kt`.

@@ -48,4 +48,8 @@
     <string name="your_cut">Your cut</string>
     <string name="opponent_cut">Opponent cut</string>
     <string name="dealer_set_by_previous">Dealer set by previous game\'s loser. %1$s</string>
+    <string name="report_bug">Report Bug</string>
+    <string name="bug_report_subject">Cribbage Bug Report</string>
+    <string name="feedback_email">support@example.com</string>
+    <string name="bug_report_error_no_email">No email app available</string>
 </resources>

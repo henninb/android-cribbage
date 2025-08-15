@@ -4,6 +4,9 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.content.Context
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -926,6 +929,31 @@ fun FirstScreen() {
                     Text(text = "Deal Cards")
                 }
             }
+            // Report bug button always visible when game started
+            if (gameStarted) {
+                Button(
+                    onClick = {
+                        val body = buildBugReportBody(
+                            context = context,
+                            playerScore = playerScore,
+                            opponentScore = opponentScore,
+                            isPlayerDealer = isPlayerDealer,
+                            starterCard = starterCard,
+                            peggingCount = peggingCount,
+                            peggingPile = peggingPile,
+                            playerHand = playerHand,
+                            opponentHand = opponentHand,
+                            cribHand = cribHand,
+                            matchSummary = "${gamesWon}-${gamesLost} (Skunks ${skunksFor}-${skunksAgainst})",
+                            gameStatus = gameStatus
+                        )
+                        sendBugReportEmail(context, context.getString(R.string.feedback_email), context.getString(R.string.bug_report_subject), body)
+                    },
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    Text(text = context.getString(R.string.report_bug))
+                }
+            }
         }
         // Second row for crib selection / hand counting.
         Row(
@@ -1079,4 +1107,75 @@ fun chooseSmartOpponentCard(
 
     val bestMove = legalMoves.maxByOrNull { (_, card) -> evaluateMove(card) }
     return bestMove?.let { Pair(it.index, it.value) }
+}
+
+private fun Card.symbol(): String = this.getSymbol()
+
+private fun List<Card>.symbols(): String = this.joinToString(",") { it.getSymbol() }
+
+private fun buildBugReportBody(
+    context: Context,
+    playerScore: Int,
+    opponentScore: Int,
+    isPlayerDealer: Boolean,
+    starterCard: Card?,
+    peggingCount: Int,
+    peggingPile: List<Card>,
+    playerHand: List<Card>,
+    opponentHand: List<Card>,
+    cribHand: List<Card>,
+    matchSummary: String,
+    gameStatus: String,
+): String {
+    val manufacturer = android.os.Build.MANUFACTURER
+    val model = android.os.Build.MODEL
+    val sdk = android.os.Build.VERSION.SDK_INT
+    val appVersion = try {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName
+    } catch (e: Exception) { "unknown" }
+
+    return buildString {
+        appendLine("Please describe the bug:")
+        appendLine()
+        appendLine("Expected:")
+        appendLine()
+        appendLine("Actual:")
+        appendLine()
+        appendLine("Steps to reproduce:")
+        appendLine("1.")
+        appendLine("2.")
+        appendLine("3.")
+        appendLine()
+        appendLine("— App/Device —")
+        appendLine("App: $appVersion")
+        appendLine("Device: $manufacturer $model (SDK $sdk)")
+        appendLine()
+        appendLine("— Game Snapshot —")
+        appendLine("Scores: You $playerScore, Opponent $opponentScore")
+        appendLine("Dealer: ${if (isPlayerDealer) "You" else "Opponent"}")
+        appendLine("Starter: ${starterCard?.symbol() ?: "(none)"}")
+        appendLine("Pegging count: $peggingCount")
+        appendLine("Pegging pile: ${peggingPile.symbols()}")
+        appendLine("Your hand: ${playerHand.symbols()}")
+        appendLine("Opponent hand: ${opponentHand.symbols()}")
+        appendLine("Crib: ${cribHand.symbols()}")
+        appendLine("Match: $matchSummary")
+        appendLine()
+        appendLine("Status log:\n$gameStatus")
+    }
+}
+
+private fun sendBugReportEmail(context: Context, to: String, subject: String, body: String) {
+    val intent = Intent(Intent.ACTION_SENDTO).apply {
+        data = Uri.parse("mailto:")
+        putExtra(Intent.EXTRA_EMAIL, arrayOf(to))
+        putExtra(Intent.EXTRA_SUBJECT, subject)
+        putExtra(Intent.EXTRA_TEXT, body)
+    }
+    try {
+        context.startActivity(Intent.createChooser(intent, subject))
+    } catch (e: ActivityNotFoundException) {
+        Log.e(TAG, "No email client available: ${e.message}")
+        // Optionally show a toast/snackbar; keep it simple in this pass.
+    }
 }
