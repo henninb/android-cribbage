@@ -38,8 +38,8 @@ class PeggingScorerTest {
     }
 
     @Test
-    fun run_doubleDoubleRun_countsMultiplicity() {
-        // 3-3-4-4-5 at tail => multiplicity 2*2*1 = 4; run points = 3*4 = 12
+    fun duplicatesInTrailingWindow_breaksRun() {
+        // 3-3-4-4-5: duplicates in trailing window break pegging run
         val pile = listOf(
             Card(Rank.THREE, Suit.CLUBS),
             Card(Rank.THREE, Suit.HEARTS),
@@ -47,16 +47,16 @@ class PeggingScorerTest {
             Card(Rank.FOUR, Suit.DIAMONDS),
             Card(Rank.FIVE, Suit.CLUBS)
         )
-        val pts = PeggingScorer.pointsForPile(pile, newCount = 1 + 1 + 4 + 4 + 5) // 15, but we only check runs here
-        assertEquals(12, pts.runPoints)
-        // Also gets 2 for fifteen since total is 15
-        assertEquals(14, pts.total)
+        val pts = PeggingScorer.pointsForPile(pile, newCount = 1 + 1 + 4 + 4 + 5)
+        assertEquals(0, pts.runPoints)
+        // 15 still scores +2
         assertEquals(2, pts.fifteen)
+        assertEquals(2, pts.total - pts.pairPoints) // exclude any tail pair if present
     }
 
     @Test
-    fun pairAndRun_scoredTogether() {
-        // Tail 3-4-5-5: double run of 3 (6 pts) + pair on the tail (2 pts) = 8
+    fun pairScores_alone_whenDuplicatesBreakRun() {
+        // Tail 3-4-5-5: duplicates at tail break run; only pair scores
         val pile = listOf(
             Card(Rank.THREE, Suit.CLUBS),
             Card(Rank.FOUR, Suit.HEARTS),
@@ -65,10 +65,10 @@ class PeggingScorerTest {
         )
         val newCount = 3 + 4 + 5 + 5 // 17
         val pts = PeggingScorer.pointsForPile(pile, newCount)
-        assertEquals(8, pts.total)
-        assertEquals(6, pts.runPoints)
+        assertEquals(0, pts.runPoints)
         assertEquals(2, pts.pairPoints)
         assertEquals(2, pts.sameRankCount)
+        assertEquals(2, pts.total)
     }
 
     @Test
@@ -120,4 +120,3 @@ class PeggingScorerTest {
         assertEquals(0, pts.runPoints)
     }
 }
-

@@ -10,18 +10,17 @@ import org.junit.Test
 class PeggingScorerCombosTest {
 
     @Test
-    fun runWithMultiplicity_andThirtyOne_scoresBoth() {
-        // Trailing window 7-8-8-9 -> run of 3 with multiplicity 2 => 6 points
+    fun unorderedRunOfFour_scoresFour() {
+        // 9,6,8,7 (unordered) should score a 4-run
         val pile = listOf(
-            Card(Rank.SEVEN, Suit.CLUBS),
-            Card(Rank.EIGHT, Suit.HEARTS),
+            Card(Rank.NINE, Suit.CLUBS),
+            Card(Rank.SIX, Suit.HEARTS),
             Card(Rank.EIGHT, Suit.SPADES),
-            Card(Rank.NINE, Suit.DIAMONDS)
+            Card(Rank.SEVEN, Suit.DIAMONDS)
         )
-        val pts = PeggingScorer.pointsForPile(pile, newCount = 31)
-        assertEquals(6, pts.runPoints)
-        assertEquals(2, pts.thirtyOne)
-        assertEquals(8, pts.total)
+        val pts = PeggingScorer.pointsForPile(pile, newCount = 9 + 6 + 8 + 7)
+        assertEquals(4, pts.runPoints)
+        assertEquals(4, pts.total)
     }
 
     @Test
@@ -37,5 +36,32 @@ class PeggingScorerCombosTest {
         assertEquals(2, pts.thirtyOne)
         assertEquals(5, pts.total)
     }
-}
 
+    @Test
+    fun unorderedRunOfThree_scoresThree() {
+        val pile = listOf(
+            Card(Rank.NINE, Suit.CLUBS),
+            Card(Rank.SEVEN, Suit.HEARTS),
+            Card(Rank.EIGHT, Suit.SPADES)
+        )
+        val pts = PeggingScorer.pointsForPile(pile, newCount = 9 + 7 + 8)
+        assertEquals(3, pts.runPoints)
+        assertEquals(3, pts.total)
+    }
+
+    @Test
+    fun duplicatesBreakRun_example() {
+        // Duplicates break the run, but a tail pair still scores
+        val pile = listOf(
+            Card(Rank.EIGHT, Suit.CLUBS),
+            Card(Rank.SEVEN, Suit.HEARTS),
+            Card(Rank.SIX, Suit.SPADES),
+            Card(Rank.SIX, Suit.DIAMONDS)
+        )
+        val pts = PeggingScorer.pointsForPile(pile, newCount = 8 + 7 + 6 + 6)
+        assertEquals(0, pts.runPoints)
+        // Tail duplicates still score pair
+        assertEquals(2, pts.pairPoints)
+        assertEquals(2, pts.total)
+    }
+}

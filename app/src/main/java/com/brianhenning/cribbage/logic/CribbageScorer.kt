@@ -149,16 +149,16 @@ object PeggingScorer {
         }
 
         // Runs: check trailing windows from longest to 3
+        // Per pegging rules, the last N cards must be N distinct consecutive ranks (no duplicates).
         var runPoints = 0
         for (runLength in pileAfterPlay.size downTo 3) {
             val lastCards = pileAfterPlay.takeLast(runLength)
-            val groups = lastCards.groupBy { it.rank.ordinal }
-            val distinctRanks = groups.keys.sorted()
-            if (distinctRanks.size < 3) continue
+            val ranks = lastCards.map { it.rank.ordinal }
+            val distinctRanks = ranks.toSet().sorted()
+            if (distinctRanks.size != runLength) continue // duplicates break pegging runs
             val isConsecutive = distinctRanks.zipWithNext().all { (a, b) -> b - a == 1 }
             if (isConsecutive) {
-                val numberOfRuns = distinctRanks.map { groups[it]?.size ?: 0 }.reduce { acc, cnt -> acc * cnt }
-                runPoints = distinctRanks.size * numberOfRuns
+                runPoints = runLength
                 total += runPoints
                 break
             }
@@ -174,4 +174,3 @@ object PeggingScorer {
         )
     }
 }
-

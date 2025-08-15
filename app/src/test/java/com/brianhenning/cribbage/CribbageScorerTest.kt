@@ -190,8 +190,8 @@ class CribbageScorerTest {
     }
 
     @Test
-    fun pegging_doubleRun_withMultiplicity() {
-        // Last 4 cards contain two 7s making a double run of 5-6-7
+    fun pegging_noRun_withDuplicateInWindow() {
+        // Per pegging rules, duplicates in the trailing window break runs
         val pile = listOf(
             Card(Rank.SIX, Suit.HEARTS),
             Card(Rank.SEVEN, Suit.CLUBS),
@@ -199,8 +199,7 @@ class CribbageScorerTest {
             Card(Rank.FIVE, Suit.SPADES)
         )
         val pts = PeggingScorer.pointsForPile(pile, newCount = 25)
-        assertEquals(6, pts.total) // 3-length run * multiplicity 2
-        assertEquals(6, pts.runPoints)
+        assertEquals(0, pts.runPoints)
     }
 
     @Test

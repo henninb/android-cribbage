@@ -3,6 +3,7 @@ package com.brianhenning.cribbage.ui.screens
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,6 +27,8 @@ import com.brianhenning.cribbage.ui.theme.SelectedCard
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
+import com.brianhenning.cribbage.logic.dealSixToEach
+import com.brianhenning.cribbage.logic.dealerFromCut
 import com.brianhenning.cribbage.logic.CribbageScorer
 import com.brianhenning.cribbage.logic.PeggingScorer
 import com.brianhenning.cribbage.logic.PeggingRoundManager
@@ -38,8 +41,6 @@ private const val TAG = "CribbageGame"
 fun FirstScreen() {
     val context = LocalContext.current
 
-    LaunchedEffect(Unit) { Log.i(TAG, "FirstScreen composable is being rendered") }
-
     // Game state variables
     var gameStarted by remember { mutableStateOf(false) }
     var playerScore by remember { mutableIntStateOf(0) }
@@ -49,6 +50,30 @@ fun FirstScreen() {
     var opponentHand by remember { mutableStateOf<List<Card>>(emptyList()) }
     var cribHand by remember { mutableStateOf<List<Card>>(emptyList()) }
     var selectedCards by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var drawDeck by remember { mutableStateOf<List<Card>>(emptyList()) }
+    var gamesWon by remember { mutableIntStateOf(0) }
+    var gamesLost by remember { mutableIntStateOf(0) }
+    var skunksFor by remember { mutableIntStateOf(0) }
+    var skunksAgainst by remember { mutableIntStateOf(0) }
+    var cutPlayerCard by remember { mutableStateOf<Card?>(null) }
+    var cutOpponentCard by remember { mutableStateOf<Card?>(null) }
+
+    LaunchedEffect(Unit) {
+        Log.i(TAG, "FirstScreen composable is being rendered")
+        val prefs = context.getSharedPreferences("cribbage_prefs", Context.MODE_PRIVATE)
+        gamesWon = prefs.getInt("gamesWon", 0)
+        gamesLost = prefs.getInt("gamesLost", 0)
+        skunksFor = prefs.getInt("skunksFor", 0)
+        skunksAgainst = prefs.getInt("skunksAgainst", 0)
+        val cpr = prefs.getInt("cutPlayerRank", -1)
+        val cps = prefs.getInt("cutPlayerSuit", -1)
+        val cor = prefs.getInt("cutOppRank", -1)
+        val cos = prefs.getInt("cutOppSuit", -1)
+        if (cpr >= 0 && cps >= 0 && cor >= 0 && cos >= 0) {
+            cutPlayerCard = Card(Rank.entries[cpr], Suit.entries[cps])
+            cutOpponentCard = Card(Rank.entries[cor], Suit.entries[cos])
+        }
+    }
 
     // Pegging state variables
     var isPeggingPhase by remember { mutableStateOf(false) }
@@ -76,8 +101,31 @@ fun FirstScreen() {
     val checkGameOverFunction: () -> Unit = {
         if (playerScore > 120 || opponentScore > 120) {
             gameOver = true
-            val winner = if (playerScore > opponentScore) "You" else "Opponent"
-            gameStatus += "\nGame Over: $winner wins!"
+            val playerWins = playerScore > opponentScore
+            val winner = if (playerWins) "You" else "Opponent"
+            val loserScore = if (playerWins) opponentScore else playerScore
+            val skunked = loserScore < 61
+
+            if (playerWins) {
+                gamesWon += 1
+                if (skunked) skunksFor += 1
+            } else {
+                gamesLost += 1
+                if (skunked) skunksAgainst += 1
+            }
+
+            // Persist match stats and next dealer (loser deals next)
+            val prefs = context.getSharedPreferences("cribbage_prefs", Context.MODE_PRIVATE)
+            prefs.edit()
+                .putInt("gamesWon", gamesWon)
+                .putInt("gamesLost", gamesLost)
+                .putInt("skunksFor", skunksFor)
+                .putInt("skunksAgainst", skunksAgainst)
+                .putBoolean("nextDealerIsPlayer", !playerWins)
+                .apply()
+
+            gameStatus += "\nGame Over: $winner wins!" + (if (skunked) " Skunk!" else "") +
+                "\nMatch: ${gamesWon}-${gamesLost} (Skunks ${skunksFor}-${skunksAgainst})"
             // Hide the cut card.
             starterCard = null
             // Disable game actions.
@@ -378,8 +426,41 @@ fun FirstScreen() {
         starterCard = null
         peggingManager = null
 
-        isPlayerDealer = Random.nextBoolean()
-        Log.i(TAG, "Dealer: ${if (isPlayerDealer) "Player" else "Opponent"}")
+        // Dealer selection: if a previous game exists, loser deals first; otherwise perform a cut
+        val prefs = context.getSharedPreferences("cribbage_prefs", Context.MODE_PRIVATE)
+        if (prefs.contains("nextDealerIsPlayer")) {
+            isPlayerDealer = prefs.getBoolean("nextDealerIsPlayer", false)
+            cutPlayerCard = null
+            cutOpponentCard = null
+            gameStatus = context.getString(R.string.dealer_set_by_previous, if (isPlayerDealer) "You are dealer" else "Opponent is dealer")
+            Log.i(TAG, "Dealer set by previous game loser: ${if (isPlayerDealer) "Player" else "Opponent"}")
+        } else {
+            // Cut for dealer per rules: lower card deals first
+            run {
+                var pCut: Card
+                var oCut: Card
+                var who: com.brianhenning.cribbage.logic.Player?
+                do {
+                    val deck = createDeck().shuffled()
+                    pCut = deck[0]
+                    oCut = deck[1]
+                    who = dealerFromCut(pCut, oCut)
+                } while (who == null)
+                isPlayerDealer = (who == com.brianhenning.cribbage.logic.Player.PLAYER)
+                // Save cut cards for UI header and persist
+                cutPlayerCard = pCut
+                cutOpponentCard = oCut
+                prefs.edit()
+                    .putInt("cutPlayerRank", pCut.rank.ordinal)
+                    .putInt("cutPlayerSuit", pCut.suit.ordinal)
+                    .putInt("cutOppRank", oCut.rank.ordinal)
+                    .putInt("cutOppSuit", oCut.suit.ordinal)
+                    .apply()
+                gameStatus = "Cut for deal: You ${pCut.getSymbol()} vs Opponent ${oCut.getSymbol()}\n" +
+                        if (isPlayerDealer) "You are dealer" else "Opponent is dealer"
+                Log.i(TAG, "Cut: player=${pCut.getSymbol()}, opp=${oCut.getSymbol()} -> Dealer: ${if (isPlayerDealer) "Player" else "Opponent"}")
+            }
+        }
 
         dealButtonEnabled = true
         selectCribButtonEnabled = false
@@ -394,11 +475,14 @@ fun FirstScreen() {
     val dealCards = {
         Log.i(TAG, "Dealing cards")
         val deck = createDeck().shuffled().toMutableList()
-        playerHand = List(6) { deck.removeAt(0) }
-        playerHand = playerHand.sortedWith(compareBy({ it.rank.ordinal }, { it.suit.ordinal }))
-        opponentHand = List(6) { deck.removeAt(0) }
+        val result = dealSixToEach(deck, playerIsDealer = isPlayerDealer)
+        playerHand = result.playerHand.sortedWith(compareBy({ it.rank.ordinal }, { it.suit.ordinal }))
+        opponentHand = result.opponentHand
         Log.i(TAG, "Player hand: $playerHand")
         Log.i(TAG, "Opponent hand: $opponentHand")
+        // Save remaining undealt deck for starter draw
+        drawDeck = result.remainingDeck
+
         playerCardsPlayed = emptySet()
         opponentCardsPlayed = emptySet()
         dealButtonEnabled = false
@@ -428,8 +512,13 @@ fun FirstScreen() {
             selectCribButtonEnabled = false
             gameStatus = context.getString(R.string.crib_cards_selected)
 
-            val newDeck = createDeck().shuffled()
-            starterCard = newDeck.first()
+            // Draw starter from the same remaining deck to avoid duplication
+            if (drawDeck.isEmpty()) {
+                // Safety: if deck exhausted (shouldn't happen), reshuffle a fresh deck
+                drawDeck = createDeck().shuffled()
+            }
+            starterCard = drawDeck.first()
+            drawDeck = drawDeck.drop(1)
             Log.i(TAG, "Cut card: ${starterCard?.getSymbol()}")
             gameStatus = "Cut card: ${starterCard?.getSymbol()}"
             if (starterCard?.rank == Rank.JACK) {
@@ -645,12 +734,47 @@ fun FirstScreen() {
             )
         }
 
+        // Match summary (wins-losses and skunks)
+        Text(
+            text = context.getString(R.string.match_summary, gamesWon, gamesLost, skunksFor, skunksAgainst),
+            modifier = Modifier.padding(bottom = 8.dp),
+            style = MaterialTheme.typography.bodyMedium
+        )
+
         // Dealer info.
         Text(
             text = if (isPlayerDealer) "Dealer: You" else "Dealer: Opponent",
             modifier = Modifier.padding(bottom = 16.dp),
             style = MaterialTheme.typography.bodyMedium
         )
+
+        // Show cut cards header before the deal
+        if (gameStarted && dealButtonEnabled && cutPlayerCard != null && cutOpponentCard != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = context.getString(R.string.your_cut))
+                    Image(
+                        painter = painterResource(id = getCardResourceId(cutPlayerCard!!)),
+                        contentDescription = "Your cut card",
+                        modifier = Modifier.size(60.dp, 90.dp)
+                    )
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = context.getString(R.string.opponent_cut))
+                    Image(
+                        painter = painterResource(id = getCardResourceId(cutOpponentCard!!)),
+                        contentDescription = "Opponent cut card",
+                        modifier = Modifier.size(60.dp, 90.dp)
+                    )
+                }
+            }
+        }
 
         // Show cut card if available.
         if (starterCard != null) {

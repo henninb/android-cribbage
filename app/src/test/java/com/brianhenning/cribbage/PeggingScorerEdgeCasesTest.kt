@@ -21,9 +21,8 @@ class PeggingScorerEdgeCasesTest {
     }
 
     @Test
-    fun longRunWithMultiplicity_countsProductAcrossTrailingWindow() {
-        // 2-3-3-4-5-5 => trailing window is entire pile; ranks 2,3,4,5 are consecutive
-        // counts per rank: 1,2,1,2 -> product 4; run length 4 -> 16 points
+    fun duplicatesInTrailingWindow_breakRunOnlyPairsScore() {
+        // 2-3-3-4-5-5 => duplicates break runs; only the tail pair of fives scores
         val pile = listOf(
             Card(Rank.TWO, Suit.CLUBS),
             Card(Rank.THREE, Suit.HEARTS),
@@ -34,9 +33,8 @@ class PeggingScorerEdgeCasesTest {
         )
         val count = 2 + 3 + 3 + 4 + 5 + 5
         val pts = PeggingScorer.pointsForPile(pile, newCount = count)
-        assertEquals(16, pts.runPoints)
-        // Also gets +2 for the trailing pair of fives
+        assertEquals(0, pts.runPoints)
         assertEquals(2, pts.pairPoints)
-        assertEquals(18, pts.total)
+        assertEquals(2, pts.total)
     }
 }
