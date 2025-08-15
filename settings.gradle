@@ -10,7 +10,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven { url 'https://perimeterx.jfrog.io/artifactory/px-Android-SDK/' }
+        maven { url = uri('https://perimeterx.jfrog.io/artifactory/px-Android-SDK/') }
     }
 }
 

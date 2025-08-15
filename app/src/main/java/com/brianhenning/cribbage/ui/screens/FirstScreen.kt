@@ -26,6 +26,8 @@ import com.brianhenning.cribbage.ui.theme.SelectedCard
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
+import com.brianhenning.cribbage.logic.CribbageScorer
+import com.brianhenning.cribbage.logic.PeggingScorer
 
 @Composable
 fun FirstScreen() {
@@ -86,95 +88,44 @@ fun FirstScreen() {
     // Remember a coroutine scope for the hand counting process
     val scope = rememberCoroutineScope()
 
-    // Revised checkPeggingScore lambda with improved run scoring logic.
-    val checkPeggingScore: (Boolean, Card) -> Unit = { isPlayer, playedCard ->
-        // Score for 15's
-        if (peggingCount == 15) {
-            if (isPlayer) {
-                playerScore += 2
-                gameStatus += "\nScored 2 for 15 by You!"
-            } else {
-                opponentScore += 2
-                gameStatus += "\nScored 2 for 15 by Opponent!"
-            }
+    // Pegging scoring: delegate to PeggingScorer so UI and tests share logic.
+    val checkPeggingScore: (Boolean, Card) -> Unit = { isPlayer, _ ->
+        val pts = PeggingScorer.pointsForPile(peggingPile, peggingCount)
+        var awarded = 0
+        fun award(points: Int) {
+            if (points <= 0) return
+            awarded += points
+            if (isPlayer) playerScore += points else opponentScore += points
+        }
+
+        if (pts.fifteen > 0) {
+            award(pts.fifteen)
+            gameStatus += if (isPlayer) "\nScored 2 for 15 by You!" else "\nScored 2 for 15 by Opponent!"
             Log.i("CribbageGame", "Scored 2 for fifteen. Count: $peggingCount")
         }
-        // Score for 31's
-        if (peggingCount == 31) {
-            if (isPlayer) {
-                playerScore += 2
-                gameStatus += "\nScored 2 for 31 by You!"
-            } else {
-                opponentScore += 2
-                gameStatus += "\nScored 2 for 31 by Opponent!"
-            }
+        if (pts.thirtyOne > 0) {
+            award(pts.thirtyOne)
+            gameStatus += if (isPlayer) "\nScored 2 for 31 by You!" else "\nScored 2 for 31 by Opponent!"
             Log.i("CribbageGame", "Scored 2 for thirty-one. Count: $peggingCount")
         }
-        // Score for pairs (check consecutive cards at tail)
-        var sameRankCount = 1
-        for (i in peggingPile.size - 2 downTo 0) {
-            if (peggingPile[i].rank == playedCard.rank) {
-                sameRankCount++
-            } else break
+        if (pts.pairPoints > 0) {
+            award(pts.pairPoints)
+            val msg = when (pts.sameRankCount) {
+                2 -> "2 for a pair"
+                3 -> "6 for three-of-a-kind"
+                else -> "12 for four-of-a-kind"
+            }
+            gameStatus += if (isPlayer) "\nScored $msg by You!" else "\nScored $msg by Opponent!"
+            Log.i("CribbageGame", "Scored ${pts.pairPoints} for ${pts.sameRankCount} of a kind.")
         }
-        when (sameRankCount) {
-            2 -> {
-                if (isPlayer) {
-                    playerScore += 2
-                    gameStatus += "\nScored 2 for a pair by You!"
-                } else {
-                    opponentScore += 2
-                    gameStatus += "\nScored 2 for a pair by Opponent!"
-                }
-                Log.i("CribbageGame", "Scored 2 for a pair.")
-            }
-            3 -> {
-                if (isPlayer) {
-                    playerScore += 6
-                    gameStatus += "\nScored 6 for three-of-a-kind by You!"
-                } else {
-                    opponentScore += 6
-                    gameStatus += "\nScored 6 for three-of-a-kind by Opponent!"
-                }
-                Log.i("CribbageGame", "Scored 6 for three-of-a-kind.")
-            }
-            in 4..Int.MAX_VALUE -> {
-                if (isPlayer) {
-                    playerScore += 12
-                    gameStatus += "\nScored 12 for four-of-a-kind by You!"
-                } else {
-                    opponentScore += 12
-                    gameStatus += "\nScored 12 for four-of-a-kind by Opponent!"
-                }
-                Log.i("CribbageGame", "Scored 12 for four-of-a-kind.")
-            }
+        if (pts.runPoints > 0) {
+            award(pts.runPoints)
+            gameStatus += if (isPlayer) "\nScored ${pts.runPoints} for a run by You!" else "\nScored ${pts.runPoints} for a run by Opponent!"
+            Log.i("CribbageGame", "Scored ${pts.runPoints} for a run.")
         }
-        // Revised run scoring logic:
-        var runScore = 0
-        for (runLength in peggingPile.size downTo 3) {
-            val lastCards = peggingPile.takeLast(runLength)
-            val groups = lastCards.groupBy { it.rank.ordinal }
-            val distinctRanks = groups.keys.sorted()
-            if (distinctRanks.size < 3) continue
-            val isConsecutive = distinctRanks.zipWithNext().all { (a, b) -> b - a == 1 }
-            if (isConsecutive) {
-                val numberOfRuns = distinctRanks.map { groups[it]?.size ?: 0 }.reduce { acc, count -> acc * count }
-                runScore = distinctRanks.size * numberOfRuns
-                break
-            }
+        if (awarded > 0) {
+            checkGameOverFunction()
         }
-        if (runScore > 0) {
-            if (isPlayer) {
-                playerScore += runScore
-                gameStatus += "\nScored $runScore for a run by You!"
-            } else {
-                opponentScore += runScore
-                gameStatus += "\nScored $runScore for a run by Opponent!"
-            }
-            Log.i("CribbageGame", "Scored $runScore for a run.")
-        }
-        // Check if the game should end after scoring.
-        checkGameOverFunction()
     }
 
     // This helper checks if either player has a legal play given the remaining un-played cards.
@@ -625,104 +576,8 @@ fun FirstScreen() {
         }
     }
 
-    // Function to count a cribbage hand (hand + starter) and return the score along with a breakdown.
-    fun countHandScore(hand: List<Card>, starter: Card, isCrib: Boolean = false): Pair<Int, String> {
-        val allCards = hand + starter
-        var score = 0
-        val breakdown = StringBuilder()
-
-        // Count 15's: iterate through all non-empty subsets of the 5 cards.
-        fun countFifteens(): Int {
-            var fifteens = 0
-            val n = allCards.size
-            for (mask in 1 until (1 shl n)) {
-                var sum = 0
-                for (i in 0 until n) {
-                    if ((mask and (1 shl i)) != 0) {
-                        sum += allCards[i].getValue()
-                    }
-                }
-                if (sum == 15) {
-                    fifteens++
-                }
-            }
-            return fifteens
-        }
-        val fifteens = countFifteens()
-        if (fifteens > 0) {
-            val points = fifteens * 2
-            score += points
-            breakdown.append("15's: $points points ($fifteens combinations)\n")
-        }
-
-        // Count pairs
-        val rankCounts = allCards.groupingBy { it.rank }.eachCount()
-        var pairPoints = 0
-        for ((_, count) in rankCounts) {
-            if (count >= 2) {
-                val pairs = (count * (count - 1)) / 2
-                pairPoints += pairs * 2
-            }
-        }
-        if (pairPoints > 0) {
-            score += pairPoints
-            breakdown.append("Pairs: $pairPoints points\n")
-        }
-
-        // Count runs using a frequency map of rank ordinals.
-        val freq = allCards.groupingBy { it.rank.ordinal }.eachCount()
-        val sortedRanks = freq.keys.sorted()
-        var runPoints = 0
-        var longestRun = 0
-        var i = 0
-        while (i < sortedRanks.size) {
-            var runLength = 1
-            var runMultiplicative = freq[sortedRanks[i]] ?: 0
-            var j = i + 1
-            while (j < sortedRanks.size && sortedRanks[j] == sortedRanks[j - 1] + 1) {
-                runLength++
-                runMultiplicative *= freq[sortedRanks[j]] ?: 0
-                j++
-            }
-            if (runLength >= 3 && runLength > longestRun) {
-                longestRun = runLength
-                runPoints = runLength * runMultiplicative
-            } else if (runLength >= 3 && runLength == longestRun) {
-                runPoints += runLength * runMultiplicative
-            }
-            i = j
-        }
-        if (runPoints > 0) {
-            score += runPoints
-            breakdown.append("Runs: $runPoints points\n")
-        }
-
-        // Count flush.
-        if (hand.isNotEmpty()) {
-            val handSuit = hand.first().suit
-            if (hand.all { it.suit == handSuit }) {
-                if (!isCrib) {
-                    var flushPoints = 4
-                    if (starter.suit == handSuit) flushPoints++
-                    score += flushPoints
-                    breakdown.append("Flush: $flushPoints points\n")
-                } else {
-                    if (allCards.all { it.suit == handSuit }) {
-                        score += 5
-                        breakdown.append("Crib Flush: 5 points\n")
-                    }
-                }
-            }
-        }
-
-        // Count his nobs.
-        if (hand.any { it.rank == Rank.JACK && it.suit == starter.suit }) {
-            score += 1
-            breakdown.append("His Nobs: 1 point\n")
-        }
-
-        return Pair(score, breakdown.toString())
-    }
+    // Delegate hand scoring to shared scorer to keep logic consistent with tests.
+    
 
     // Hand counting process triggered by the Hand Counting button.
     // It counts the non-dealer hand, then the dealer hand, then the crib, pausing between each.
@@ -750,7 +605,7 @@ fun FirstScreen() {
                 nonDealerHand = playerHand
             }
             gameStatus = "Counting non-dealer hand..."
-            val (nonDealerScore, nonDealerBreakdown) = countHandScore(nonDealerHand, starterCard!!)
+            val (nonDealerScore, nonDealerBreakdown) = CribbageScorer.scoreHandDetailed(nonDealerHand, starterCard!!)
             gameStatus += "\nNon-Dealer Hand Score: $nonDealerScore\n$nonDealerBreakdown"
             if (isPlayerDealer) {
                 opponentScore += nonDealerScore
@@ -762,7 +617,7 @@ fun FirstScreen() {
             delay(3000)
 
             gameStatus = "Counting dealer hand..."
-            val (dealerScoreValue, dealerBreakdown) = countHandScore(dealerHand, starterCard!!)
+            val (dealerScoreValue, dealerBreakdown) = CribbageScorer.scoreHandDetailed(dealerHand, starterCard!!)
             gameStatus += "\nDealer Hand Score: $dealerScoreValue\n$dealerBreakdown"
             if (isPlayerDealer) {
                 playerScore += dealerScoreValue
@@ -774,7 +629,7 @@ fun FirstScreen() {
             delay(3000)
 
             gameStatus = "Counting crib hand..."
-            val (cribScoreValue, cribBreakdown) = countHandScore(cribHand, starterCard!!, isCrib = true)
+            val (cribScoreValue, cribBreakdown) = CribbageScorer.scoreHandDetailed(cribHand, starterCard!!, isCrib = true)
             gameStatus += "\nCrib Hand Score: $cribScoreValue\n$cribBreakdown"
             // The crib always belongs to the dealer.
             if (isPlayerDealer) {
