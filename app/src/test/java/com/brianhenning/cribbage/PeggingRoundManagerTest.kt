@@ -102,4 +102,22 @@ class PeggingRoundManagerTest {
         // Last to play was OPPONENT; next turn should be PLAYER
         assertEquals(Player.PLAYER, mgr.isPlayerTurn)
     }
+
+    @Test
+    fun goTransfersTurn_withoutAward_thenPlayResetsConsecutiveGoes() {
+        val mgr = PeggingRoundManager(startingPlayer = Player.PLAYER)
+        // Seed a prior play so lastPlayerWhoPlayed is OPPONENT before the GO sequence
+        mgr.onPlay(Card(Rank.FIVE, Suit.CLUBS)) // PLAYER -> OPPONENT
+        mgr.onPlay(Card(Rank.FOUR, Suit.HEARTS)) // OPPONENT -> PLAYER
+
+        // PLAYER says GO but opponent has a legal move -> no reset, just transfer turn
+        val r1 = mgr.onGo(opponentHasLegalMove = true)
+        assertNull(r1)
+        assertEquals(Player.OPPONENT, mgr.isPlayerTurn)
+
+        // Opponent plays; consecutive GO count must be cleared and turn flips to PLAYER
+        mgr.onPlay(Card(Rank.ACE, Suit.SPADES))
+        assertEquals(0, mgr.consecutiveGoes)
+        assertEquals(Player.PLAYER, mgr.isPlayerTurn)
+    }
 }
