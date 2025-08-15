@@ -110,7 +110,16 @@ Bottom navigation component.
 Notable tests:
 - `app/src/test/java/com/brianhenning/cribbage/CribbageHandTest.kt`
 - `app/src/test/java/com/brianhenning/cribbage/FirstScreenTest.kt`
+- `app/src/test/java/com/brianhenning/cribbage/PeggingScorerTest.kt`
+- `app/src/test/java/com/brianhenning/cribbage/PeggingRoundManagerTest.kt`
 - `app/src/androidTest/java/com/brianhenning/cribbage/FirstScreenComposeTest.kt`
+
+### Pegging Logic and GO Flow
+
+- Core pegging scoring lives in `app/src/main/java/com/brianhenning/cribbage/logic/PeggingScorer.kt` and is unit-tested by `PeggingScorerTest.kt`.
+- GO/sub-round resets are modeled by `app/src/main/java/com/brianhenning/cribbage/logic/PeggingRoundManager.kt` with tests in `PeggingRoundManagerTest.kt`.
+- `FirstScreen` delegates pegging flow to `PeggingRoundManager` and mirrors state using small helpers.
+- Instrumented test `FirstScreenComposeTest.kt` includes a small harness to validate GO→reset behavior.
 
 ## Build & Dependency Notes
 

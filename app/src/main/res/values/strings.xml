@@ -32,6 +32,8 @@
     <string name="pegging_go">GO! Cannot play a card</string>
     <string name="pegging_complete">Pegging complete!</string>
     <string name="say_go">Say "GO"</string>
+    <string name="pegging_you_say_go">You say GO!</string>
+    <string name="pegging_opponent_says_go">Opponent says GO!</string>
     <string name="pegging_pairs">Pair! +2 points</string>
     <string name="pegging_three_of_a_kind">Three of a kind! +6 points</string>
     <string name="pegging_four_of_a_kind">Four of a kind! +12 points</string>
@@ -39,4 +41,7 @@
     <string name="pegging_fifteen">Fifteen! +2 points</string>
     <string name="pegging_thirtyone">Thirty-one! +2 points</string>
     <string name="pegging_last_card">Last card! +1 point</string>
+    <string name="played_you">You played %1$s</string>
+    <string name="played_opponent">Opponent played %1$s</string>
+    <string name="illegal_move_exceeds_31">Illegal move: %1$s would exceed 31.</string>
 </resources>
