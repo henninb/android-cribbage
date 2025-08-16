@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.brianhenning.cribbage.R
 import com.brianhenning.cribbage.ui.screens.Card as CribbageCard
@@ -147,7 +148,7 @@ fun FlippableGameCard(
     }
 }
 
-enum class CardSize(val width: dp, val height: dp) {
+enum class CardSize(val width: Dp, val height: Dp) {
     Small(50.dp, 75.dp),
     Medium(70.dp, 105.dp),
     Large(90.dp, 135.dp),

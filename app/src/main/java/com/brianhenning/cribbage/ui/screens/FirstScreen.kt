@@ -93,6 +93,7 @@ fun FirstScreen() {
     var playCardButtonEnabled by remember { mutableStateOf(false) }
     var showHandCountingButton by remember { mutableStateOf(false) }
     var gameOver by remember { mutableStateOf(false) }
+    var showPeggingCount by remember { mutableStateOf(false) }
     
     // Hand counting state
     var isInHandCountingPhase by remember { mutableStateOf(false) }
