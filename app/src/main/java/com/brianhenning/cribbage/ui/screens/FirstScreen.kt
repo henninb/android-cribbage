@@ -7,26 +7,19 @@ import android.content.Context
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.times
-import androidx.compose.ui.zIndex
 import com.brianhenning.cribbage.R
-import com.brianhenning.cribbage.ui.theme.CardBackground
-import com.brianhenning.cribbage.ui.theme.SelectedCard
+import com.brianhenning.cribbage.ui.composables.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
@@ -43,6 +36,7 @@ private const val TAG = "CribbageGame"
 @Composable
 fun FirstScreen() {
     val context = LocalContext.current
+    val scrollState = rememberScrollState()
 
     // Game state variables
     var gameStarted by remember { mutableStateOf(false) }
@@ -93,12 +87,17 @@ fun FirstScreen() {
 
     // UI state variables
     var gameStatus by remember { mutableStateOf(context.getString(R.string.welcome_to_cribbage)) }
+    var currentPhase by remember { mutableStateOf(GamePhase.SETUP) }
     var dealButtonEnabled by remember { mutableStateOf(false) }
     var selectCribButtonEnabled by remember { mutableStateOf(false) }
     var playCardButtonEnabled by remember { mutableStateOf(false) }
-    var showPeggingCount by remember { mutableStateOf(false) }
-    var showHandCountingButton by remember { mutableStateOf(false) } // New state
-    var gameOver by remember { mutableStateOf(false) } // New game over state
+    var showHandCountingButton by remember { mutableStateOf(false) }
+    var gameOver by remember { mutableStateOf(false) }
+    
+    // Hand counting state
+    var isInHandCountingPhase by remember { mutableStateOf(false) }
+    var countingPhase by remember { mutableStateOf(CountingPhase.NONE) }
+    var handScores by remember { mutableStateOf(HandScores()) }
 
     // Check game over function: if either score goes past 120, end the game.
     val checkGameOverFunction: () -> Unit = {
@@ -234,6 +233,7 @@ fun FirstScreen() {
         }
         if (playerLegal.isEmpty() && opponentLegal.isEmpty()) {
             isPeggingPhase = false
+            currentPhase = GamePhase.HAND_COUNTING
             gameStatus += "\nPegging phase complete. Proceed to hand scoring."
             showHandCountingButton = true
             return
@@ -403,9 +403,14 @@ fun FirstScreen() {
         dealButtonEnabled = false
         selectCribButtonEnabled = false
         playCardButtonEnabled = false
-        showPeggingCount = false
         showHandCountingButton = false
         gameOver = false
+        
+        // Reset UI state
+        currentPhase = GamePhase.SETUP
+        isInHandCountingPhase = false
+        countingPhase = CountingPhase.NONE
+        handScores = HandScores()
 
         gameStatus = context.getString(R.string.welcome_to_cribbage)
     }
@@ -428,6 +433,12 @@ fun FirstScreen() {
         lastPlayerWhoPlayed = null
         starterCard = null
         peggingManager = null
+        
+        // Reset UI state
+        currentPhase = GamePhase.SETUP
+        isInHandCountingPhase = false
+        countingPhase = CountingPhase.NONE
+        handScores = HandScores()
 
         // Dealer selection: if a previous game exists, loser deals first; otherwise perform a cut
         val prefs = context.getSharedPreferences("cribbage_prefs", Context.MODE_PRIVATE)
@@ -468,9 +479,9 @@ fun FirstScreen() {
         dealButtonEnabled = true
         selectCribButtonEnabled = false
         playCardButtonEnabled = false
-        showPeggingCount = false
         showHandCountingButton = false
         gameOver = false
+        currentPhase = GamePhase.SETUP
 
         gameStatus = context.getString(R.string.game_started)
     }
@@ -490,6 +501,7 @@ fun FirstScreen() {
         opponentCardsPlayed = emptySet()
         dealButtonEnabled = false
         selectCribButtonEnabled = true
+        currentPhase = GamePhase.CRIB_SELECTION
         gameStatus = context.getString(R.string.select_cards_for_crib)
     }
 
@@ -538,11 +550,10 @@ fun FirstScreen() {
                 isPeggingPhase = true
                 isPlayerTurn = !isPlayerDealer
                 playCardButtonEnabled = true
-                showPeggingCount = true
                 peggingCount = 0
                 peggingManager = PeggingRoundManager(startingPlayer = if (isPlayerTurn) Player.PLAYER else Player.OPPONENT)
-                // Once pegging starts, hide the crib selection button.
                 selectCribButtonEnabled = false
+                currentPhase = GamePhase.PEGGING
                 gameStatus += "\nPegging phase begins. " + if (isPlayerTurn)
                     context.getString(R.string.pegging_your_turn)
                 else
@@ -641,22 +652,24 @@ fun FirstScreen() {
     // Delegate hand scoring to shared scorer to keep logic consistent with tests.
     
 
-    // Hand counting process triggered by the Hand Counting button.
-    // It counts the non-dealer hand, then the dealer hand, then the crib, pausing between each.
+    // Enhanced hand counting process with opponent card reveals
     val countHands = {
         scope.launch {
-            // When hand counting starts, reset the pegging pile and hide it.
+            // Enter hand counting mode
             isPeggingPhase = false
             peggingPile = emptyList()
             peggingDisplayPile = emptyList()
-            showPeggingCount = false
             showHandCountingButton = false
+            isInHandCountingPhase = true
+            currentPhase = GamePhase.HAND_COUNTING
+            countingPhase = CountingPhase.NON_DEALER
 
             if (starterCard == null) {
                 gameStatus = "Starter card not set. Cannot count hands."
                 return@launch
             }
-            // Determine which hand is non-dealer versus dealer.
+            
+            // Determine which hand is non-dealer versus dealer
             val nonDealerHand: List<Card>
             val dealerHand: List<Card>
             if (isPlayerDealer) {
@@ -666,9 +679,14 @@ fun FirstScreen() {
                 dealerHand = opponentHand
                 nonDealerHand = playerHand
             }
+            
+            // Count non-dealer hand
             gameStatus = "Counting non-dealer hand..."
             val (nonDealerScore, nonDealerBreakdown) = CribbageScorer.scoreHandDetailed(nonDealerHand, starterCard!!)
-            gameStatus += "\nNon-Dealer Hand Score: $nonDealerScore\n$nonDealerBreakdown"
+            handScores = handScores.copy(
+                nonDealerScore = nonDealerScore,
+                nonDealerBreakdown = nonDealerBreakdown
+            )
             if (isPlayerDealer) {
                 opponentScore += nonDealerScore
             } else {
@@ -677,10 +695,15 @@ fun FirstScreen() {
             checkGameOverFunction()
             if (gameOver) return@launch
             delay(3000)
-
+            
+            // Count dealer hand
+            countingPhase = CountingPhase.DEALER
             gameStatus = "Counting dealer hand..."
             val (dealerScoreValue, dealerBreakdown) = CribbageScorer.scoreHandDetailed(dealerHand, starterCard!!)
-            gameStatus += "\nDealer Hand Score: $dealerScoreValue\n$dealerBreakdown"
+            handScores = handScores.copy(
+                dealerScore = dealerScoreValue,
+                dealerBreakdown = dealerBreakdown
+            )
             if (isPlayerDealer) {
                 playerScore += dealerScoreValue
             } else {
@@ -689,11 +712,15 @@ fun FirstScreen() {
             checkGameOverFunction()
             if (gameOver) return@launch
             delay(3000)
-
-            gameStatus = "Counting crib hand..."
+            
+            // Count crib
+            countingPhase = CountingPhase.CRIB
+            gameStatus = "Counting crib..."
             val (cribScoreValue, cribBreakdown) = CribbageScorer.scoreHandDetailed(cribHand, starterCard!!, isCrib = true)
-            gameStatus += "\nCrib Hand Score: $cribScoreValue\n$cribBreakdown"
-            // The crib always belongs to the dealer.
+            handScores = handScores.copy(
+                cribScore = cribScoreValue,
+                cribBreakdown = cribBreakdown
+            )
             if (isPlayerDealer) {
                 playerScore += cribScoreValue
             } else {
@@ -702,14 +729,22 @@ fun FirstScreen() {
             checkGameOverFunction()
             if (gameOver) return@launch
             delay(3000)
-
-            gameStatus += "\nHand counting complete."
-            // Hide the cut card after counting is complete.
+            
+            // Complete hand counting
+            countingPhase = CountingPhase.COMPLETED
+            gameStatus = "Hand counting complete. Preparing next round..."
+            delay(2000)
+            
+            // Reset for next round
+            isInHandCountingPhase = false
+            countingPhase = CountingPhase.NONE
+            handScores = HandScores()
             starterCard = null
-
-            // Toggle dealer for next round just before showing the deal button again.
+            
+            // Toggle dealer for next round
             isPlayerDealer = !isPlayerDealer
-            gameStatus += "\nNew round: " + if (isPlayerDealer) "You are now the dealer." else "Opponent is now the dealer."
+            currentPhase = GamePhase.SETUP
+            gameStatus = "New round: " + if (isPlayerDealer) "You are now the dealer." else "Opponent is now the dealer."
             dealButtonEnabled = true
         }
     }
@@ -717,266 +752,323 @@ fun FirstScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(16.dp)
+            .verticalScroll(scrollState),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Game header with scores.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+        // App title
+        Text(
+            text = "Cribbage",
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center
+        )
+        
+        // Score display
+        ScoreDisplay(
+            playerScore = playerScore,
+            opponentScore = opponentScore
+        )
+        
+        // Match summary
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
         ) {
-            Text(
-                text = "Your Score: $playerScore",
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                text = "Opponent Score: $opponentScore",
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
-
-        // Match summary (wins-losses and skunks)
-        Text(
-            text = context.getString(R.string.match_summary, gamesWon, gamesLost, skunksFor, skunksAgainst),
-            modifier = Modifier.padding(bottom = 8.dp),
-            style = MaterialTheme.typography.bodyMedium
-        )
-
-        // Dealer info.
-        Text(
-            text = if (isPlayerDealer) "Dealer: You" else "Dealer: Opponent",
-            modifier = Modifier.padding(bottom = 16.dp),
-            style = MaterialTheme.typography.bodyMedium
-        )
-
-        // Show cut cards header before the deal
-        if (gameStarted && dealButtonEnabled && cutPlayerCard != null && cutOpponentCard != null) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = context.getString(R.string.your_cut))
-                    Image(
-                        painter = painterResource(id = getCardResourceId(cutPlayerCard!!)),
-                        contentDescription = "Your cut card",
-                        modifier = Modifier.size(60.dp, 90.dp)
-                    )
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = context.getString(R.string.opponent_cut))
-                    Image(
-                        painter = painterResource(id = getCardResourceId(cutOpponentCard!!)),
-                        contentDescription = "Opponent cut card",
-                        modifier = Modifier.size(60.dp, 90.dp)
-                    )
-                }
+                Text(
+                    text = "Match Record",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = context.getString(R.string.match_summary, gamesWon, gamesLost, skunksFor, skunksAgainst),
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = if (isPlayerDealer) "You are the dealer" else "Opponent is the dealer",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
 
-        // Show cut card if available.
-        if (starterCard != null) {
-            Text(
-                text = "Cut Card: ${starterCard?.getSymbol()}",
-                modifier = Modifier.padding(bottom = 8.dp),
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
-
-        // Game status.
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
-        ) {
-            Text(
-                text = gameStatus,
-                modifier = Modifier.padding(16.dp),
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodyLarge
-            )
-        }
-
-        // Pegging count.
-        if (showPeggingCount) {
-            Text(
-                text = "Count: $peggingCount",
-                modifier = Modifier.padding(vertical = 8.dp),
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
-
-        // Adjusted pegging display pile view (cards overlay horizontally without vertical staggering).
-        if (showPeggingCount && peggingDisplayPile.isNotEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(90.dp)
+        // Show cut cards before the deal
+        if (gameStarted && dealButtonEnabled && cutPlayerCard != null && cutOpponentCard != null) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                )
             ) {
-                peggingDisplayPile.forEachIndexed { index, card ->
-                    val offsetX = index * 30.dp
-                    val offsetY = 0.dp
-                    Box(
-                        modifier = Modifier
-                            .offset(x = offsetX, y = offsetY)
-                            .zIndex((peggingDisplayPile.size - index).toFloat())
-                            .size(60.dp, 90.dp)
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                            .background(CardBackground, shape = RoundedCornerShape(8.dp))
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Cut for Dealer",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(32.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Image(
-                            painter = painterResource(id = getCardResourceId(card)),
-                            contentDescription = card.toString(),
-                            modifier = Modifier.fillMaxSize()
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = context.getString(R.string.your_cut),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            GameCard(
+                                card = cutPlayerCard!!,
+                                isRevealed = true,
+                                isClickable = false,
+                                cardSize = CardSize.Medium
+                            )
+                        }
+                        Text(
+                            text = "vs",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
                         )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = context.getString(R.string.opponent_cut),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            GameCard(
+                                card = cutOpponentCard!!,
+                                isRevealed = true,
+                                isClickable = false,
+                                cardSize = CardSize.Medium
+                            )
+                        }
                     }
                 }
             }
         }
 
-        // Show the undealt deck before the deal button is clicked.
-        if (gameStarted && dealButtonEnabled) {
-            Box(modifier = Modifier.padding(8.dp)) {
-                Image(
-                    painter = painterResource(id = R.drawable.back_dark),
-                    contentDescription = "Un dealt Deck",
-                    modifier = Modifier.size(60.dp, 90.dp)
+        // Show starter card during game
+        starterCard?.let { starter ->
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
                 )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Display player's hand.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            for (i in playerHand.indices) {
-                val card = playerHand[i]
-                val isSelected = selectedCards.contains(i)
-                val isPlayed = playerCardsPlayed.contains(i)
-                // Apply a vertical offset to visually stagger selected cards.
-                val staggerOffset = if (isSelected) 10.dp else 0.dp
-                Box(
-                    modifier = Modifier
-                        .offset(y = staggerOffset)
-                        .size(60.dp, 90.dp)
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .background(
-                            color = if (isSelected) SelectedCard else CardBackground,
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .alpha(if (isPlayed) 0.3f else 1.0f)
-                        .clickable(
-                            enabled = gameStarted && !isPlayed,
-                            onClick = { toggleCardSelection(i) }
-                        ),
-                    contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Image(
-                        painter = painterResource(id = getCardResourceId(card)),
-                        contentDescription = card.toString(),
-                        modifier = Modifier.fillMaxSize()
+                    Text(
+                        text = "Starter Card",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    GameCard(
+                        card = starter,
+                        isRevealed = true,
+                        isClickable = false,
+                        cardSize = CardSize.Large
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        // Game status and phase indicator
+        GameStatusCard(
+            gameStatus = gameStatus,
+            currentPhase = currentPhase,
+            isPlayerTurn = isPlayerTurn
+        )
+        
+        // Hand counting display (shows opponent cards!)
+        if (isInHandCountingPhase) {
+            HandCountingDisplay(
+                playerHand = playerHand,
+                opponentHand = opponentHand,
+                cribHand = cribHand,
+                starterCard = starterCard,
+                isPlayerDealer = isPlayerDealer,
+                currentCountingPhase = countingPhase,
+                handScores = handScores
+            )
+        } else {
+            // Pegging pile display
+            if (isPeggingPhase && peggingDisplayPile.isNotEmpty()) {
+                PeggingPileDisplay(
+                    peggingCards = peggingDisplayPile,
+                    peggingCount = peggingCount
+                )
+            }
+            
+            // Crib display
+            if (cribHand.isNotEmpty() && !isPeggingPhase && !isInHandCountingPhase) {
+                CribDisplay(
+                    cribCards = cribHand,
+                    showCards = false,
+                    isPlayerCrib = isPlayerDealer
+                )
+            }
+            
+            // Opponent hand display
+            if (opponentHand.isNotEmpty()) {
+                OpponentHandDisplay(
+                    hand = opponentHand,
+                    playedCards = opponentCardsPlayed,
+                    showCards = false
+                )
+            }
+        }
 
-        // Game control buttons.
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            if (!gameStarted) {
-                Button(
-                    onClick = { startNewGame() },
-                    modifier = Modifier.padding(horizontal = 4.dp)
+        // Undealt deck display
+        if (gameStarted && dealButtonEnabled) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(text = "Start Game")
-                }
-            } else {
-                Button(
-                    onClick = { endGame() },
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                ) {
-                    Text(text = "End Game")
-                }
-            }
-            // Only show the Deal Cards button when appropriate.
-            if (dealButtonEnabled) {
-                Button(
-                    onClick = { dealCards() },
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                ) {
-                    Text(text = "Deal Cards")
-                }
-            }
-            // Report bug button always visible when game started
-            if (gameStarted) {
-                Button(
-                    onClick = {
-                        val body = buildBugReportBody(
-                            context = context,
-                            playerScore = playerScore,
-                            opponentScore = opponentScore,
-                            isPlayerDealer = isPlayerDealer,
-                            starterCard = starterCard,
-                            peggingCount = peggingCount,
-                            peggingPile = peggingPile,
-                            playerHand = playerHand,
-                            opponentHand = opponentHand,
-                            cribHand = cribHand,
-                            matchSummary = "${gamesWon}-${gamesLost} (Skunks ${skunksFor}-${skunksAgainst})",
-                            gameStatus = gameStatus
-                        )
-                        sendBugReportEmail(context, context.getString(R.string.feedback_email), context.getString(R.string.bug_report_subject), body)
-                    },
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                ) {
-                    Text(text = context.getString(R.string.report_bug))
+                    Text(
+                        text = "Deck",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    GameCard(
+                        card = Card(Rank.ACE, Suit.SPADES), // Dummy card for back display
+                        isRevealed = false,
+                        isClickable = false,
+                        cardSize = CardSize.Medium
+                    )
                 }
             }
         }
-        // Second row for crib selection / hand counting.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
+
+        // Player hand display
+        if (playerHand.isNotEmpty() && !isInHandCountingPhase) {
+            PlayerHandDisplay(
+                hand = playerHand,
+                selectedCards = selectedCards,
+                playedCards = playerCardsPlayed,
+                onCardClick = { toggleCardSelection(it) },
+                isEnabled = gameStarted && !gameOver
+            )
+        }
+
+        // Game control buttons
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
-            if (!isPeggingPhase && selectCribButtonEnabled) {
-                Button(
-                    onClick = { selectCardsForCrib() },
-                    enabled = selectCribButtonEnabled,
-                    modifier = Modifier.padding(horizontal = 4.dp)
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Primary action buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(text = "Select for Crib")
+                    if (!gameStarted) {
+                        Button(
+                            onClick = { startNewGame() },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(text = "Start New Game")
+                        }
+                    } else {
+                        Button(
+                            onClick = { endGame() },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text(text = "End Game")
+                        }
+                    }
+                    
+                    if (dealButtonEnabled) {
+                        Button(
+                            onClick = { dealCards() },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(text = "Deal Cards")
+                        }
+                    }
                 }
-            }
-            if (showHandCountingButton) {
-                Button(
-                    onClick = { countHands() },
-                    modifier = Modifier.padding(horizontal = 4.dp)
+                
+                // Secondary action buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(text = "Hand Counting")
+                    if (!isPeggingPhase && selectCribButtonEnabled) {
+                        Button(
+                            onClick = { selectCardsForCrib() },
+                            enabled = selectCribButtonEnabled,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(text = "Select for Crib")
+                        }
+                    }
+                    
+                    if (showHandCountingButton) {
+                        Button(
+                            onClick = { countHands() },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            )
+                        ) {
+                            Text(text = "Count Hands")
+                        }
+                    }
+                    
+                    // Report bug button
+                    if (gameStarted) {
+                        OutlinedButton(
+                            onClick = {
+                                val body = buildBugReportBody(
+                                    context = context,
+                                    playerScore = playerScore,
+                                    opponentScore = opponentScore,
+                                    isPlayerDealer = isPlayerDealer,
+                                    starterCard = starterCard,
+                                    peggingCount = peggingCount,
+                                    peggingPile = peggingPile,
+                                    playerHand = playerHand,
+                                    opponentHand = opponentHand,
+                                    cribHand = cribHand,
+                                    matchSummary = "${gamesWon}-${gamesLost} (Skunks ${skunksFor}-${skunksAgainst})",
+                                    gameStatus = gameStatus
+                                )
+                                sendBugReportEmail(context, context.getString(R.string.feedback_email), context.getString(R.string.bug_report_subject), body)
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(text = "Report Bug")
+                        }
+                    }
                 }
             }
         }
