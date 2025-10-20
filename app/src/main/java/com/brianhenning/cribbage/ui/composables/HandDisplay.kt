@@ -155,7 +155,7 @@ fun CribDisplay(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp)
                 ) {
-                    itemsIndexed(cribCards) { index, card ->
+                    itemsIndexed(cribCards) { _, card ->
                         GameCard(
                             card = card,
                             isRevealed = showCards,

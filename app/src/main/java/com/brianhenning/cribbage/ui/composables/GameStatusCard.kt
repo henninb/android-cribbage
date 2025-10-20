@@ -44,8 +44,8 @@ fun GameStatusCard(
                 currentPhase = currentPhase,
                 isPlayerTurn = isPlayerTurn
             )
-            
-            Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
             
             Text(
                 text = "Game Status",
@@ -155,10 +155,9 @@ fun ScoreDisplay(
         ) {
             ScoreColumn(
                 label = "You",
-                score = playerScore,
-                isPlayer = true
+                score = playerScore
             )
-            
+
             Box(
                 modifier = Modifier
                     .width(2.dp)
@@ -168,11 +167,10 @@ fun ScoreDisplay(
                         RoundedCornerShape(1.dp)
                     )
             )
-            
+
             ScoreColumn(
                 label = "Opponent",
-                score = opponentScore,
-                isPlayer = false
+                score = opponentScore
             )
         }
     }
@@ -181,8 +179,7 @@ fun ScoreDisplay(
 @Composable
 private fun ScoreColumn(
     label: String,
-    score: Int,
-    isPlayer: Boolean
+    score: Int
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -202,7 +199,7 @@ private fun ScoreColumn(
         )
         
         LinearProgressIndicator(
-            progress = (score / 121f).coerceAtMost(1.0f),
+            progress = { (score / 121f).coerceAtMost(1.0f) },
             modifier = Modifier
                 .width(80.dp)
                 .height(6.dp),

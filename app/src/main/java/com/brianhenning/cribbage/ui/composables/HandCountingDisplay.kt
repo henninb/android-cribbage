@@ -162,7 +162,7 @@ private fun HandCountingCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                itemsIndexed(hand) { index, card ->
+                itemsIndexed(hand) { _, card ->
                     GameCard(
                         card = card,
                         isRevealed = true,
@@ -179,7 +179,7 @@ private fun HandCountingCard(
                             .height(60.dp)
                             .padding(horizontal = 8.dp)
                     ) {
-                        Divider(
+                        HorizontalDivider(
                             modifier = Modifier
                                 .fillMaxHeight()
                                 .width(2.dp),
@@ -315,7 +315,7 @@ private fun CribCountingCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                itemsIndexed(cribHand) { index, card ->
+                itemsIndexed(cribHand) { _, card ->
                     GameCard(
                         card = card,
                         isRevealed = true,
@@ -332,7 +332,7 @@ private fun CribCountingCard(
                                 .height(60.dp)
                                 .padding(horizontal = 8.dp)
                         ) {
-                            Divider(
+                            HorizontalDivider(
                                 modifier = Modifier
                                     .fillMaxHeight()
                                     .width(2.dp),

@@ -28,8 +28,30 @@
   - `ui.screens`: Screen implementations
   - `ui.theme`: Theme definitions
 
-## Key Dependencies
-- Jetpack Compose (BOM 2023.10.01) for modern UI
-- AndroidX Navigation for fragment/compose navigation
-- Retrofit/OkHttp for network requests
-- JUnit for testing
+## Current Tech Stack
+- **Java Version**: 17 (JVM Toolchain)
+- **Gradle**: 8.14.3
+- **Android Gradle Plugin**: 8.13.0 (latest stable, supports compileSdk 36)
+- **Kotlin**: 2.0.21 with Compose Compiler Plugin
+- **compileSdk**: 36
+- **minSdk**: 24
+- **targetSdk**: 34
+
+## Key Dependencies (Latest Compatible Versions)
+- **Jetpack Compose**: BOM 2025.01.00 (Kotlin 2.0+ compatible)
+- **AndroidX Core**: 1.17.0 (requires AGP 8.9.1+, compileSdk 36)
+- **AndroidX AppCompat**: 1.7.1
+- **AndroidX Navigation**: 2.8.6 (fragment-ktx, ui-ktx, compose)
+- **Activity Compose**: 1.10.0 (requires compileSdk 35+)
+- **Lifecycle ViewModel Compose**: 2.8.7
+- **Retrofit**: 2.11.0 (latest 2.x stable)
+- **OkHttp**: 4.12.0 (latest 4.x stable)
+- **JUnit**: 4.13.2
+- **Espresso**: 3.6.1
+- **AndroidX Test JUnit**: 1.2.1
+
+## Upgrade Notes
+- **AGP 8.13.0 compatibility**: Compatible with Gradle 8.14.3, supports compileSdk 36
+- **Java 17 limitation**: Android Gradle Plugin does not support Java 19+; Java 17 is the maximum supported version
+- **Kotlin 2.0+ compatibility**: All current dependencies are compatible with Kotlin 2.0.21
+- **Test library resolution**: Uses resolutionStrategy to force latest test library versions (1.2.1 for junit, 3.6.1 for espresso)
