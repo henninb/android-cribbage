@@ -32,12 +32,9 @@ fun HandCountingDisplay(
     handScores: HandScores,
     modifier: Modifier = Modifier
 ) {
-    val scrollState = rememberScrollState()
-    
     Column(
         modifier = modifier
-            .fillMaxWidth()
-            .verticalScroll(scrollState),
+            .fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
