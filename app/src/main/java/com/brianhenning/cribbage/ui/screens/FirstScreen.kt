@@ -7,9 +7,13 @@ import android.content.Context
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -94,6 +98,7 @@ fun FirstScreen() {
     var showHandCountingButton by remember { mutableStateOf(false) }
     var gameOver by remember { mutableStateOf(false) }
     var showPeggingCount by remember { mutableStateOf(false) }
+    var isMatchRecordExpanded by remember { mutableStateOf(false) }
     
     // Hand counting state
     var isInHandCountingPhase by remember { mutableStateOf(false) }
@@ -753,52 +758,64 @@ fun FirstScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(12.dp)
             .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // App title
-        Text(
-            text = "Cribbage",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            textAlign = TextAlign.Center
-        )
-        
         // Score display
         ScoreDisplay(
             playerScore = playerScore,
-            opponentScore = opponentScore
+            opponentScore = opponentScore,
+            isPlayerDealer = isPlayerDealer
         )
         
-        // Match summary
+        // Match summary (collapsible)
         Card(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
+            ),
+            modifier = Modifier.clickable { isMatchRecordExpanded = !isMatchRecordExpanded }
         ) {
-            Column(
-                modifier = Modifier.padding(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Match Record",
+                    text = "Match: $gamesWon-$gamesLost",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp)
                 )
-                Text(
-                    text = context.getString(R.string.match_summary, gamesWon, gamesLost, skunksFor, skunksAgainst),
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
+                Icon(
+                    imageVector = if (isMatchRecordExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (isMatchRecordExpanded) "Collapse" else "Expand",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Text(
-                    text = if (isPlayerDealer) "You are the dealer" else "Opponent is the dealer",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            }
+            if (isMatchRecordExpanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    )
+                    Text(
+                        text = "Skunks: $skunksFor-$skunksAgainst",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
             }
         }
 
@@ -810,9 +827,9 @@ fun FirstScreen() {
                 )
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
                         text = "Cut for Dealer",
@@ -821,7 +838,7 @@ fun FirstScreen() {
                         color = MaterialTheme.colorScheme.primary
                     )
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(32.dp),
+                        horizontalArrangement = Arrangement.spacedBy(20.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -834,7 +851,7 @@ fun FirstScreen() {
                                 card = cutPlayerCard!!,
                                 isRevealed = true,
                                 isClickable = false,
-                                cardSize = CardSize.Medium
+                                cardSize = CardSize.Small
                             )
                         }
                         Text(
@@ -852,7 +869,7 @@ fun FirstScreen() {
                                 card = cutOpponentCard!!,
                                 isRevealed = true,
                                 isClickable = false,
-                                cardSize = CardSize.Medium
+                                cardSize = CardSize.Small
                             )
                         }
                     }
@@ -868,9 +885,9 @@ fun FirstScreen() {
                 )
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
                         text = "Starter Card",
@@ -882,7 +899,7 @@ fun FirstScreen() {
                         card = starter,
                         isRevealed = true,
                         isClickable = false,
-                        cardSize = CardSize.Large
+                        cardSize = CardSize.Medium
                     )
                 }
             }
@@ -942,9 +959,9 @@ fun FirstScreen() {
                 )
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
                         text = "Deck",
@@ -956,7 +973,7 @@ fun FirstScreen() {
                         card = Card(Rank.ACE, Suit.SPADES), // Dummy card for back display
                         isRevealed = false,
                         isClickable = false,
-                        cardSize = CardSize.Medium
+                        cardSize = CardSize.Small
                     )
                 }
             }
@@ -978,16 +995,16 @@ fun FirstScreen() {
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // Primary action buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     if (!gameStarted) {
                         Button(
@@ -1021,7 +1038,7 @@ fun FirstScreen() {
                 // Secondary action buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     if (!isPeggingPhase && selectCribButtonEnabled) {
                         Button(

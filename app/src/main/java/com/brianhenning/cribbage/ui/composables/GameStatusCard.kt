@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonOutline
+import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,11 +35,11 @@ fun GameStatusCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             GamePhaseIndicator(
                 currentPhase = currentPhase,
@@ -63,12 +64,12 @@ fun GameStatusCard(
                 Text(
                     text = gameStatus,
                     modifier = Modifier
-                        .padding(12.dp)
-                        .heightIn(max = 120.dp)
+                        .padding(10.dp)
+                        .heightIn(max = 100.dp)
                         .verticalScroll(rememberScrollState()),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Start,
-                    lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
+                    lineHeight = MaterialTheme.typography.bodySmall.lineHeight
                 )
             }
         }
@@ -137,6 +138,7 @@ fun GamePhaseIndicator(
 fun ScoreDisplay(
     playerScore: Int,
     opponentScore: Int,
+    isPlayerDealer: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -149,13 +151,14 @@ fun ScoreDisplay(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
             ScoreColumn(
                 label = "You",
-                score = playerScore
+                score = playerScore,
+                isDealer = isPlayerDealer
             )
 
             Box(
@@ -170,7 +173,8 @@ fun ScoreDisplay(
 
             ScoreColumn(
                 label = "Opponent",
-                score = opponentScore
+                score = opponentScore,
+                isDealer = !isPlayerDealer
             )
         }
     }
@@ -179,25 +183,39 @@ fun ScoreDisplay(
 @Composable
 private fun ScoreColumn(
     label: String,
-    score: Int
+    score: Int,
+    isDealer: Boolean = false
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            if (isDealer) {
+                Icon(
+                    imageVector = Icons.Default.Casino,
+                    contentDescription = "Dealer",
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
         Text(
             text = score.toString(),
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
-        
+
         LinearProgressIndicator(
             progress = { (score / 121f).coerceAtMost(1.0f) },
             modifier = Modifier
