@@ -7,13 +7,7 @@ import android.content.Context
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +25,7 @@ import com.brianhenning.cribbage.logic.dealSixToEach
 import com.brianhenning.cribbage.logic.dealerFromCut
 import com.brianhenning.cribbage.logic.CribbageScorer
 import com.brianhenning.cribbage.logic.PeggingScorer
+import com.brianhenning.cribbage.logic.PeggingPoints
 import com.brianhenning.cribbage.logic.PeggingRoundManager
 import com.brianhenning.cribbage.logic.Player
 import com.brianhenning.cribbage.logic.SubRoundReset
@@ -38,9 +33,8 @@ import com.brianhenning.cribbage.logic.SubRoundReset
 private const val TAG = "CribbageGame"
 
 @Composable
-fun FirstScreen() {
+fun CribbageMainScreen() {
     val context = LocalContext.current
-    val scrollState = rememberScrollState()
 
     // Game state variables
     var gameStarted by remember { mutableStateOf(false) }
@@ -58,6 +52,7 @@ fun FirstScreen() {
     var skunksAgainst by remember { mutableIntStateOf(0) }
     var cutPlayerCard by remember { mutableStateOf<Card?>(null) }
     var cutOpponentCard by remember { mutableStateOf<Card?>(null) }
+    var showCutForDealer by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         Log.i(TAG, "FirstScreen composable is being rendered")
@@ -98,7 +93,6 @@ fun FirstScreen() {
     var showHandCountingButton by remember { mutableStateOf(false) }
     var gameOver by remember { mutableStateOf(false) }
     var showPeggingCount by remember { mutableStateOf(false) }
-    var isMatchRecordExpanded by remember { mutableStateOf(false) }
     
     // Hand counting state
     var isInHandCountingPhase by remember { mutableStateOf(false) }
@@ -152,9 +146,8 @@ fun FirstScreen() {
     val autoHandleGoRef = remember { mutableStateOf({}) }
     val playSelectedCardRef = remember { mutableStateOf({}) }
 
-    // Pegging scoring: delegate to PeggingScorer so UI and tests share logic.
-    val checkPeggingScore: (Boolean, Card) -> Unit = { isPlayer, _ ->
-        val pts = PeggingScorer.pointsForPile(peggingPile, peggingCount)
+    // Award pegging points from a PeggingPoints result
+    fun awardPeggingPoints(isPlayer: Boolean, pts: PeggingPoints, cardPlayed: Card) {
         var awarded = 0
         fun award(points: Int) {
             if (points <= 0) return
@@ -165,12 +158,12 @@ fun FirstScreen() {
         if (pts.fifteen > 0) {
             award(pts.fifteen)
             gameStatus += if (isPlayer) "\nScored 2 for 15 by You!" else "\nScored 2 for 15 by Opponent!"
-            Log.i(TAG, "Scored 2 for fifteen. Count: $peggingCount")
+            Log.i(TAG, "Scored 2 for fifteen. Card: ${cardPlayed.getSymbol()}")
         }
         if (pts.thirtyOne > 0) {
             award(pts.thirtyOne)
             gameStatus += if (isPlayer) "\nScored 2 for 31 by You!" else "\nScored 2 for 31 by Opponent!"
-            Log.i(TAG, "Scored 2 for thirty-one. Count: $peggingCount")
+            Log.i(TAG, "Scored 2 for thirty-one. Card: ${cardPlayed.getSymbol()}")
         }
         if (pts.pairPoints > 0) {
             award(pts.pairPoints)
@@ -190,6 +183,15 @@ fun FirstScreen() {
         if (awarded > 0) {
             checkGameOverFunction()
         }
+    }
+
+    // Deprecated - use awardPeggingPoints with pre-saved pile/count instead
+    val checkPeggingScore: (Boolean, Card) -> Unit = { isPlayer, cardPlayed ->
+        val mgr = peggingManager
+        val currentPile = mgr?.peggingPile?.toList() ?: peggingPile
+        val currentCount = mgr?.peggingCount ?: peggingCount
+        val pts = PeggingScorer.pointsForPile(currentPile, currentCount)
+        awardPeggingPoints(isPlayer, pts, cardPlayed)
     }
 
     fun applyManagerStateToUi() {
@@ -256,15 +258,26 @@ fun FirstScreen() {
                 if (chosen != null) {
                     val (cardIndex, cardToPlay) = chosen
                     val mgr = peggingManager!!
+
+                    // CRITICAL: Save pile and count BEFORE calling onPlay!
+                    val pileBeforePlay = mgr.peggingPile.toList() + cardToPlay
+                    val countBeforeReset = mgr.peggingCount + cardToPlay.getValue()
+
                     val outcome = mgr.onPlay(cardToPlay)
                     opponentCardsPlayed = opponentCardsPlayed + cardIndex
                     peggingDisplayPile = peggingDisplayPile + cardToPlay
                     gameStatus = context.getString(R.string.played_opponent, cardToPlay.getSymbol())
+
+                    // Score using saved pile/count
+                    val pts = PeggingScorer.pointsForPile(pileBeforePlay, countBeforeReset)
+                    awardPeggingPoints(false, pts, cardToPlay)
+
                     applyManagerStateToUi()
-                    checkPeggingScore(false, cardToPlay)
                     if (outcome.reset != null) {
                         applyManagerReset(outcome.reset)
-                    } else {
+                    }
+
+                    if (outcome.reset == null) {
                         val playerPlayable = playerHand.filterIndexed { index, card ->
                             !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
                         }
@@ -333,15 +346,26 @@ fun FirstScreen() {
                     val chosen = chooseSmartOpponentCard(opponentHand, opponentCardsPlayed, peggingCount, peggingPile)
                     if (chosen != null) {
                         val (oppCardIndex, cardToPlay) = chosen
+
+                        // CRITICAL: Save pile and count BEFORE calling onPlay!
+                        val pileBeforePlay = mgr.peggingPile.toList() + cardToPlay
+                        val countBeforeReset = mgr.peggingCount + cardToPlay.getValue()
+
                         val oppOutcome = mgr.onPlay(cardToPlay)
                         opponentCardsPlayed = opponentCardsPlayed + oppCardIndex
                         peggingDisplayPile = peggingDisplayPile + cardToPlay
                         gameStatus = context.getString(R.string.played_opponent, cardToPlay.getSymbol())
+
+                        // Score using saved pile/count
+                        val pts = PeggingScorer.pointsForPile(pileBeforePlay, countBeforeReset)
+                        awardPeggingPoints(false, pts, cardToPlay)
+
                         applyManagerStateToUi()
-                        checkPeggingScore(false, cardToPlay)
                         if (oppOutcome.reset != null) {
                             applyManagerReset(oppOutcome.reset)
-                        } else {
+                        }
+
+                        if (oppOutcome.reset == null) {
                             val playerPlayableAfter = playerHand.filterIndexed { index, card ->
                                 !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
                             }
@@ -452,6 +476,7 @@ fun FirstScreen() {
             isPlayerDealer = prefs.getBoolean("nextDealerIsPlayer", false)
             cutPlayerCard = null
             cutOpponentCard = null
+            showCutForDealer = false
             gameStatus = context.getString(R.string.dealer_set_by_previous, if (isPlayerDealer) "You are dealer" else "Opponent is dealer")
             Log.i(TAG, "Dealer set by previous game loser: ${if (isPlayerDealer) "Player" else "Opponent"}")
         } else {
@@ -470,6 +495,7 @@ fun FirstScreen() {
                 // Save cut cards for UI header and persist
                 cutPlayerCard = pCut
                 cutOpponentCard = oCut
+                showCutForDealer = true  // Only show cut screen on first round
                 prefs.edit()
                     .putInt("cutPlayerRank", pCut.rank.ordinal)
                     .putInt("cutPlayerSuit", pCut.suit.ordinal)
@@ -509,6 +535,9 @@ fun FirstScreen() {
         selectCribButtonEnabled = true
         currentPhase = GamePhase.CRIB_SELECTION
         gameStatus = context.getString(R.string.select_cards_for_crib)
+
+        // Hide cut for dealer screen after first deal
+        showCutForDealer = false
     }
 
     val selectCardsForCrib = {
@@ -570,15 +599,27 @@ fun FirstScreen() {
                         if (chosen != null) {
                             val (cardIndex, cardToPlay) = chosen
                             val mgr = peggingManager!!
+
+                            // CRITICAL: Save pile and count BEFORE calling onPlay!
+                            // onPlay() will reset these immediately if hitting 31
+                            val pileBeforePlay = mgr.peggingPile.toList() + cardToPlay
+                            val countBeforeReset = mgr.peggingCount + cardToPlay.getValue()
+
                             val outcome = mgr.onPlay(cardToPlay)
                             opponentCardsPlayed = opponentCardsPlayed + cardIndex
                             peggingDisplayPile = peggingDisplayPile + cardToPlay
                         gameStatus = context.getString(R.string.played_opponent, cardToPlay.getSymbol())
+
+                            // Score using saved pile/count
+                            val pts = PeggingScorer.pointsForPile(pileBeforePlay, countBeforeReset)
+                            awardPeggingPoints(false, pts, cardToPlay)
+
                             applyManagerStateToUi()
-                            checkPeggingScore(false, cardToPlay)
                             if (outcome.reset != null) {
                                 applyManagerReset(outcome.reset)
-                            } else {
+                            }
+
+                            if (outcome.reset == null) {
                                 val playerPlayable = playerHand.filterIndexed { index, card ->
                                     !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
                                 }
@@ -607,31 +648,55 @@ fun FirstScreen() {
                 Log.i(TAG, "Player playing card: ${playedCard.getSymbol()}")
                 if (peggingCount + playedCard.getValue() <= 31) {
                     val mgr = peggingManager!!
+
+                    // CRITICAL: Save pile and count BEFORE calling onPlay!
+                    // onPlay() will reset these immediately if hitting 31
+                    val pileBeforePlay = mgr.peggingPile.toList() + playedCard
+                    val countBeforeReset = mgr.peggingCount + playedCard.getValue()
+
                     val outcome = mgr.onPlay(playedCard)
                     peggingDisplayPile = peggingDisplayPile + playedCard
                     playerCardsPlayed = playerCardsPlayed + cardIndex
                     gameStatus = context.getString(R.string.played_you, playedCard.getSymbol())
                     selectedCards = emptySet()
+
+                    // Score using saved pile/count
+                    val pts = PeggingScorer.pointsForPile(pileBeforePlay, countBeforeReset)
+                    awardPeggingPoints(true, pts, playedCard)
+
                     applyManagerStateToUi()
-                    checkPeggingScore(true, playedCard)
                     if (outcome.reset != null) {
                         applyManagerReset(outcome.reset)
-                    } else {
+                    }
+
+                    if (outcome.reset == null) {
                         playCardButtonEnabled = false
                         gameStatus += "\n${context.getString(R.string.pegging_opponent_turn)}"
                         Handler(Looper.getMainLooper()).postDelayed({
                             val chosen = chooseSmartOpponentCard(opponentHand, opponentCardsPlayed, peggingCount, peggingPile)
                             if (chosen != null) {
                                 val (oppCardIndex, cardToPlay) = chosen
+
+                                // CRITICAL: Save pile and count BEFORE calling onPlay!
+                                // onPlay() will reset these immediately if hitting 31
+                                val pileBeforePlay = mgr.peggingPile.toList() + cardToPlay
+                                val countBeforeReset = mgr.peggingCount + cardToPlay.getValue()
+
                                 val oppOutcome = mgr.onPlay(cardToPlay)
                                 opponentCardsPlayed = opponentCardsPlayed + oppCardIndex
                                 peggingDisplayPile = peggingDisplayPile + cardToPlay
                         gameStatus = context.getString(R.string.played_opponent, cardToPlay.getSymbol())
+
+                                // Score using saved pile/count
+                                val pts = PeggingScorer.pointsForPile(pileBeforePlay, countBeforeReset)
+                                awardPeggingPoints(false, pts, cardToPlay)
+
                                 applyManagerStateToUi()
-                                checkPeggingScore(false, cardToPlay)
                                 if (oppOutcome.reset != null) {
                                     applyManagerReset(oppOutcome.reset)
-                                } else {
+                                }
+
+                                if (oppOutcome.reset == null) {
                                     val playerPlayable = playerHand.filterIndexed { index, card ->
                                         !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
                                     }
@@ -755,341 +820,97 @@ fun FirstScreen() {
         }
     }
 
+    // New zone-based layout (NO scrolling!)
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(12.dp)
-            .verticalScroll(scrollState),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier.fillMaxSize()
     ) {
-        // Score display
-        ScoreDisplay(
+        // Zone 1: Compact Score Header (always visible, includes starter card)
+        CompactScoreHeader(
             playerScore = playerScore,
             opponentScore = opponentScore,
-            isPlayerDealer = isPlayerDealer
+            isPlayerDealer = isPlayerDealer,
+            starterCard = starterCard
         )
-        
-        // Match summary (collapsible)
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            ),
-            modifier = Modifier.clickable { isMatchRecordExpanded = !isMatchRecordExpanded }
+
+        // Zone 2: Dynamic Game Area (flexible height)
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Match: $gamesWon-$gamesLost",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 4.dp)
+            if (isInHandCountingPhase) {
+                // Show hand counting display during counting phase
+                HandCountingDisplay(
+                    playerHand = playerHand,
+                    opponentHand = opponentHand,
+                    cribHand = cribHand,
+                    starterCard = starterCard,
+                    isPlayerDealer = isPlayerDealer,
+                    currentCountingPhase = countingPhase,
+                    handScores = handScores
                 )
-                Icon(
-                    imageVector = if (isMatchRecordExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = if (isMatchRecordExpanded) "Collapse" else "Expand",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                GameAreaContent(
+                    currentPhase = currentPhase,
+                    cutPlayerCard = if (showCutForDealer && gameStarted && dealButtonEnabled) cutPlayerCard else null,
+                    cutOpponentCard = if (showCutForDealer && gameStarted && dealButtonEnabled) cutOpponentCard else null,
+                    opponentHand = opponentHand,
+                    opponentCardsPlayed = opponentCardsPlayed,
+                    starterCard = starterCard,
+                    peggingCount = peggingCount,
+                    peggingPile = peggingDisplayPile,
+                    playerHand = playerHand,
+                    playerCardsPlayed = playerCardsPlayed,
+                    selectedCards = selectedCards,
+                    cribHand = cribHand,
+                    isPlayerDealer = isPlayerDealer,
+                    isPlayerTurn = isPlayerTurn,
+                    gameStatus = gameStatus,
+                    onCardClick = { toggleCardSelection(it) }
                 )
-            }
-            if (isMatchRecordExpanded) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 4.dp),
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                    )
-                    Text(
-                        text = "Skunks: $skunksFor-$skunksAgainst",
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                }
             }
         }
 
-        // Show cut cards before the deal
-        if (gameStarted && dealButtonEnabled && cutPlayerCard != null && cutOpponentCard != null) {
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Cut for Dealer",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(20.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = context.getString(R.string.your_cut),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            GameCard(
-                                card = cutPlayerCard!!,
-                                isRevealed = true,
-                                isClickable = false,
-                                cardSize = CardSize.Small
-                            )
-                        }
-                        Text(
-                            text = "vs",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = context.getString(R.string.opponent_cut),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            GameCard(
-                                card = cutOpponentCard!!,
-                                isRevealed = true,
-                                isClickable = false,
-                                cardSize = CardSize.Small
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Show starter card during game
-        starterCard?.let { starter ->
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "Starter Card",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    GameCard(
-                        card = starter,
-                        isRevealed = true,
-                        isClickable = false,
-                        cardSize = CardSize.Medium
-                    )
-                }
-            }
-        }
-
-        // Game status and phase indicator
-        GameStatusCard(
-            gameStatus = gameStatus,
+        // Zone 3: Context-Sensitive Action Bar
+        ActionBar(
             currentPhase = currentPhase,
-            isPlayerTurn = isPlayerTurn
+            gameStarted = gameStarted,
+            dealButtonEnabled = dealButtonEnabled,
+            selectCribButtonEnabled = selectCribButtonEnabled,
+            showHandCountingButton = showHandCountingButton,
+            gameOver = gameOver,
+            selectedCardsCount = selectedCards.size,
+            onStartGame = { startNewGame() },
+            onEndGame = { endGame() },
+            onDeal = { dealCards() },
+            onSelectCrib = { selectCardsForCrib() },
+            onCountHands = { countHands() },
+            onReportBug = {
+                val body = buildBugReportBody(
+                    context = context,
+                    playerScore = playerScore,
+                    opponentScore = opponentScore,
+                    isPlayerDealer = isPlayerDealer,
+                    starterCard = starterCard,
+                    peggingCount = peggingCount,
+                    peggingPile = peggingPile,
+                    playerHand = playerHand,
+                    opponentHand = opponentHand,
+                    cribHand = cribHand,
+                    matchSummary = "${gamesWon}-${gamesLost} (Skunks ${skunksFor}-${skunksAgainst})",
+                    gameStatus = gameStatus
+                )
+                sendBugReportEmail(context, context.getString(R.string.feedback_email), context.getString(R.string.bug_report_subject), body)
+            }
         )
-        
-        // Hand counting display (shows opponent cards!)
-        if (isInHandCountingPhase) {
-            HandCountingDisplay(
-                playerHand = playerHand,
-                opponentHand = opponentHand,
-                cribHand = cribHand,
-                starterCard = starterCard,
-                isPlayerDealer = isPlayerDealer,
-                currentCountingPhase = countingPhase,
-                handScores = handScores
-            )
-        } else {
-            // Pegging pile display
-            if (isPeggingPhase && peggingDisplayPile.isNotEmpty()) {
-                PeggingPileDisplay(
-                    peggingCards = peggingDisplayPile,
-                    peggingCount = peggingCount
-                )
-            }
-            
-            // Crib display
-            if (cribHand.isNotEmpty() && !isPeggingPhase && !isInHandCountingPhase) {
-                CribDisplay(
-                    cribCards = cribHand,
-                    showCards = false,
-                    isPlayerCrib = isPlayerDealer
-                )
-            }
-            
-            // Opponent hand display
-            if (opponentHand.isNotEmpty()) {
-                OpponentHandDisplay(
-                    hand = opponentHand,
-                    playedCards = opponentCardsPlayed,
-                    showCards = false
-                )
-            }
-        }
 
-        // Undealt deck display
-        if (gameStarted && dealButtonEnabled) {
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "Deck",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    GameCard(
-                        card = Card(Rank.ACE, Suit.SPADES), // Dummy card for back display
-                        isRevealed = false,
-                        isClickable = false,
-                        cardSize = CardSize.Small
-                    )
-                }
-            }
-        }
-
-        // Player hand display
-        if (playerHand.isNotEmpty() && !isInHandCountingPhase) {
-            PlayerHandDisplay(
-                hand = playerHand,
-                selectedCards = selectedCards,
-                playedCards = playerCardsPlayed,
-                onCardClick = { toggleCardSelection(it) },
-                isEnabled = gameStarted && !gameOver
-            )
-        }
-
-        // Game control buttons
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Primary action buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    if (!gameStarted) {
-                        Button(
-                            onClick = { startNewGame() },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(text = "Start New Game")
-                        }
-                    } else {
-                        Button(
-                            onClick = { endGame() },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error
-                            )
-                        ) {
-                            Text(text = "End Game")
-                        }
-                    }
-                    
-                    if (dealButtonEnabled) {
-                        Button(
-                            onClick = { dealCards() },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(text = "Deal Cards")
-                        }
-                    }
-                }
-                
-                // Secondary action buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    if (!isPeggingPhase && selectCribButtonEnabled) {
-                        Button(
-                            onClick = { selectCardsForCrib() },
-                            enabled = selectCribButtonEnabled,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(text = "Select for Crib")
-                        }
-                    }
-                    
-                    if (showHandCountingButton) {
-                        Button(
-                            onClick = { countHands() },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondary
-                            )
-                        ) {
-                            Text(text = "Count Hands")
-                        }
-                    }
-                    
-                    // Report bug button
-                    if (gameStarted) {
-                        OutlinedButton(
-                            onClick = {
-                                val body = buildBugReportBody(
-                                    context = context,
-                                    playerScore = playerScore,
-                                    opponentScore = opponentScore,
-                                    isPlayerDealer = isPlayerDealer,
-                                    starterCard = starterCard,
-                                    peggingCount = peggingCount,
-                                    peggingPile = peggingPile,
-                                    playerHand = playerHand,
-                                    opponentHand = opponentHand,
-                                    cribHand = cribHand,
-                                    matchSummary = "${gamesWon}-${gamesLost} (Skunks ${skunksFor}-${skunksAgainst})",
-                                    gameStatus = gameStatus
-                                )
-                                sendBugReportEmail(context, context.getString(R.string.feedback_email), context.getString(R.string.bug_report_subject), body)
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(text = "Report Bug")
-                        }
-                    }
-                }
-            }
-        }
+        // Zone 4: Cribbage Board (always visible)
+        CribbageBoard(
+            playerScore = playerScore,
+            opponentScore = opponentScore
+        )
     }
 }
 

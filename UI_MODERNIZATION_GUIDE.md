@@ -1,150 +1,388 @@
-# Android Cribbage - UI/UX Modernization Guide
+# Android Cribbage - UI/UX Modernization Guide (Revised)
 
 ## Overview
-This guide outlines the complete redesign of the Android Cribbage app to create a modern, streamlined user experience that prioritizes efficient use of screen space and visual clarity.
+Complete redesign inspired by successful cribbage apps (like Cribbage Pro) to create a streamlined, single-screen experience that eliminates scrolling and maximizes gameplay clarity.
 
-## Core Design Principles
+## Core Design Philosophy
 
-### 1. Single-Screen Experience
-- **Goal**: Fit all essential gameplay elements on one screen without scrolling
-- **Rationale**: Eliminates cognitive load and improves gameplay flow
-- **Implementation**: Carefully size and position all UI components to maximize visible content
+### 1. **Everything Fits on One Screen**
+- **Zero scrolling during gameplay**
+- **Smart element visibility**: Show only what's relevant to the current game phase
+- **Fixed layout zones**: Each screen area has a clear purpose
+- **Adaptive content**: Elements appear/disappear based on game state
 
-### 2. Space Efficiency
-- **Compact Controls**: Reduce button and interactive element sizes while maintaining usability
-- **Minimum Touch Target**: Maintain at least 48dp touch targets per Material Design guidelines
-- **Contextual Visibility**: Show/hide elements based on game state
+### 2. **Visual Hierarchy**
+Priority from top to bottom:
+1. **Scores** (always visible, compact)
+2. **Active game area** (cards, pegging, dealer indicator)
+3. **Action buttons** (context-sensitive, single row)
+4. **Visual cribbage board** (persistent scoring reference)
 
-### 3. Modern Aesthetic
-- **Clean Layout**: Minimize visual clutter and unnecessary decorative elements
-- **Contemporary Design**: Use modern Material Design 3 patterns and components
-- **Cohesive Look**: Consistent spacing, typography, and color usage throughout
+### 3. **Progressive Disclosure**
+- Show information when needed, hide when irrelevant
+- Reduce cognitive load by removing unnecessary choices
+- Guide users through game phases with clear visual cues
 
-## Specific Changes
+---
 
-### Navigation Simplification
-- **Remove**: Bottom navigation bar entirely
-- **Reason**: Secondary and tertiary screens are no longer needed
-- **Benefit**: Reclaims valuable vertical screen space and reduces complexity
+## Detailed Layout Design
 
-### Dynamic Content Display
+### Zone 1: Score Header (Top, Always Visible)
+**Fixed Height: ~60-80dp**
 
-#### Match Record Details
-- **Current State**: Always visible throughout the game
-- **New Behavior**:
-  - Collapsible section that can be hidden when not needed
-  - Accessible via icon/button tap to expand when user wants to review
-  - Auto-collapse after viewing or when game action resumes
-- **Benefit**: Significant screen space savings during active gameplay
+```
+┌─────────────────────────────────────────┐
+│  ●You: 42        [D]        Opp: 38 ●   │
+│  ━━━━━━━━━━        ━━━━━━━━━━          │
+└─────────────────────────────────────────┘
+```
 
-#### Cut for Dealer Section
-- **Current State**: Remains visible after completion
-- **New Behavior**:
-  - Visible only during the cut-for-dealer phase
-  - Automatically disappears once dealer is determined
-  - Transient UI element that appears/disappears based on game state
-- **Benefit**: Eliminates persistent display of completed/irrelevant information
+**Components:**
+- **Player scores**: Large, readable numbers
+- **Progress bars**: Visual representation of score (out of 121)
+- **Dealer indicator**: Small [D] badge or dealer chip icon next to current dealer's name
+- **Compact design**: Single line, minimal padding (8-12dp)
+- **Color coding**: Subtle player/opponent color differentiation
 
-### Visual Indicators
+**Removed from header:**
+- Match record (moved to menu or post-game summary)
+- Cut cards display (shown only during cut phase, then disappears)
+- Verbose text labels (icons + numbers only)
 
-#### Current Dealer Marker
-- **Location**: Next to player names under "You" and "Opponent" labels
-- **Design Options**:
-  - Small dealer chip icon (🎲 or custom card deck icon)
-  - Subtle highlight/border around current dealer's area
-  - Badge or tag with "Dealer" text
-  - Color accent or glow effect
-- **Purpose**: At-a-glance game state awareness without requiring text explanation
-- **Style**: Should be subtle yet clearly visible, fitting the modern aesthetic
+---
 
-### Button and Control Sizing
-- **Current**: Potentially oversized for space efficiency
-- **Target**: Reduce to optimal size that balances:
-  - Touch accessibility (minimum 48dp touch targets)
-  - Screen space conservation
-  - Visual hierarchy and importance
-- **Approach**: Use compact button variants, icon buttons where appropriate
+### Zone 2: Active Game Area (Center, Dynamic)
+**Flexible Height: Uses remaining space between header and bottom**
 
-## Layout Strategy
+This zone changes based on game phase:
 
-### Screen Organization Priority (Top to Bottom)
-1. **Game Header**: Player names, scores, dealer indicator (compact)
-2. **Active Game Area**: Cards, current hand, play area
-3. **Primary Actions**: Context-sensitive action buttons (deal, play, peg, etc.)
-4. **Collapsible Info**: Match records (accessible but hidden by default)
+#### **Phase: Setup / Cut for Dealer**
+```
+┌─────────────────────────────────────────┐
+│        Cut for First Dealer             │
+│                                         │
+│      [Your Card]    [Opp Card]         │
+│         A♠            K♥                │
+│                                         │
+│     Lower card deals first              │
+└─────────────────────────────────────────┘
+```
+- Shows only during initial dealer determination
+- Disappears immediately after dealer is established
+- Auto-transitions to deal phase
 
-### Spacing and Density
-- Use tight but comfortable spacing (8dp-16dp margins)
-- Group related elements with proximity
-- Ensure sufficient whitespace for visual breathing room
-- Avoid "cramped" feeling despite compact design
+#### **Phase: Crib Selection**
+```
+┌─────────────────────────────────────────┐
+│                                         │
+│    [Opponent's face-down cards]         │
+│        🂠  🂠  🂠  🂠                    │
+│                                         │
+│           Starter: (empty)              │
+│                                         │
+│      Select 2 cards for crib            │
+│                                         │
+│    [Your hand - 6 cards, selectable]    │
+│     A♠  5♥  7♦  9♣  J♥  K♠             │
+│                                         │
+└─────────────────────────────────────────┘
+```
 
-## Implementation Considerations
+#### **Phase: Pegging**
+```
+┌─────────────────────────────────────────┐
+│    Opponent: 🂠  ✓   ✓   🂠  (2 left)   │
+│                                         │
+│        Count: 23                        │
+│     ┌────────────────┐                  │
+│     │ 7♦  K♥  6♠     │ ← Pegging pile  │
+│     └────────────────┘                  │
+│                                         │
+│           Starter: J♣                   │
+│                                         │
+│      Your turn to play                  │
+│                                         │
+│    [Your hand with played cards grayed] │
+│     A♠  ✓   7♦  ✓                      │
+│                                         │
+└─────────────────────────────────────────┘
+```
+- **Count prominently displayed** (large, bold text)
+- **Pegging pile** shown in compact card row
+- **Opponent cards**: Show count + placeholders (face-down/checkmarks for played)
+- **Starter card**: Visible but not emphasized
+- **Turn indicator**: Clear text "Your turn" or "Opponent's turn"
 
-### Responsive Design
-- Test on various screen sizes and aspect ratios
-- Ensure compact design works on smaller devices
-- Consider landscape orientation optimization
+#### **Phase: Hand Counting**
+```
+┌─────────────────────────────────────────┐
+│      Counting Non-Dealer Hand           │
+│                                         │
+│    Opponent: A♠  5♥  7♦  9♣             │
+│    Starter:  J♣                         │
+│                                         │
+│    15s: 4 pts  |  Pairs: 2 pts          │
+│    Run: 0 pts  |  Flush: 0 pts          │
+│                                         │
+│         Total: 6 points                 │
+│                                         │
+│    [Auto-advances to next hand]         │
+└─────────────────────────────────────────┘
+```
+- **Reveals opponent cards** during counting
+- **Shows scoring breakdown** with animation
+- **Auto-progresses** through non-dealer → dealer → crib
+- **Brief pause** between each hand (2-3 seconds)
 
-### Animation and Transitions
-- Smooth expand/collapse animations for dynamic content
-- Subtle transitions when showing/hiding elements
-- Maintain 60fps performance during animations
+---
 
-### Accessibility
-- Maintain minimum touch target sizes (48dp)
-- Ensure sufficient color contrast (WCAG AA minimum)
-- Provide content descriptions for screen readers
-- Test with TalkBack enabled
+### Zone 3: Action Bar (Bottom, Above Board)
+**Fixed Height: ~56dp**
 
-### State Management
-- Track visibility state of collapsible sections
-- Persist user preferences for collapsed/expanded sections
-- Handle state restoration across configuration changes
+**Single row of context-sensitive buttons** (never more than 3 visible at once):
 
-## Visual Design System
+| Game Phase | Buttons Shown |
+|------------|---------------|
+| Pre-game | `[Start New Game]` |
+| Ready to deal | `[Deal Cards]` `[⚙️ Menu]` |
+| Crib selection | `[Discard to Crib]` (enabled when 2 selected) |
+| Pegging | `[Go]` (if no legal plays) `[⚙️ Menu]` |
+| Hand counting | (no buttons - auto-progresses) |
+| Game over | `[New Game]` `[View Match Stats]` |
 
-### Color Usage
-- Primary: Game actions and active elements
-- Secondary: Informational elements and less critical actions
-- Surface: Card backgrounds and containers
-- Subtle accents: Dealer indicators, highlights
+**Button Design:**
+- **Filled button** for primary action (e.g., "Deal Cards", "Discard to Crib")
+- **Outlined button** for secondary actions (e.g., "Menu", "Report Bug")
+- **Full width or equally weighted** in row (use Modifier.weight(1f))
+- **Minimum 48dp touch target**
+- **No stacked button rows** - keep it simple!
 
-### Typography Scale
-- Compact but readable font sizes
-- Clear hierarchy (player names vs. scores vs. actions)
-- Consistent font weights for emphasis
+---
 
-### Iconography
-- Use clear, recognizable icons for common actions
-- Custom icons for cribbage-specific elements (dealer marker, etc.)
-- Consistent icon size and style throughout
+### Zone 4: Cribbage Board (Bottom, Always Visible)
+**Fixed Height: ~120-140dp**
+
+```
+┌─────────────────────────────────────────┐
+│  [Visual cribbage board representation] │
+│                                         │
+│  ●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━○      │ ← Player track
+│  ○━━━━━━━━━━━━━━━━━━━━━━━━━━━━━●      │ ← Opponent track
+│                                         │
+│  0    15    30    45    60    75    90  │
+│              105   121                  │
+└─────────────────────────────────────────┘
+```
+
+**Purpose:**
+- **Visual scoring reference**: Traditional cribbage board aesthetic
+- **Peg positions**: Animated peg movement when scores change
+- **Always visible**: Provides game context without taking much space
+- **Compact design**: Simplified 2-track board (not full 4-peg design)
+
+**Implementation Note:**
+- Can be a simple custom Canvas drawing or SVG
+- Pegs move smoothly with animation when scores update
+- Color-coded for player (e.g., blue) vs opponent (e.g., red)
+
+---
+
+## Key Improvements Over Current Design
+
+### ✅ Eliminated Scrolling
+- **Old**: Vertical scroll with many stacked elements
+- **New**: Fixed layout with smart visibility toggling
+
+### ✅ Cleaner Score Display
+- **Old**: Large card-based score display with verbose labels
+- **Old**: Collapsible match record always visible
+- **New**: Compact header with progress bars
+- **New**: Match stats moved to menu/end screen
+
+### ✅ Transient Elements
+- **Old**: Cut cards visible long after cut
+- **Old**: Starter card in separate prominent card container
+- **New**: Cut cards shown only during cut phase
+- **New**: Starter shown inline, small and unobtrusive
+
+### ✅ Context-Sensitive Actions
+- **Old**: Multiple button rows visible simultaneously
+- **Old**: Buttons for actions not available in current phase
+- **New**: Single action bar with max 2-3 relevant buttons
+- **New**: Buttons appear/disappear based on game state
+
+### ✅ Pegging Clarity
+- **Old**: No count display during pegging
+- **Old**: Pegging pile in separate container
+- **New**: Large, prominent count display
+- **New**: Compact inline pegging pile
+
+### ✅ Visual Cribbage Board
+- **Old**: No board, only numeric scores
+- **New**: Traditional board visualization for better game feel
+
+---
+
+## State-Based Visibility Matrix
+
+| Element | Setup | Cut | Deal Ready | Crib Select | Pegging | Counting | Game Over |
+|---------|-------|-----|------------|-------------|---------|----------|-----------|
+| Score Header | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Cut Cards | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Opponent Hand | ✗ | ✗ | ✗ | ✓ (back) | ✓ (back) | ✓ (face) | ✗ |
+| Starter Card | ✗ | ✗ | ✗ | ✓ | ✓ | ✓ | ✗ |
+| Pegging Count | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ |
+| Pegging Pile | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ |
+| Player Hand | ✗ | ✗ | ✗ | ✓ | ✓ | ✓ | ✗ |
+| Crib Indicator | ✗ | ✗ | ✗ | ✓ (back) | ✓ (back) | ✓ (face) | ✗ |
+| Status Text | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Action Buttons | 1 | 0 | 1-2 | 1 | 0-1 | 0 | 1-2 |
+| Cribbage Board | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+---
+
+## Implementation Strategy
+
+### Phase 1: Layout Restructure
+1. **Create new screen zones** (Composables for each zone)
+   - `CompactScoreHeader()`
+   - `GameAreaContent()` (dynamic based on phase)
+   - `ActionBar()`
+   - `CribbageBoard()`
+2. **Remove vertical scroll** - use fixed Column layout
+3. **Implement state-based visibility** for each zone
+
+### Phase 2: Smart Component Design
+1. **Compact card displays**
+   - Smaller card sizes (adjust CardSize enum)
+   - Horizontal card rows instead of grid layouts
+   - Opponent cards: simple placeholders/backs
+2. **Pegging count component**
+   - Large, centered text
+   - Animated updates
+   - Clear visual prominence
+3. **Simplified status messaging**
+   - Single line of text
+   - Context-aware (e.g., "Your turn" vs. "Opponent's turn")
+   - No verbose logs (save for debug/bug reports)
+
+### Phase 3: Visual Polish
+1. **Cribbage board implementation**
+   - Custom Canvas or SVG rendering
+   - Animated peg movement
+   - Proper scaling for different screen sizes
+2. **Smooth transitions**
+   - Fade in/out for appearing/disappearing elements
+   - Card flip animations for reveals
+   - Score increment animations
+3. **Color & theming**
+   - Consistent color palette (Material 3)
+   - Felt green background option (or user choice)
+   - High contrast for accessibility
+
+### Phase 4: Responsive Design
+1. **Test on various screen sizes**
+   - Small phones (5" screens)
+   - Large phones (6.5"+ screens)
+   - Tablets (adjust board size)
+2. **Landscape orientation**
+   - Rearrange zones horizontally
+   - Board on right side
+   - Cards in center
+3. **Dynamic text sizing**
+   - Use sp units appropriately
+   - Scale based on screen density
+
+---
+
+## Design Inspirations from Cribbage Pro
+
+### What to Adopt:
+1. ✅ **Single-screen, no-scroll design**
+2. ✅ **Compact score display with visual pegs**
+3. ✅ **Dealer indicator badge/token**
+4. ✅ **Large, clear pegging count**
+5. ✅ **Context-sensitive single action button**
+6. ✅ **Cribbage board at bottom for visual scoring**
+7. ✅ **Clean, uncluttered layout**
+8. ✅ **Traditional card game aesthetic (green felt)**
+
+### What to Keep Original:
+1. ✓ **Material Design 3 components** (modern Android look)
+2. ✓ **Detailed scoring breakdowns** during hand counting
+3. ✓ **Bug report functionality** (keep in menu)
+4. ✓ **Match statistics tracking** (show in menu or post-game)
+
+### What NOT to Copy:
+- ❌ Exact visual style (avoid copyright issues)
+- ❌ Paid features / ads / monetization patterns
+- ❌ Specific icon designs or artwork
+
+---
 
 ## Success Metrics
 
 ### User Experience Goals
-- [ ] Zero scrolling required during gameplay
-- [ ] All game information visible at appropriate times
-- [ ] Quick access to match records when needed
-- [ ] Clear visual indication of game state (dealer, turn, etc.)
-- [ ] Modern, polished appearance
+- [x] Zero scrolling during active gameplay
+- [x] All essential game info visible at appropriate times
+- [x] Clear visual indication of game state (phase, turn, dealer)
+- [x] Smooth, seamless transitions between phases
+- [x] Intuitive, minimal button layout
 
 ### Technical Goals
-- [ ] Smooth performance on minSdk 24+ devices
-- [ ] Proper state management for dynamic UI elements
-- [ ] Accessible to users with disabilities
-- [ ] Consistent behavior across different screen sizes
+- [x] Fixed layout that works on minSdk 24+ devices
+- [x] Proper state management for dynamic visibility
+- [x] Smooth animations (60fps)
+- [x] Accessible to users with disabilities (TalkBack, contrast)
+- [x] Landscape orientation support
+
+---
 
 ## Next Steps
 
-1. **Design Mockups**: Create high-fidelity mockups of the new single-screen layout
-2. **Component Inventory**: Identify all UI components that need creation/modification
-3. **Phased Implementation**: Break down into manageable implementation phases
-4. **User Testing**: Validate design decisions with target users
-5. **Iteration**: Refine based on feedback and testing results
+1. ✅ **Review and approve this design plan**
+2. **Create mockups/wireframes** (optional but recommended)
+3. **Implement Zone-based layout structure**
+   - CompactScoreHeader
+   - GameAreaContent (with phase-based switching)
+   - ActionBar (context-sensitive)
+   - CribbageBoard (visual component)
+4. **Migrate existing logic** into new layout structure
+5. **Test on physical devices** (various screen sizes)
+6. **Polish animations and transitions**
+7. **User testing** with fresh users
 
-## Notes
-- This is a comprehensive redesign; consider implementing in phases
-- Maintain backward compatibility where possible during transition
-- Document any breaking changes to user experience
-- Consider A/B testing with subset of users if applicable
+---
+
+## Open Questions / Decisions Needed
+
+1. **Cribbage board style**:
+   - Traditional wooden board aesthetic?
+   - Modern/minimalist line design?
+   - User preference setting?
+
+2. **Background**:
+   - Green felt (traditional)?
+   - Material Design background (modern)?
+   - User choice?
+
+3. **Match statistics**:
+   - Show in hamburger menu?
+   - Post-game dialog only?
+   - Subtle indicator in score header?
+
+4. **Card size**:
+   - How small can we go while maintaining readability?
+   - Test on 5" screen to find minimum
+
+5. **Animations**:
+   - How much animation is too much?
+   - Preference for reduced motion (accessibility)?
+
+---
+
+## Conclusion
+
+This revised design takes clear inspiration from successful cribbage apps like Cribbage Pro while maintaining our app's unique features (detailed scoring, Material Design, modern Android patterns). The focus is on **eliminating scrolling**, **showing only relevant information**, and **creating a seamless, intuitive single-screen experience**.
+
+The key is **progressive disclosure**: each game phase shows exactly what the player needs, no more, no less. This reduces cognitive load and creates a cleaner, more enjoyable gameplay experience.

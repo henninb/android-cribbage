@@ -9,7 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.brianhenning.cribbage.ui.screens.FirstScreen
+import com.brianhenning.cribbage.ui.screens.CribbageMainScreen
 import com.brianhenning.cribbage.ui.theme.CribbageTheme
 
 class MainActivity : ComponentActivity() {
@@ -23,25 +23,19 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainScreen()
+                    CribbageMainScreen()
                 }
             }
         }
     }
-    
+
     override fun onResume() {
         super.onResume()
         Log.i("CribbageGame", "MainActivity onResume")
     }
-    
+
     override fun onPause() {
         super.onPause()
         Log.i("CribbageGame", "MainActivity onPause")
     }
-}
-
-@Composable
-fun MainScreen() {
-    Log.i("CribbageGame", "MainScreen composable function called")
-    FirstScreen()
 }

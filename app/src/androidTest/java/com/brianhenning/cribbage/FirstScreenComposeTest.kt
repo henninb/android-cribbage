@@ -3,7 +3,7 @@ package com.brianhenning.cribbage
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
-import com.brianhenning.cribbage.ui.screens.FirstScreen
+import com.brianhenning.cribbage.ui.screens.CribbageMainScreen
 import com.brianhenning.cribbage.logic.PeggingRoundManager
 import com.brianhenning.cribbage.logic.Player
 import com.brianhenning.cribbage.logic.SubRoundReset
@@ -26,9 +26,9 @@ class FirstScreenComposeTest {
     
     @Test
     fun firstScreen_displaysInitialState() {
-        // Start the app with FirstScreen
+        // Start the app with CribbageMainScreen
         composeTestRule.setContent {
-            FirstScreen()
+            CribbageMainScreen()
         }
         
         // Initial state validations
@@ -80,7 +80,7 @@ class FirstScreenComposeTest {
     @Test
     fun firstScreen_startGameButtonWorksCorrectly() {
         composeTestRule.setContent {
-            FirstScreen()
+            CribbageMainScreen()
         }
         
         // Click start game button
@@ -95,7 +95,7 @@ class FirstScreenComposeTest {
     @Test
     fun firstScreen_endGameResetsState() {
         composeTestRule.setContent {
-            FirstScreen()
+            CribbageMainScreen()
         }
         
         // Start the game
@@ -112,7 +112,7 @@ class FirstScreenComposeTest {
     @Test
     fun firstScreen_dealCardsCreatesPlayerHand() {
         composeTestRule.setContent {
-            FirstScreen()
+            CribbageMainScreen()
         }
         
         // Start the game and deal cards
@@ -128,7 +128,7 @@ class FirstScreenComposeTest {
     @Test
     fun firstScreen_selectingForCribWithoutTwoCardsShowsError() {
         composeTestRule.setContent {
-            FirstScreen()
+            CribbageMainScreen()
         }
         
         // Start the game and deal cards
