@@ -149,8 +149,8 @@ fun FlippableGameCard(
 }
 
 enum class CardSize(val width: Dp, val height: Dp) {
-    Small(50.dp, 75.dp),
-    Medium(70.dp, 105.dp),
-    Large(90.dp, 135.dp),
-    ExtraLarge(110.dp, 165.dp)
+    Small(60.dp, 90.dp),
+    Medium(80.dp, 120.dp),
+    Large(100.dp, 150.dp),
+    ExtraLarge(120.dp, 180.dp)
 }

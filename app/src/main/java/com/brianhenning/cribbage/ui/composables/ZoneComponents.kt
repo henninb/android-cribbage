@@ -24,12 +24,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.brianhenning.cribbage.ui.screens.Card as CribbageCard
+import com.brianhenning.cribbage.ui.theme.LocalSeasonalTheme
 
 /**
  * Zone 1: Compact Score Header
  * Always visible at the top of the screen
  * Shows player/opponent scores with progress bars and dealer indicator
  * Shows starter card in top-right corner when available
+ * Shows current seasonal theme
  */
 @Composable
 fun CompactScoreHeader(
@@ -39,6 +41,7 @@ fun CompactScoreHeader(
     starterCard: CribbageCard?,
     modifier: Modifier = Modifier
 ) {
+    val currentTheme = LocalSeasonalTheme.current
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -82,6 +85,20 @@ fun CompactScoreHeader(
                 )
             }
 
+            // Theme indicator in top-left corner
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 4.dp, top = 4.dp)
+            ) {
+                Text(
+                    text = "${currentTheme.icon} ${currentTheme.name}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                    fontSize = 10.sp
+                )
+            }
+
             // Starter card in top-right corner (no label)
             if (starterCard != null) {
                 Box(
@@ -93,7 +110,7 @@ fun CompactScoreHeader(
                         card = starterCard,
                         isRevealed = true,
                         isClickable = false,
-                        cardSize = CardSize.Small
+                        cardSize = CardSize.Medium
                     )
                 }
             }
@@ -109,8 +126,15 @@ private fun ScoreSection(
     isPlayer: Boolean,
     modifier: Modifier = Modifier
 ) {
-    // Use blue for player, red for opponent
-    val scoreColor = if (isPlayer) Color.Blue else Color.Red
+    val currentTheme = LocalSeasonalTheme.current
+
+    // Use theme colors for player/opponent
+    // Player uses primary color, Opponent uses secondary color
+    val scoreColor = if (isPlayer) {
+        currentTheme.colors.primary
+    } else {
+        currentTheme.colors.secondary
+    }
 
     Column(
         modifier = modifier,
@@ -124,7 +148,8 @@ private fun ScoreSection(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
-                color = scoreColor
+                color = scoreColor,
+                fontWeight = FontWeight.Bold
             )
 
             // Dealer indicator
@@ -272,7 +297,7 @@ fun GameAreaContent(
                     // Pegging pile (compact inline)
                     if (peggingPile.isNotEmpty()) {
                         LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy((-10).dp),
+                            horizontalArrangement = Arrangement.spacedBy((-20).dp),
                             contentPadding = PaddingValues(horizontal = 8.dp)
                         ) {
                             itemsIndexed(peggingPile) { _, card ->
@@ -280,7 +305,7 @@ fun GameAreaContent(
                                     card = card,
                                     isRevealed = true,
                                     isClickable = false,
-                                    cardSize = CardSize.Small
+                                    cardSize = CardSize.Medium
                                 )
                             }
                         }
@@ -419,19 +444,37 @@ private fun CompactHandDisplay(
     label: String,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text(
-            text = "$label:",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        // Label above cards
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "$label:",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
+            // Show remaining card count
+            if (playedCards.isNotEmpty()) {
+                Text(
+                    text = "(${hand.size - playedCards.size} left)",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        // Cards row with increased overlap to fit all cards on screen
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy((-15).dp)
+            horizontalArrangement = Arrangement.spacedBy((-45).dp),  // Increased from -30
+            contentPadding = PaddingValues(horizontal = 12.dp)  // Reduced from 16
         ) {
             itemsIndexed(hand) { index, card ->
                 GameCard(
@@ -439,18 +482,9 @@ private fun CompactHandDisplay(
                     isRevealed = showCards,
                     isPlayed = playedCards.contains(index),
                     isClickable = false,
-                    cardSize = CardSize.Small
+                    cardSize = CardSize.Large
                 )
             }
-        }
-
-        // Show remaining card count
-        if (playedCards.isNotEmpty()) {
-            Text(
-                text = "(${hand.size - playedCards.size} left)",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -465,8 +499,8 @@ private fun PlayerHandCompact(
 ) {
     LazyRow(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy((-15).dp),
-        contentPadding = PaddingValues(horizontal = 16.dp)
+        horizontalArrangement = Arrangement.spacedBy((-45).dp),  // Increased from -30
+        contentPadding = PaddingValues(horizontal = 12.dp)  // Reduced from 16
     ) {
         itemsIndexed(hand) { index, card ->
             GameCard(
@@ -476,7 +510,7 @@ private fun PlayerHandCompact(
                 isRevealed = true,
                 isClickable = !playedCards.contains(index),
                 onClick = { onCardClick(index) },
-                cardSize = CardSize.Medium
+                cardSize = CardSize.Large
             )
         }
     }
@@ -493,6 +527,7 @@ fun ActionBar(
     dealButtonEnabled: Boolean,
     selectCribButtonEnabled: Boolean,
     showHandCountingButton: Boolean,
+    showGoButton: Boolean,
     gameOver: Boolean,
     selectedCardsCount: Int,
     onStartGame: () -> Unit,
@@ -500,6 +535,7 @@ fun ActionBar(
     onDeal: () -> Unit,
     onSelectCrib: () -> Unit,
     onCountHands: () -> Unit,
+    onGo: () -> Unit,
     onReportBug: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -549,7 +585,7 @@ fun ActionBar(
                     enabled = selectedCardsCount == 2,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Discard to Crib")
+                    Text("Discard")
                 }
                 OutlinedButton(
                     onClick = onReportBug,
@@ -568,6 +604,24 @@ fun ActionBar(
                     )
                 ) {
                     Text("Count Hands")
+                }
+            }
+
+            showGoButton -> {
+                Button(
+                    onClick = onGo,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.tertiary
+                    )
+                ) {
+                    Text("Go")
+                }
+                OutlinedButton(
+                    onClick = onReportBug,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Report Bug")
                 }
             }
 

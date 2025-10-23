@@ -55,16 +55,18 @@ class ChooseSmartOpponentCardTest {
     }
 
     @Test
-    fun earlyCount_biasPrefersHigherCardValue() {
-        // With no pair/run/15 opportunities and currentCount < 10, heuristic adds card value
+    fun earlyCount_avoidsPlayingFive() {
+        // Improved AI avoids playing 5s early (defensive strategy)
+        // and prefers low cards to keep options open
         val hand = listOf(
-            Card(Rank.THREE, Suit.HEARTS),   // 3
-            Card(Rank.NINE, Suit.SPADES),    // 9 (highest, preferred)
-            Card(Rank.FIVE, Suit.CLUBS)      // 5
+            Card(Rank.THREE, Suit.HEARTS),   // 3 (preferred - low and safe)
+            Card(Rank.NINE, Suit.SPADES),    // 9 (save for later)
+            Card(Rank.FIVE, Suit.CLUBS)      // 5 (avoid - too flexible for opponent)
         )
         val chosen = chooseSmartOpponentCard(hand, emptySet(), currentCount = 0, peggingPile = emptyList())
         assertNotNull(chosen)
-        assertEquals(Rank.NINE, chosen!!.second.rank)
+        // New AI plays low cards early (better strategy)
+        assertEquals(Rank.THREE, chosen!!.second.rank)
     }
 
     @Test

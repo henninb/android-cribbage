@@ -44,6 +44,7 @@
     <string name="played_you">You played %1$s</string>
     <string name="played_opponent">Opponent played %1$s</string>
     <string name="illegal_move_exceeds_31">Illegal move: %1$s would exceed 31.</string>
+    <string name="card_selected_tap_again">%1$s selected. Tap again to play.</string>
     <string name="match_summary">Match: %1$d-%2$d (Skunks %3$d-%4$d)</string>
     <string name="your_cut">Your cut</string>
     <string name="opponent_cut">Opponent cut</string>

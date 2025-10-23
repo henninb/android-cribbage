@@ -286,7 +286,7 @@ class ChooseSmartOpponentCardEdgeCasesTest {
     // ========== Early Count Bias Tests ==========
 
     @Test
-    fun earlyGame_prefersHigherValue() {
+    fun earlyGame_avoidsRiskyPlays() {
         val hand = listOf(
             Card(Rank.TWO, Suit.HEARTS),
             Card(Rank.NINE, Suit.CLUBS),
@@ -295,8 +295,10 @@ class ChooseSmartOpponentCardEdgeCasesTest {
         val chosen = chooseSmartOpponentCard(hand, emptySet(), 5, emptyList())
 
         assertNotNull(chosen)
-        // At low count (<10), prefers higher card value
-        assertEquals(Rank.NINE, chosen!!.second.rank)
+        // Improved AI avoids 5s (too flexible for opponent) and saves high cards
+        // At count=5, playing 5 would make 10 (risky), playing 9 would make 14 (safe but wastes high card)
+        // Playing 2 makes 7 (safest, keeps options)
+        assertEquals(Rank.TWO, chosen!!.second.rank)
     }
 
     // ========== Empty Hand Tests ==========

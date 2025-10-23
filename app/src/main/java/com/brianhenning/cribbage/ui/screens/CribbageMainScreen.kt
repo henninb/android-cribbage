@@ -29,6 +29,7 @@ import com.brianhenning.cribbage.logic.PeggingPoints
 import com.brianhenning.cribbage.logic.PeggingRoundManager
 import com.brianhenning.cribbage.logic.Player
 import com.brianhenning.cribbage.logic.SubRoundReset
+import com.brianhenning.cribbage.logic.OpponentAI
 
 private const val TAG = "CribbageGame"
 
@@ -93,11 +94,13 @@ fun CribbageMainScreen() {
     var showHandCountingButton by remember { mutableStateOf(false) }
     var gameOver by remember { mutableStateOf(false) }
     var showPeggingCount by remember { mutableStateOf(false) }
+    var showGoButton by remember { mutableStateOf(false) }
     
     // Hand counting state
     var isInHandCountingPhase by remember { mutableStateOf(false) }
     var countingPhase by remember { mutableStateOf(CountingPhase.NONE) }
     var handScores by remember { mutableStateOf(HandScores()) }
+    var waitingForDialogDismissal by remember { mutableStateOf(false) }
 
     // Check game over function: if either score goes past 120, end the game.
     val checkGameOverFunction: () -> Unit = {
@@ -145,6 +148,13 @@ fun CribbageMainScreen() {
     // Forward declarations for mutual recursion across helpers
     val autoHandleGoRef = remember { mutableStateOf({}) }
     val playSelectedCardRef = remember { mutableStateOf({}) }
+
+    // Handle player manually saying "Go"
+    val handlePlayerGo = {
+        Log.i(TAG, "Player manually says Go")
+        showGoButton = false
+        autoHandleGoRef.value()
+    }
 
     // Award pegging points from a PeggingPoints result
     fun awardPeggingPoints(isPlayer: Boolean, pts: PeggingPoints, cardPlayed: Card) {
@@ -248,9 +258,14 @@ fun CribbageMainScreen() {
         }
 
         if (isPlayerTurn) {
-            playCardButtonEnabled = true
             if (playerLegal.isEmpty()) {
-                Handler(Looper.getMainLooper()).postDelayed({ autoHandleGoRef.value() }, 500)
+                // Show Go button instead of auto-handling
+                showGoButton = true
+                playCardButtonEnabled = false
+                gameStatus += "\nNo legal moves. Press 'Go' to continue."
+            } else {
+                playCardButtonEnabled = true
+                showGoButton = false
             }
         } else {
             Handler(Looper.getMainLooper()).postDelayed({
@@ -282,9 +297,13 @@ fun CribbageMainScreen() {
                             !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
                         }
                         if (playerPlayable.isEmpty()) {
-                            autoHandleGoRef.value()
+                            // Show Go button instead of auto-handling
+                            showGoButton = true
+                            playCardButtonEnabled = false
+                            gameStatus += "\nNo legal moves. Press 'Go' to continue."
                         } else {
                             playCardButtonEnabled = true
+                            showGoButton = false
                             gameStatus += "\n${context.getString(R.string.pegging_your_turn)}"
                         }
                     }
@@ -370,9 +389,13 @@ fun CribbageMainScreen() {
                                 !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
                             }
                             if (playerPlayableAfter.isEmpty()) {
-                                autoHandleGoRef.value()
+                                // Show Go button instead of auto-handling
+                                showGoButton = true
+                                playCardButtonEnabled = false
+                                gameStatus += "\nNo legal moves. Press 'Go' to continue."
                             } else {
                                 playCardButtonEnabled = true
+                                showGoButton = false
                                 gameStatus += "\n${context.getString(R.string.pegging_your_turn)}"
                             }
                         }
@@ -384,17 +407,21 @@ fun CribbageMainScreen() {
         }, 1000)
     }
 
-    // Revised card selection behavior with auto-play during pegging phase.
+    // Revised card selection behavior with two-click selection during pegging phase.
     val toggleCardSelection = { cardIndex: Int ->
         Log.i(TAG, "Card selection toggled: $cardIndex")
         if (isPeggingPhase) {
             if (isPlayerTurn && !playerCardsPlayed.contains(cardIndex)) {
                 val cardToPlay = playerHand[cardIndex]
                 if (peggingCount + cardToPlay.getValue() <= 31) {
-                    selectedCards = setOf(cardIndex)
-                    Handler(Looper.getMainLooper()).postDelayed({
+                    // First click: highlight the card
+                    if (!selectedCards.contains(cardIndex)) {
+                        selectedCards = setOf(cardIndex)
+                        gameStatus = context.getString(R.string.card_selected_tap_again, cardToPlay.getSymbol())
+                    } else {
+                        // Second click: play the card
                         playSelectedCardRef.value()
-                    }, 300)
+                    }
                 } else {
                     gameStatus = context.getString(R.string.illegal_move_exceeds_31, cardToPlay.getSymbol())
                 }
@@ -434,8 +461,9 @@ fun CribbageMainScreen() {
         selectCribButtonEnabled = false
         playCardButtonEnabled = false
         showHandCountingButton = false
+        showGoButton = false
         gameOver = false
-        
+
         // Reset UI state
         currentPhase = GamePhase.SETUP
         isInHandCountingPhase = false
@@ -463,7 +491,8 @@ fun CribbageMainScreen() {
         lastPlayerWhoPlayed = null
         starterCard = null
         peggingManager = null
-        
+        showGoButton = false
+
         // Reset UI state
         currentPhase = GamePhase.SETUP
         isInHandCountingPhase = false
@@ -549,8 +578,9 @@ fun CribbageMainScreen() {
             val selectedIndices = selectedCards.toList().sortedDescending()
             val selectedPlayerCards = selectedIndices.map { playerHand[it] }
             Log.i(TAG, "Cards selected for crib: $selectedPlayerCards")
-            val opponentCribCards = opponentHand.shuffled().take(2)
-            Log.i(TAG, "Opponent cards for crib: $opponentCribCards")
+            // Use smart AI to choose crib cards
+            val opponentCribCards = OpponentAI.chooseCribCards(opponentHand, !isPlayerDealer)
+            Log.i(TAG, "Opponent cards for crib (AI selected): $opponentCribCards")
             // Save the crib hand (combining player’s selections and opponent’s crib cards)
             cribHand = selectedPlayerCards + opponentCribCards
 
@@ -624,9 +654,13 @@ fun CribbageMainScreen() {
                                     !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
                                 }
                                 if (playerPlayable.isEmpty()) {
-                                    autoHandleGoRef.value()
+                                    // Show Go button instead of auto-handling
+                                    showGoButton = true
+                                    playCardButtonEnabled = false
+                                    gameStatus += "\nNo legal moves. Press 'Go' to continue."
                                 } else {
                                     playCardButtonEnabled = true
+                                    showGoButton = false
                                 }
                             }
                         } else {
@@ -701,9 +735,13 @@ fun CribbageMainScreen() {
                                         !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
                                     }
                                     if (playerPlayable.isEmpty()) {
-                                        autoHandleGoRef.value()
+                                        // Show Go button instead of auto-handling
+                                        showGoButton = true
+                                        playCardButtonEnabled = false
+                                        gameStatus += "\nNo legal moves. Press 'Go' to continue."
                                     } else {
                                         playCardButtonEnabled = true
+                                        showGoButton = false
                                         gameStatus += "\n${context.getString(R.string.pegging_your_turn)}"
                                     }
                                 }
@@ -723,6 +761,11 @@ fun CribbageMainScreen() {
     // Delegate hand scoring to shared scorer to keep logic consistent with tests.
     
 
+    // Handle dialog dismissal and continue counting
+    val onDialogDismissed = {
+        waitingForDialogDismissal = false
+    }
+
     // Enhanced hand counting process with opponent card reveals
     val countHands = {
         scope.launch {
@@ -739,7 +782,7 @@ fun CribbageMainScreen() {
                 gameStatus = "Starter card not set. Cannot count hands."
                 return@launch
             }
-            
+
             // Determine which hand is non-dealer versus dealer
             val nonDealerHand: List<Card>
             val dealerHand: List<Card>
@@ -750,68 +793,83 @@ fun CribbageMainScreen() {
                 dealerHand = opponentHand
                 nonDealerHand = playerHand
             }
-            
+
             // Count non-dealer hand
             gameStatus = "Counting non-dealer hand..."
-            val (nonDealerScore, nonDealerBreakdown) = CribbageScorer.scoreHandDetailed(nonDealerHand, starterCard!!)
+            val nonDealerBreakdown = CribbageScorer.scoreHandWithBreakdown(nonDealerHand, starterCard!!)
             handScores = handScores.copy(
-                nonDealerScore = nonDealerScore,
+                nonDealerScore = nonDealerBreakdown.totalScore,
                 nonDealerBreakdown = nonDealerBreakdown
             )
             if (isPlayerDealer) {
-                opponentScore += nonDealerScore
+                opponentScore += nonDealerBreakdown.totalScore
             } else {
-                playerScore += nonDealerScore
+                playerScore += nonDealerBreakdown.totalScore
             }
             checkGameOverFunction()
             if (gameOver) return@launch
-            delay(3000)
-            
+
+            // Wait for dialog dismissal
+            waitingForDialogDismissal = true
+            while (waitingForDialogDismissal) {
+                delay(100)
+            }
+
             // Count dealer hand
             countingPhase = CountingPhase.DEALER
             gameStatus = "Counting dealer hand..."
-            val (dealerScoreValue, dealerBreakdown) = CribbageScorer.scoreHandDetailed(dealerHand, starterCard!!)
+            val dealerBreakdown = CribbageScorer.scoreHandWithBreakdown(dealerHand, starterCard!!)
             handScores = handScores.copy(
-                dealerScore = dealerScoreValue,
+                dealerScore = dealerBreakdown.totalScore,
                 dealerBreakdown = dealerBreakdown
             )
             if (isPlayerDealer) {
-                playerScore += dealerScoreValue
+                playerScore += dealerBreakdown.totalScore
             } else {
-                opponentScore += dealerScoreValue
+                opponentScore += dealerBreakdown.totalScore
             }
             checkGameOverFunction()
             if (gameOver) return@launch
-            delay(3000)
-            
+
+            // Wait for dialog dismissal
+            waitingForDialogDismissal = true
+            while (waitingForDialogDismissal) {
+                delay(100)
+            }
+
             // Count crib
             countingPhase = CountingPhase.CRIB
             gameStatus = "Counting crib..."
-            val (cribScoreValue, cribBreakdown) = CribbageScorer.scoreHandDetailed(cribHand, starterCard!!, isCrib = true)
+            val cribBreakdown = CribbageScorer.scoreHandWithBreakdown(cribHand, starterCard!!, isCrib = true)
             handScores = handScores.copy(
-                cribScore = cribScoreValue,
+                cribScore = cribBreakdown.totalScore,
                 cribBreakdown = cribBreakdown
             )
             if (isPlayerDealer) {
-                playerScore += cribScoreValue
+                playerScore += cribBreakdown.totalScore
             } else {
-                opponentScore += cribScoreValue
+                opponentScore += cribBreakdown.totalScore
             }
             checkGameOverFunction()
             if (gameOver) return@launch
-            delay(3000)
-            
+
+            // Wait for dialog dismissal
+            waitingForDialogDismissal = true
+            while (waitingForDialogDismissal) {
+                delay(100)
+            }
+
             // Complete hand counting
             countingPhase = CountingPhase.COMPLETED
             gameStatus = "Hand counting complete. Preparing next round..."
             delay(2000)
-            
+
             // Reset for next round
             isInHandCountingPhase = false
             countingPhase = CountingPhase.NONE
             handScores = HandScores()
             starterCard = null
-            
+
             // Toggle dealer for next round
             isPlayerDealer = !isPlayerDealer
             currentPhase = GamePhase.SETUP
@@ -849,7 +907,8 @@ fun CribbageMainScreen() {
                     starterCard = starterCard,
                     isPlayerDealer = isPlayerDealer,
                     currentCountingPhase = countingPhase,
-                    handScores = handScores
+                    handScores = handScores,
+                    onDialogDismissed = onDialogDismissed
                 )
             } else {
                 GameAreaContent(
@@ -880,6 +939,7 @@ fun CribbageMainScreen() {
             dealButtonEnabled = dealButtonEnabled,
             selectCribButtonEnabled = selectCribButtonEnabled,
             showHandCountingButton = showHandCountingButton,
+            showGoButton = showGoButton,
             gameOver = gameOver,
             selectedCardsCount = selectedCards.size,
             onStartGame = { startNewGame() },
@@ -887,6 +947,7 @@ fun CribbageMainScreen() {
             onDeal = { dealCards() },
             onSelectCrib = { selectCardsForCrib() },
             onCountHands = { countHands() },
+            onGo = { handlePlayerGo() },
             onReportBug = {
                 val body = buildBugReportBody(
                     context = context,
@@ -997,6 +1058,7 @@ fun getCardResourceId(card: Card): Int {
 
 /**
  * Helper function for choosing a smart card for the opponent during pegging.
+ * Uses the enhanced OpponentAI for strategic decision-making.
  */
 fun chooseSmartOpponentCard(
     hand: List<Card>,
@@ -1004,40 +1066,17 @@ fun chooseSmartOpponentCard(
     currentCount: Int,
     peggingPile: List<Card>
 ): Pair<Int, Card>? {
-    val legalMoves = hand.withIndex().filter { (index, card) ->
-        !playedIndices.contains(index) && (currentCount + card.getValue() <= 31)
-    }
-    if (legalMoves.isEmpty()) return null
+    // Calculate how many cards the player likely has remaining
+    val opponentCardsPlayed = playedIndices.size
+    val opponentCardsRemaining = 4 - opponentCardsPlayed
 
-    fun evaluateMove(card: Card): Int {
-        var score = 0
-        val newCount = currentCount + card.getValue()
-        if (newCount == 15) score += 100
-        if (newCount == 31) score += 100
-        if (peggingPile.isNotEmpty() && peggingPile.last().rank == card.rank) {
-            score += 50
-            if (peggingPile.size >= 2 && peggingPile[peggingPile.size - 2].rank == card.rank) {
-                score += 50
-            }
-        }
-        val newPile = peggingPile + card
-        for (runLength in minOf(newPile.size, 7) downTo 3) {
-            val lastCards = newPile.takeLast(runLength)
-            val ranks = lastCards.map { it.rank.ordinal }
-            val distinctRanks = ranks.distinct().sorted()
-            if (distinctRanks.size == runLength &&
-                distinctRanks.zipWithNext().all { (a, b) -> b - a == 1 }) {
-                score += runLength * 10
-                break
-            }
-        }
-        if (newCount >= 25) score += 20
-        if (currentCount < 10) score += card.getValue()
-        return score
-    }
-
-    val bestMove = legalMoves.maxByOrNull { (_, card) -> evaluateMove(card) }
-    return bestMove?.let { Pair(it.index, it.value) }
+    return OpponentAI.choosePeggingCard(
+        hand = hand,
+        playedIndices = playedIndices,
+        currentCount = currentCount,
+        peggingPile = peggingPile,
+        opponentCardsRemaining = opponentCardsRemaining
+    )
 }
 
 private fun Card.symbol(): String = this.getSymbol()

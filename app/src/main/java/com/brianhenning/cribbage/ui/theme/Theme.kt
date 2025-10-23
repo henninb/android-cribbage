@@ -9,11 +9,18 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import java.time.LocalDate
+
+// CompositionLocal for accessing the current seasonal theme throughout the app
+val LocalSeasonalTheme = staticCompositionLocalOf { ThemeCalculator.getCurrentTheme() }
 
 private val LightColorScheme = lightColorScheme(
     primary = md_theme_light_primary,
@@ -71,10 +78,55 @@ private val DarkColorScheme = darkColorScheme(
 fun CribbageTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,  // Disabled to use seasonal themes
+    useSeasonalThemes: Boolean = true,  // Enable seasonal theming
     content: @Composable () -> Unit
 ) {
+    // Get the current seasonal theme
+    val seasonalTheme = ThemeCalculator.getCurrentTheme()
+
+    // Determine if this is a dark theme (Fall/Winter have dark backgrounds)
+    val isDarkSeasonalTheme = seasonalTheme.type == ThemeType.FALL ||
+                              seasonalTheme.type == ThemeType.WINTER ||
+                              seasonalTheme.type == ThemeType.HALLOWEEN
+
+    // Build color scheme from seasonal theme
     val colorScheme = when {
+        useSeasonalThemes && isDarkSeasonalTheme -> {
+            // Dark color scheme for Fall, Winter, Halloween
+            darkColorScheme(
+                primary = seasonalTheme.colors.primary,
+                primaryContainer = seasonalTheme.colors.primaryVariant,
+                onPrimaryContainer = Color.White,
+                secondary = seasonalTheme.colors.secondary,
+                secondaryContainer = seasonalTheme.colors.secondaryVariant,
+                onSecondaryContainer = Color.White,
+                background = seasonalTheme.colors.background,
+                onBackground = Color.White,
+                surface = seasonalTheme.colors.surface,
+                onSurface = Color.White,
+                tertiary = seasonalTheme.colors.boardPrimary,
+                tertiaryContainer = seasonalTheme.colors.boardSecondary,
+                surfaceVariant = seasonalTheme.colors.cardBack,
+                onSurfaceVariant = Color.White,
+                outline = seasonalTheme.colors.accentLight
+            )
+        }
+        useSeasonalThemes -> {
+            // Light color scheme for Spring, Summer, Holidays
+            lightColorScheme(
+                primary = seasonalTheme.colors.primary,
+                primaryContainer = seasonalTheme.colors.primaryVariant,
+                secondary = seasonalTheme.colors.secondary,
+                secondaryContainer = seasonalTheme.colors.secondaryVariant,
+                background = seasonalTheme.colors.background,
+                surface = seasonalTheme.colors.surface,
+                tertiary = seasonalTheme.colors.boardPrimary,
+                tertiaryContainer = seasonalTheme.colors.boardSecondary,
+                surfaceVariant = seasonalTheme.colors.cardBack,
+                outline = seasonalTheme.colors.accentDark
+            )
+        }
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -82,19 +134,24 @@ fun CribbageTheme(
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
             @Suppress("DEPRECATION")
             window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            // Use light status bars for light themes, dark for dark themes
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars =
+                useSeasonalThemes && !isDarkSeasonalTheme
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(LocalSeasonalTheme provides seasonalTheme) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }

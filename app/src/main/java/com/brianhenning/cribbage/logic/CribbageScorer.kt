@@ -108,6 +108,130 @@ object CribbageScorer {
 
     fun scoreHand(hand: List<Card>, starter: Card, isCrib: Boolean = false): Int =
         scoreHandDetailed(hand, starter, isCrib).first
+
+    /**
+     * Returns a detailed score breakdown with individual scoring combinations for table display
+     */
+    fun scoreHandWithBreakdown(hand: List<Card>, starter: Card, isCrib: Boolean = false): DetailedScoreBreakdown {
+        val allCards = hand + starter
+        val entries = mutableListOf<ScoreEntry>()
+
+        // Fifteens - track each combination
+        val n = allCards.size
+        for (mask in 1 until (1 shl n)) {
+            var sum = 0
+            val cardsInCombo = mutableListOf<Card>()
+            for (i in 0 until n) {
+                if ((mask and (1 shl i)) != 0) {
+                    sum += allCards[i].getValue()
+                    cardsInCombo.add(allCards[i])
+                }
+            }
+            if (sum == 15) {
+                entries.add(ScoreEntry(cardsInCombo, "Fifteen", 2))
+            }
+        }
+
+        // Pairs
+        val rankGroups = allCards.groupBy { it.rank }
+        for ((rank, cards) in rankGroups) {
+            if (cards.size >= 2) {
+                // Generate all pair combinations
+                for (i in 0 until cards.size) {
+                    for (j in i + 1 until cards.size) {
+                        entries.add(ScoreEntry(listOf(cards[i], cards[j]), "Pair", 2))
+                    }
+                }
+            }
+        }
+
+        // Runs - find all distinct runs
+        val freq = allCards.groupingBy { it.rank.ordinal }.eachCount()
+        val sortedRanks = freq.keys.sorted()
+        var longestRun = 0
+        var i = 0
+        while (i < sortedRanks.size) {
+            var runLength = 1
+            var j = i + 1
+            while (j < sortedRanks.size && sortedRanks[j] == sortedRanks[j - 1] + 1) {
+                runLength++
+                j++
+            }
+            if (runLength >= 3) {
+                longestRun = maxOf(longestRun, runLength)
+            }
+            i++
+        }
+
+        // If we found a run, generate all instances
+        if (longestRun >= 3) {
+            // Find cards that make up runs
+            i = 0
+            while (i < sortedRanks.size) {
+                var runLength = 1
+                var runRanks = listOf(sortedRanks[i])
+                var j = i + 1
+                while (j < sortedRanks.size && sortedRanks[j] == sortedRanks[j - 1] + 1) {
+                    runLength++
+                    runRanks = runRanks + sortedRanks[j]
+                    j++
+                }
+
+                if (runLength == longestRun) {
+                    // Get all cards for each rank in the run
+                    val cardsPerRank = runRanks.map { rankOrdinal ->
+                        allCards.filter { it.rank.ordinal == rankOrdinal }
+                    }
+
+                    // Generate all combinations (multiplicative runs)
+                    fun generateRunCombinations(
+                        groups: List<List<Card>>,
+                        current: List<Card> = emptyList()
+                    ): List<List<Card>> {
+                        if (groups.isEmpty()) return listOf(current)
+                        val result = mutableListOf<List<Card>>()
+                        for (card in groups.first()) {
+                            result.addAll(generateRunCombinations(groups.drop(1), current + card))
+                        }
+                        return result
+                    }
+
+                    val allRunCombinations = generateRunCombinations(cardsPerRank)
+                    for (runCards in allRunCombinations) {
+                        entries.add(ScoreEntry(runCards.sortedBy { it.rank }, "Sequence", runLength))
+                    }
+                }
+                i = j
+            }
+        }
+
+        // Flush
+        if (hand.isNotEmpty()) {
+            val handSuit = hand.first().suit
+            if (hand.all { it.suit == handSuit }) {
+                if (!isCrib) {
+                    if (starter.suit == handSuit) {
+                        entries.add(ScoreEntry(allCards, "Flush", 5))
+                    } else {
+                        entries.add(ScoreEntry(hand, "Flush", 4))
+                    }
+                } else {
+                    if (allCards.all { it.suit == handSuit }) {
+                        entries.add(ScoreEntry(allCards, "Flush", 5))
+                    }
+                }
+            }
+        }
+
+        // His nobs
+        val nobsCard = hand.find { it.rank == Rank.JACK && it.suit == starter.suit }
+        if (nobsCard != null) {
+            entries.add(ScoreEntry(listOf(nobsCard, starter), "His Nobs", 1))
+        }
+
+        val totalScore = entries.sumOf { it.points }
+        return DetailedScoreBreakdown(totalScore, entries)
+    }
 }
 
 data class PeggingPoints(
@@ -117,6 +241,17 @@ data class PeggingPoints(
     val pairPoints: Int = 0,
     val sameRankCount: Int = 0,
     val runPoints: Int = 0,
+)
+
+data class ScoreEntry(
+    val cards: List<Card>,
+    val type: String,
+    val points: Int
+)
+
+data class DetailedScoreBreakdown(
+    val totalScore: Int,
+    val entries: List<ScoreEntry>
 )
 
 object PeggingScorer {
