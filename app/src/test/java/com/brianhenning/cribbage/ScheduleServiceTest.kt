@@ -76,4 +76,135 @@ class ScheduleServiceTest {
         assertEquals("1", recorded.getHeader("x-px-block"))
         assertEquals("1", recorded.getHeader("x-px-mobile"))
     }
+
+    @Test
+    fun schedule_emptyArray_returnsEmptyList() {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody("[]")
+        )
+
+        val response = service.schedule().execute()
+
+        assertTrue(response.isSuccessful)
+        val items = response.body() ?: emptyArray()
+        assertEquals(0, items.size)
+    }
+
+    @Test
+    fun schedule_multipleGames_parsesAll() {
+        val body = """
+            [
+              {
+                "MatchNumber": 1,
+                "RoundNumber": 1,
+                "DateUtc": "2024-10-01T19:00:00Z",
+                "Location": "Xcel Energy Center",
+                "HomeTeam": "Wild",
+                "AwayTeam": "Jets",
+                "Group": null,
+                "HomeTeamScore": 3,
+                "AwayTeamScore": 2
+              },
+              {
+                "MatchNumber": 2,
+                "RoundNumber": 1,
+                "DateUtc": "2024-10-03T19:00:00Z",
+                "Location": "Canada Life Centre",
+                "HomeTeam": "Jets",
+                "AwayTeam": "Wild",
+                "Group": null,
+                "HomeTeamScore": 1,
+                "AwayTeamScore": 4
+              }
+            ]
+        """.trimIndent()
+
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody(body)
+        )
+
+        val response = service.schedule().execute()
+
+        assertTrue(response.isSuccessful)
+        val items = response.body() ?: emptyArray()
+        assertEquals(2, items.size)
+
+        val first = items[0]
+        assertEquals(1, first.MatchNumber)
+        assertEquals("Wild", first.HomeTeam)
+        assertEquals(3, first.HomeTeamScore)
+        assertEquals(2, first.AwayTeamScore)
+
+        val second = items[1]
+        assertEquals(2, second.MatchNumber)
+        assertEquals("Jets", second.HomeTeam)
+        assertEquals(1, second.HomeTeamScore)
+        assertEquals(4, second.AwayTeamScore)
+    }
+
+    @Test
+    fun schedule_withNullScores_parsesCorrectly() {
+        val body = """
+            [
+              {
+                "MatchNumber": 5,
+                "RoundNumber": 2,
+                "DateUtc": "2024-10-15T19:00:00Z",
+                "Location": "Target Center",
+                "HomeTeam": "Wild",
+                "AwayTeam": "Bruins",
+                "Group": null,
+                "HomeTeamScore": null,
+                "AwayTeamScore": null
+              }
+            ]
+        """.trimIndent()
+
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody(body)
+        )
+
+        val response = service.schedule().execute()
+
+        assertTrue(response.isSuccessful)
+        val items = response.body() ?: emptyArray()
+        assertEquals(1, items.size)
+        val game = items[0]
+        assertEquals(null, game.HomeTeamScore)
+        assertEquals(null, game.AwayTeamScore)
+    }
+
+    @Test
+    fun schedule_serverError_returnsUnsuccessful() {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(500)
+                .setBody("Internal Server Error")
+        )
+
+        val response = service.schedule().execute()
+
+        assertTrue(!response.isSuccessful)
+        assertEquals(500, response.code())
+    }
+
+    @Test
+    fun schedule_notFound_returnsUnsuccessful() {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(404)
+                .setBody("Not Found")
+        )
+
+        val response = service.schedule().execute()
+
+        assertTrue(!response.isSuccessful)
+        assertEquals(404, response.code())
+    }
 }
