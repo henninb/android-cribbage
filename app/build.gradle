@@ -15,9 +15,9 @@ android {
     defaultConfig {
         applicationId = "com.brianhenning.cribbage"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -29,9 +29,20 @@ android {
         }
     }
 
+    signingConfigs {
+        release {
+            storeFile file(System.getenv("CRIBBAGE_KEYSTORE_PATH") ?: "${System.properties['user.home']}/.android/keystores/cribbage-release-key.jks")
+            storePassword System.getenv("CRIBBAGE_KEYSTORE_PASSWORD")
+            keyAlias System.getenv("CRIBBAGE_KEY_ALIAS") ?: "cribbage-release"
+            keyPassword System.getenv("CRIBBAGE_KEY_PASSWORD")
+        }
+    }
+
     buildTypes {
         release {
-            minifyEnabled = false // isMinifyEnabled in gradle 9
+            signingConfig signingConfigs.release
+            minifyEnabled = true // Enable ProGuard/R8 for release
+            shrinkResources = true // Remove unused resources
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

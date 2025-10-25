@@ -18,3 +18,12 @@ local.properties
 .settings
 .classpath
 .kotlin
+
+# Signing keys (NEVER commit these!)
+*.jks
+*.keystore
+keystore.properties
+
+# Backup files
+*.bak
+*~

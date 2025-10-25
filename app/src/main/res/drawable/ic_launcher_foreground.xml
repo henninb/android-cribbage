@@ -4,27 +4,101 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:pathData="M31,63.928c0,0 6.4,-11 12.1,-13.1c7.2,-2.6 26,-1.4 26,-1.4l38.1,38.1L107,108.928l-32,-1L31,63.928z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:endX="85.84757"
-                android:endY="92.4963"
-                android:startX="42.9492"
-                android:startY="49.59793"
-                android:type="linear">
-                <item
-                    android:color="#44000000"
-                    android:offset="0.0" />
-                <item
-                    android:color="#00000000"
-                    android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
+
+    <!-- Cribbage Board -->
     <path
+        android:pathData="M20,50 L88,50 A8,8 0 0,1 96,58 L96,68 A8,8 0 0,1 88,76 L20,76 A8,8 0 0,1 12,68 L12,58 A8,8 0 0,1 20,50 Z"
+        android:fillColor="#654321"/>
+
+    <!-- Peg holes row 1 -->
+    <path
+        android:pathData="M22,58 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+    <path
+        android:pathData="M30,58 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+    <path
+        android:pathData="M38,58 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+    <path
+        android:pathData="M46,58 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+    <path
+        android:pathData="M54,58 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+    <path
+        android:pathData="M62,58 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+    <path
+        android:pathData="M70,58 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+    <path
+        android:pathData="M78,58 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+    <path
+        android:pathData="M86,58 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+
+    <!-- Peg holes row 2 -->
+    <path
+        android:pathData="M22,68 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+    <path
+        android:pathData="M30,68 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+    <path
+        android:pathData="M38,68 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+    <path
+        android:pathData="M46,68 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+    <path
+        android:pathData="M54,68 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+    <path
+        android:pathData="M62,68 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+    <path
+        android:pathData="M70,68 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+    <path
+        android:pathData="M78,68 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+    <path
+        android:pathData="M86,68 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:fillColor="#2a1810"/>
+
+    <!-- Card 1 (Five of Hearts) -->
+    <path
+        android:pathData="M25,20 L42,20 A3,3 0 0,1 45,23 L45,42 A3,3 0 0,1 42,45 L25,45 A3,3 0 0,1 22,42 L22,23 A3,3 0 0,1 25,20 Z"
         android:fillColor="#FFFFFF"
-        android:fillType="nonZero"
-        android:pathData="M65.3,45.828l3.8,-6.6c0.2,-0.4 0.1,-0.9 -0.3,-1.1c-0.4,-0.2 -0.9,-0.1 -1.1,0.3l-3.9,6.7c-6.3,-2.8 -13.4,-2.8 -19.7,0l-3.9,-6.7c-0.2,-0.4 -0.7,-0.5 -1.1,-0.3C38.8,38.328 38.7,38.828 38.9,39.228l3.8,6.6C36.2,49.428 31.7,56.028 31,63.928h46C76.3,56.028 71.8,49.428 65.3,45.828zM43.4,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2c-0.3,-0.7 -0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C45.3,56.528 44.5,57.328 43.4,57.328L43.4,57.328zM64.6,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2s-0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C66.5,56.528 65.6,57.328 64.6,57.328L64.6,57.328z"
-        android:strokeWidth="1"
-        android:strokeColor="#00000000" />
+        android:strokeColor="#333333"
+        android:strokeWidth="0.5"/>
+
+    <!-- Card 2 (Jack of Spades) -->
+    <path
+        android:pathData="M63,20 L80,20 A3,3 0 0,1 83,23 L83,42 A3,3 0 0,1 80,45 L63,45 A3,3 0 0,1 60,42 L60,23 A3,3 0 0,1 63,20 Z"
+        android:fillColor="#FFFFFF"
+        android:strokeColor="#333333"
+        android:strokeWidth="0.5"/>
+
+    <!-- Red Peg -->
+    <path
+        android:pathData="M46,68 a2.5,2.5 0 1,1 5,0 a2.5,2.5 0 1,1 -5,0"
+        android:fillColor="#d32f2f"/>
+
+    <!-- Blue Peg -->
+    <path
+        android:pathData="M30,68 a2.5,2.5 0 1,1 5,0 a2.5,2.5 0 1,1 -5,0"
+        android:fillColor="#1976d2"/>
+
+    <!-- Green Peg -->
+    <path
+        android:pathData="M54,58 a2.5,2.5 0 1,1 5,0 a2.5,2.5 0 1,1 -5,0"
+        android:fillColor="#388e3c"/>
+
+    <!-- Yellow Peg -->
+    <path
+        android:pathData="M46,58 a2.5,2.5 0 1,1 5,0 a2.5,2.5 0 1,1 -5,0"
+        android:fillColor="#f57c00"/>
 </vector>

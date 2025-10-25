@@ -42,6 +42,9 @@ class PeggingRoundManager(
      */
     fun onPlay(card: Card): PlayOutcome {
         require(turnOwner() != null) { "Turn owner must be defined" }
+        require(peggingCount + card.getValue() <= 31) {
+            "Playing ${card.rank} would exceed count limit (current: $peggingCount, card value: ${card.getValue()})"
+        }
         peggingPile += card
         peggingCount += card.getValue()
         lastPlayerWhoPlayed = isPlayerTurn

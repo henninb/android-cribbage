@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="432" height="432" viewBox="0 0 432 432" xmlns="http://www.w3.org/2000/svg">
+  <!-- This is the foreground layer for adaptive icon (108dp with safe zone) -->
+  <defs>
+    <linearGradient id="boardGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B4513;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#654321;stop-opacity:1" />
+    </linearGradient>
+
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="2" dy="2" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Content centered with safe zone padding -->
+  <g transform="translate(36, 36)">
+    <!-- Cribbage board section -->
+    <g filter="url(#shadow)">
+      <rect x="20" y="140" width="320" height="100" rx="12" fill="url(#boardGradient)"/>
+
+      <!-- Peg holes -->
+      <g fill="#2a1810">
+        <!-- Top track -->
+        <circle cx="40" cy="165" r="4"/>
+        <circle cx="62" cy="165" r="4"/>
+        <circle cx="84" cy="165" r="4"/>
+        <circle cx="106" cy="165" r="4"/>
+        <circle cx="128" cy="165" r="4"/>
+        <circle cx="150" cy="165" r="4"/>
+        <circle cx="172" cy="165" r="4"/>
+        <circle cx="194" cy="165" r="4"/>
+        <circle cx="216" cy="165" r="4"/>
+        <circle cx="238" cy="165" r="4"/>
+        <circle cx="260" cy="165" r="4"/>
+        <circle cx="282" cy="165" r="4"/>
+        <circle cx="304" cy="165" r="4"/>
+        <circle cx="326" cy="165" r="4"/>
+
+        <!-- Middle track -->
+        <circle cx="40" cy="190" r="4"/>
+        <circle cx="62" cy="190" r="4"/>
+        <circle cx="84" cy="190" r="4"/>
+        <circle cx="106" cy="190" r="4"/>
+        <circle cx="128" cy="190" r="4"/>
+        <circle cx="150" cy="190" r="4"/>
+        <circle cx="172" cy="190" r="4"/>
+        <circle cx="194" cy="190" r="4"/>
+        <circle cx="216" cy="190" r="4"/>
+        <circle cx="238" cy="190" r="4"/>
+        <circle cx="260" cy="190" r="4"/>
+        <circle cx="282" cy="190" r="4"/>
+        <circle cx="304" cy="190" r="4"/>
+        <circle cx="326" cy="190" r="4"/>
+
+        <!-- Bottom track -->
+        <circle cx="40" cy="215" r="4"/>
+        <circle cx="62" cy="215" r="4"/>
+        <circle cx="84" cy="215" r="4"/>
+        <circle cx="106" cy="215" r="4"/>
+        <circle cx="128" cy="215" r="4"/>
+        <circle cx="150" cy="215" r="4"/>
+        <circle cx="172" cy="215" r="4"/>
+        <circle cx="194" cy="215" r="4"/>
+        <circle cx="216" cy="215" r="4"/>
+        <circle cx="238" cy="215" r="4"/>
+        <circle cx="260" cy="215" r="4"/>
+        <circle cx="282" cy="215" r="4"/>
+        <circle cx="304" cy="215" r="4"/>
+        <circle cx="326" cy="215" r="4"/>
+      </g>
+    </g>
+
+    <!-- Playing Cards -->
+    <!-- Card 1 - Five of Hearts -->
+    <g transform="translate(70, 20)" filter="url(#shadow)">
+      <rect x="0" y="0" width="60" height="85" rx="4" fill="white" stroke="#333" stroke-width="2"/>
+      <text x="8" y="25" font-family="Arial" font-size="24" font-weight="bold" fill="#d32f2f">5</text>
+      <text x="8" y="45" font-family="Arial" font-size="20" fill="#d32f2f">♥</text>
+      <text x="45" y="77" font-family="Arial" font-size="24" font-weight="bold" fill="#d32f2f" transform="rotate(180, 48, 72)">5</text>
+    </g>
+
+    <!-- Card 2 - Jack of Spades -->
+    <g transform="translate(230, 20)" filter="url(#shadow)">
+      <rect x="0" y="0" width="60" height="85" rx="4" fill="white" stroke="#333" stroke-width="2"/>
+      <text x="8" y="25" font-family="Arial" font-size="24" font-weight="bold" fill="#333">J</text>
+      <text x="8" y="45" font-family="Arial" font-size="20" fill="#333">♠</text>
+      <text x="45" y="77" font-family="Arial" font-size="24" font-weight="bold" fill="#333" transform="rotate(180, 48, 72)">J</text>
+    </g>
+
+    <!-- Cribbage Pegs -->
+    <g filter="url(#shadow)">
+      <!-- Red peg -->
+      <ellipse cx="128" cy="190" rx="5" ry="10" fill="#d32f2f"/>
+      <ellipse cx="128" cy="187" rx="5" ry="2.5" fill="#ef5350"/>
+
+      <!-- Blue peg -->
+      <ellipse cx="106" cy="190" rx="5" ry="10" fill="#1976d2"/>
+      <ellipse cx="106" cy="187" rx="5" ry="2.5" fill="#42a5f5"/>
+
+      <!-- Green peg -->
+      <ellipse cx="172" cy="165" rx="5" ry="10" fill="#388e3c"/>
+      <ellipse cx="172" cy="162" rx="5" ry="2.5" fill="#66bb6a"/>
+
+      <!-- Yellow peg -->
+      <ellipse cx="150" cy="165" rx="5" ry="10" fill="#f57c00"/>
+      <ellipse cx="150" cy="162" rx="5" ry="2.5" fill="#ffa726"/>
+    </g>
+
+    <!-- "15-2" scoring reference -->
+    <g filter="url(#shadow)">
+      <text x="125" y="295" font-family="Arial" font-size="42" font-weight="bold" fill="#ffd700" stroke="#333" stroke-width="1">15-2</text>
+    </g>
+  </g>
+</svg>

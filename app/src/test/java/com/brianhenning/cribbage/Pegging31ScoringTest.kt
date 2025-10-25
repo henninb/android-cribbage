@@ -67,7 +67,7 @@ class Pegging31ScoringTest {
             Card(Rank.SIX, Suit.SPADES)     // 6 (total: 25)
         )
 
-        // Act: Play a THREE to make 31 AND complete a run of 4-5-6-3 (reordered: 3-4-5-6)
+        // Act: Play another SIX to make 31 AND create a pair of 6s
         val cardPlayed = Card(Rank.SIX, Suit.HEARTS) // Another 6 to make exactly 31
         val newPile = pile + cardPlayed
         val newCount = 31

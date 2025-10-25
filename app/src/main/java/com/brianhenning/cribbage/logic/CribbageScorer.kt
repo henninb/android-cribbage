@@ -280,7 +280,7 @@ object PeggingScorer {
         when (sameRankCount) {
             2 -> { pairPoints = 2; total += 2 }
             3 -> { pairPoints = 6; total += 6 }
-            in 4..Int.MAX_VALUE -> { pairPoints = 12; total += 12 }
+            4 -> { pairPoints = 12; total += 12 } // Four of a kind (max possible)
         }
 
         // Runs: check trailing windows from longest to 3
