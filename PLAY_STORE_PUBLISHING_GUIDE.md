@@ -234,11 +234,14 @@ Current permissions in AndroidManifest.xml:
 
 **Action**:
 - [x] Create a privacy policy - ✓ See PRIVACY_POLICY.md
-- [ ] Update contact email in PRIVACY_POLICY.md
-- [ ] Host it on a publicly accessible URL (options below)
+- [x] Update contact email in PRIVACY_POLICY.md - ✓ henninb@gmail.com
+- [x] Host it on a publicly accessible URL - ✓ GitHub Pages enabled
+- [ ] Push updated privacy policy to GitHub (PENDING - removes PerimeterX)
 - [ ] Include in Play Store listing
 
-**Hosting Options**:
+**Privacy Policy URL**: https://henninb.github.io/android-cribbage/privacy-policy
+
+**Hosting Options** (COMPLETED - using GitHub Pages):
 1. **GitHub Pages** (Recommended - Free):
    - Create a `docs` folder in your repo
    - Copy PRIVACY_POLICY.md to docs/privacy-policy.md

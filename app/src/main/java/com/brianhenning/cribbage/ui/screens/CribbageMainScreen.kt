@@ -2,7 +2,6 @@ package com.brianhenning.cribbage.ui.screens
 
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.content.Context
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -31,8 +30,6 @@ import com.brianhenning.cribbage.logic.Player
 import com.brianhenning.cribbage.logic.SubRoundReset
 import com.brianhenning.cribbage.logic.OpponentAI
 
-private const val TAG = "CribbageGame"
-
 @Composable
 fun CribbageMainScreen() {
     val context = LocalContext.current
@@ -56,7 +53,6 @@ fun CribbageMainScreen() {
     var showCutForDealer by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        Log.i(TAG, "FirstScreen composable is being rendered")
         val prefs = context.getSharedPreferences("cribbage_prefs", Context.MODE_PRIVATE)
         gamesWon = prefs.getInt("gamesWon", 0)
         gamesLost = prefs.getInt("gamesLost", 0)
@@ -151,7 +147,6 @@ fun CribbageMainScreen() {
 
     // Handle player manually saying "Go"
     val handlePlayerGo = {
-        Log.i(TAG, "Player manually says Go")
         showGoButton = false
         autoHandleGoRef.value()
     }
@@ -168,12 +163,10 @@ fun CribbageMainScreen() {
         if (pts.fifteen > 0) {
             award(pts.fifteen)
             gameStatus += if (isPlayer) "\nScored 2 for 15 by You!" else "\nScored 2 for 15 by Opponent!"
-            Log.i(TAG, "Scored 2 for fifteen. Card: ${cardPlayed.getSymbol()}")
         }
         if (pts.thirtyOne > 0) {
             award(pts.thirtyOne)
             gameStatus += if (isPlayer) "\nScored 2 for 31 by You!" else "\nScored 2 for 31 by Opponent!"
-            Log.i(TAG, "Scored 2 for thirty-one. Card: ${cardPlayed.getSymbol()}")
         }
         if (pts.pairPoints > 0) {
             award(pts.pairPoints)
@@ -183,12 +176,10 @@ fun CribbageMainScreen() {
                 else -> "12 for four-of-a-kind"
             }
             gameStatus += if (isPlayer) "\nScored $msg by You!" else "\nScored $msg by Opponent!"
-            Log.i(TAG, "Scored ${pts.pairPoints} for ${pts.sameRankCount} of a kind.")
         }
         if (pts.runPoints > 0) {
             award(pts.runPoints)
             gameStatus += if (isPlayer) "\nScored ${pts.runPoints} for a run by You!" else "\nScored ${pts.runPoints} for a run by Opponent!"
-            Log.i(TAG, "Scored ${pts.runPoints} for a run.")
         }
         if (awarded > 0) {
             checkGameOverFunction()
@@ -409,7 +400,6 @@ fun CribbageMainScreen() {
 
     // Revised card selection behavior with two-click selection during pegging phase.
     val toggleCardSelection = { cardIndex: Int ->
-        Log.i(TAG, "Card selection toggled: $cardIndex")
         if (isPeggingPhase) {
             if (isPlayerTurn && !playerCardsPlayed.contains(cardIndex)) {
                 val cardToPlay = playerHand[cardIndex]
@@ -439,7 +429,6 @@ fun CribbageMainScreen() {
 
     // New endGame lambda to reset game state
     val endGame = {
-        Log.i(TAG, "Ending game")
         gameStarted = false
         playerScore = 0
         opponentScore = 0
@@ -474,7 +463,6 @@ fun CribbageMainScreen() {
     }
 
     val startNewGame = {
-        Log.i(TAG, "Starting new game")
         gameStarted = true
         playerScore = 0
         opponentScore = 0
@@ -507,7 +495,6 @@ fun CribbageMainScreen() {
             cutOpponentCard = null
             showCutForDealer = false
             gameStatus = context.getString(R.string.dealer_set_by_previous, if (isPlayerDealer) "You are dealer" else "Opponent is dealer")
-            Log.i(TAG, "Dealer set by previous game loser: ${if (isPlayerDealer) "Player" else "Opponent"}")
         } else {
             // Cut for dealer per rules: lower card deals first
             run {
@@ -533,7 +520,6 @@ fun CribbageMainScreen() {
                     .apply()
                 gameStatus = "Cut for deal: You ${pCut.getSymbol()} vs Opponent ${oCut.getSymbol()}\n" +
                         if (isPlayerDealer) "You are dealer" else "Opponent is dealer"
-                Log.i(TAG, "Cut: player=${pCut.getSymbol()}, opp=${oCut.getSymbol()} -> Dealer: ${if (isPlayerDealer) "Player" else "Opponent"}")
             }
         }
 
@@ -548,13 +534,10 @@ fun CribbageMainScreen() {
     }
 
     val dealCards = {
-        Log.i(TAG, "Dealing cards")
         val deck = createDeck().shuffled().toMutableList()
         val result = dealSixToEach(deck, playerIsDealer = isPlayerDealer)
         playerHand = result.playerHand.sortedWith(compareBy({ it.rank.ordinal }, { it.suit.ordinal }))
         opponentHand = result.opponentHand
-        Log.i(TAG, "Player hand: $playerHand")
-        Log.i(TAG, "Opponent hand: $opponentHand")
         // Save remaining undealt deck for starter draw
         drawDeck = result.remainingDeck
 
@@ -570,17 +553,13 @@ fun CribbageMainScreen() {
     }
 
     val selectCardsForCrib = {
-        Log.i(TAG, "Select cards for crib called, selected cards: ${selectedCards.size}")
         if (selectedCards.size != 2) {
             gameStatus = context.getString(R.string.select_exactly_two)
-            Log.i(TAG, "Not enough cards selected for crib")
         } else {
             val selectedIndices = selectedCards.toList().sortedDescending()
             val selectedPlayerCards = selectedIndices.map { playerHand[it] }
-            Log.i(TAG, "Cards selected for crib: $selectedPlayerCards")
             // Use smart AI to choose crib cards
             val opponentCribCards = OpponentAI.chooseCribCards(opponentHand, !isPlayerDealer)
-            Log.i(TAG, "Opponent cards for crib (AI selected): $opponentCribCards")
             // Save the crib hand (combining player’s selections and opponent’s crib cards)
             cribHand = selectedPlayerCards + opponentCribCards
 
@@ -599,7 +578,6 @@ fun CribbageMainScreen() {
             }
             starterCard = drawDeck.first()
             drawDeck = drawDeck.drop(1)
-            Log.i(TAG, "Cut card: ${starterCard?.getSymbol()}")
             gameStatus = "Cut card: ${starterCard?.getSymbol()}"
             if (starterCard?.rank == Rank.JACK) {
                 if (isPlayerDealer) {
@@ -673,13 +651,10 @@ fun CribbageMainScreen() {
     }
 
     playSelectedCardRef.value = {
-        Log.i(TAG, "Play selected card called")
         if (isPeggingPhase && isPlayerTurn && selectedCards.isNotEmpty()) {
             val cardIndex = selectedCards.first()
-            Log.i(TAG, "Playing card at index $cardIndex")
             if (cardIndex < playerHand.size && !playerCardsPlayed.contains(cardIndex)) {
                 val playedCard = playerHand[cardIndex]
-                Log.i(TAG, "Player playing card: ${playedCard.getSymbol()}")
                 if (peggingCount + playedCard.getValue() <= 31) {
                     val mgr = peggingManager!!
 
@@ -752,7 +727,6 @@ fun CribbageMainScreen() {
                     }
                 } else {
                     gameStatus = context.getString(R.string.illegal_move_exceeds_31, playedCard.getSymbol())
-                    Log.i(TAG, "Illegal play attempted: count $peggingCount, card value ${playedCard.getValue()}")
                 }
             }
         }
@@ -1145,7 +1119,6 @@ private fun sendBugReportEmail(context: Context, to: String, subject: String, bo
     try {
         context.startActivity(Intent.createChooser(intent, subject))
     } catch (e: ActivityNotFoundException) {
-        Log.e(TAG, "No email client available: ${e.message}")
-        // Optionally show a toast/snackbar; keep it simple in this pass.
+        // No email client available - silently ignore
     }
 }

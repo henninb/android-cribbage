@@ -8,25 +8,15 @@ This privacy policy applies to the Cribbage app (hereby referred to as "Applicat
 
 ## Information Collection and Use
 
-The Application does not collect or store any personally identifiable information directly. However, the Application uses third-party services that may collect information used to identify you.
+The Application does not collect, transmit, or store any personally identifiable information. The Application is a fully offline game that operates entirely on your device.
 
 ### Third-Party Services
 
-The Application uses the following third-party service:
+The Application does not use any third-party analytics, advertising, or tracking services.
 
-**PerimeterX SDK**
-- Purpose: Security and fraud prevention
-- Data collected: May include device information, IP address, and usage analytics
-- Privacy policy: https://www.humansecurity.com/privacy-policy
+### Data Collection
 
-### Automatically Collected Information
-
-The Application may collect certain information automatically, including, but not limited to:
-- Device information (model, operating system version)
-- App crash reports and diagnostics
-- General usage statistics
-
-This information is used solely to improve the Application's performance and user experience.
+The Application does not collect any data whatsoever. All game functionality is local to your device.
 
 ## Data Storage
 
@@ -39,9 +29,7 @@ This data is stored only on your device and is not transmitted to any external s
 
 ## Network Access
 
-The Application requests internet access for the following purposes:
-- Security and fraud prevention (via PerimeterX SDK)
-- Future features may include online gameplay or updates
+The Application does not require or use internet access. The app functions entirely offline.
 
 ## Children's Privacy
 
@@ -91,22 +79,21 @@ By using the Application, you consent to the processing of information as descri
 ## Summary
 
 **What we collect:**
-- No personal information is directly collected by the Service Provider
-- Third-party SDK (PerimeterX) may collect device and usage information
+- No personal information is collected
+- No data is transmitted to external servers
 - Game data is stored locally on your device only
 
 **How we use it:**
-- Security and fraud prevention
-- App performance improvement
-- Local game state preservation
+- Local game state preservation only
+- No analytics or tracking
 
 **Third parties:**
-- PerimeterX SDK for security purposes
+- None - The app does not use any third-party services
 
 **Your control:**
 - All local data can be deleted by uninstalling the app
 - No account creation or login required
-- No data transmitted to Service Provider servers
+- Fully offline operation
 
 **Questions?**
-Contact: [your-email@example.com]
+Contact: henninb@gmail.com

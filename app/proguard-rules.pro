@@ -46,31 +46,6 @@
     volatile <fields>;
 }
 
-# ========== Retrofit & OkHttp ==========
-# Retrofit does reflection on generic parameters and InnerClass is required
--keepattributes Signature, InnerClasses, EnclosingMethod
-
-# Retrofit interfaces
--keep,allowobfuscation,allowshrinking interface retrofit2.Call
--keep,allowobfuscation,allowshrinking class retrofit2.Response
--keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
-
-# OkHttp platform used only on JVM and when Conscrypt dependency is available
--dontwarn okhttp3.internal.platform.**
--dontwarn org.conscrypt.**
--dontwarn org.bouncycastle.**
--dontwarn org.openjsse.**
-
-# ========== Gson ==========
-# Keep generic signatures for Gson
--keepattributes Signature
--keep class com.google.gson.reflect.TypeToken { *; }
--keep class * extends com.google.gson.reflect.TypeToken
-
-# Keep all model classes used with Gson/Retrofit
--keep class com.brianhenning.cribbage.models.** { *; }
--keep class com.brianhenning.cribbage.data.** { *; }
-
 # ========== AndroidX & Material ==========
 -keep class com.google.android.material.** { *; }
 -dontwarn com.google.android.material.**
@@ -86,11 +61,6 @@
 -keepclassmembers class * extends androidx.navigation.Navigator {
     <init>(...);
 }
-
-# ========== PerimeterX SDK ==========
--keep class com.perimeterx.sdk.** { *; }
--dontwarn com.perimeterx.sdk.**
--keepclassmembers class com.perimeterx.sdk.** { *; }
 
 # ========== App-specific classes ==========
 # Keep all classes in your main package
