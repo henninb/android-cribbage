@@ -21,12 +21,13 @@
     <string name="select_crib_cards">Select Cards for Crib</string>
     <string name="welcome_to_cribbage">Welcome to Cribbage! Press Start to begin</string>
     <string name="game_started">Game started! Click \'Deal Cards\' to continue.</string>
-    <string name="select_cards_for_crib">Select 2 cards to place in the crib</string>
+    <string name="select_cards_for_your_crib">Select 2 cards to place in your crib</string>
+    <string name="select_cards_for_opponent_crib">Select 2 cards to place in your opponent\'s crib</string>
     <string name="select_exactly_two">Please select exactly 2 cards for the crib</string>
     <string name="crib_cards_selected">Cards selected for crib. Ready for pegging.</string>
     <string name="play_card">Play Card</string>
     <string name="pegging_count_0">Count: 0</string>
-    <string name="pegging_your_turn">Your turn to play a card</string>
+    <string name="pegging_your_turn">Your turn, choose a card to play</string>
     <string name="pegging_opponent_turn">Opponent\'s turn</string>
     <string name="pegging_select_card">Select a card to play</string>
     <string name="pegging_go">GO! Cannot play a card</string>
@@ -51,6 +52,6 @@
     <string name="dealer_set_by_previous">Dealer set by previous game\'s loser. %1$s</string>
     <string name="report_bug">Report Bug</string>
     <string name="bug_report_subject">Cribbage Bug Report</string>
-    <string name="feedback_email">support@example.com</string>
+    <string name="feedback_email">henninb+cribbage@gmail.com</string>
     <string name="bug_report_error_no_email">No email app available</string>
 </resources>

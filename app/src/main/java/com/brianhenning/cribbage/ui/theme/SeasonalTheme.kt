@@ -216,17 +216,17 @@ object ThemeDefinitions {
         type = ThemeType.FALL,
         name = "Autumn Harvest",
         colors = ThemeColors(
-            primary = Color(0xFFD84315),           // Deep orange - darker for readability
-            primaryVariant = Color(0xFFBF360C),    // Dark orange
-            secondary = Color(0xFF6D4C41),         // Brown - darker for contrast
-            secondaryVariant = Color(0xFF4E342E),  // Dark brown
-            background = Color(0xFF3E2723),        // Dark brown background (darker)
-            surface = Color(0xFF5D4037),           // Dark surface
-            cardBack = Color(0xFFFFAB91),          // Peach
-            boardPrimary = Color(0xFFBF360C),      // Rust
-            boardSecondary = Color(0xFFFF8A65),    // Coral
-            accentLight = Color(0xFFFFCC80),       // Light orange
-            accentDark = Color(0xFF4E342E)         // Deep brown
+            primary = Color(0xFFFF8A50),           // Warm pumpkin orange - bright & readable
+            primaryVariant = Color(0xFFE65100),    // Deep pumpkin
+            secondary = Color(0xFFFFB74D),         // Harvest gold - bright & warm
+            secondaryVariant = Color(0xFFFFA726),  // Golden amber
+            background = Color(0xFF1A0E0A),        // Very dark brown (almost black) - maximum contrast
+            surface = Color(0xFF2D1B16),           // Dark chocolate brown - good contrast
+            cardBack = Color(0xFFFFCC80),          // Light golden peach - stands out
+            boardPrimary = Color(0xFFD84315),      // Burnt orange/rust
+            boardSecondary = Color(0xFFFFAB40),    // Bright golden
+            accentLight = Color(0xFFFFF3E0),       // Cream/wheat - excellent for highlights
+            accentDark = Color(0xFFBF360C)         // Deep rust red
         ),
         icon = "🍂"  // Fallen leaf
     )

@@ -723,51 +723,56 @@ private fun CribbageBoardTrack(
         label = "opponent_peg_position"
     )
 
+    // Get theme colors
+    val boardPrimaryColor = MaterialTheme.colorScheme.tertiary
+    val boardSecondaryColor = MaterialTheme.colorScheme.tertiaryContainer
+    val outlineColor = MaterialTheme.colorScheme.outline
+
     Canvas(modifier = modifier) {
         val width = size.width
         val height = size.height
         val trackHeight = height / 3
         val padding = 20f
 
-        // Player track (top)
+        // Player track (top) - using primary board color
         val playerTrackY = trackHeight
         drawLine(
-            color = Color.Blue.copy(alpha = 0.3f),
+            color = boardPrimaryColor.copy(alpha = 0.4f),
             start = Offset(padding, playerTrackY),
             end = Offset(width - padding, playerTrackY),
             strokeWidth = 8f
         )
 
-        // Player peg
+        // Player peg - solid primary color
         val playerPegX = padding + (width - 2 * padding) * playerPegPosition
         drawCircle(
-            color = Color.Blue,
+            color = boardPrimaryColor,
             radius = 12f,
             center = Offset(playerPegX, playerTrackY)
         )
 
-        // Opponent track (bottom)
+        // Opponent track (bottom) - using secondary board color
         val opponentTrackY = height - trackHeight
         drawLine(
-            color = Color.Red.copy(alpha = 0.3f),
+            color = boardSecondaryColor.copy(alpha = 0.4f),
             start = Offset(padding, opponentTrackY),
             end = Offset(width - padding, opponentTrackY),
             strokeWidth = 8f
         )
 
-        // Opponent peg
+        // Opponent peg - solid secondary color
         val opponentPegX = padding + (width - 2 * padding) * opponentPegPosition
         drawCircle(
-            color = Color.Red,
+            color = boardSecondaryColor,
             radius = 12f,
             center = Offset(opponentPegX, opponentTrackY)
         )
 
-        // Draw milestone markers (every 30 points)
+        // Draw milestone markers (every 30 points) - using outline color
         for (i in 0..4) {
             val markerX = padding + (width - 2 * padding) * (i / 4f)
             drawLine(
-                color = Color.Gray.copy(alpha = 0.5f),
+                color = outlineColor.copy(alpha = 0.5f),
                 start = Offset(markerX, playerTrackY - 15f),
                 end = Offset(markerX, opponentTrackY + 15f),
                 strokeWidth = 2f

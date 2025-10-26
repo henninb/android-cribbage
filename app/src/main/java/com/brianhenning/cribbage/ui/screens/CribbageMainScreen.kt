@@ -250,10 +250,17 @@ fun CribbageMainScreen() {
 
         if (isPlayerTurn) {
             if (playerLegal.isEmpty()) {
-                // Show Go button instead of auto-handling
-                showGoButton = true
-                playCardButtonEnabled = false
-                gameStatus += "\nNo legal moves. Press 'Go' to continue."
+                // Only show Go button if player has cards left; otherwise auto-handle
+                if (playerCardsPlayed.size < 4) {
+                    showGoButton = true
+                    playCardButtonEnabled = false
+                    gameStatus += "\nNo legal moves. Press 'Go' to continue."
+                } else {
+                    // Player has no cards left, auto-handle Go
+                    showGoButton = false
+                    playCardButtonEnabled = false
+                    autoHandleGoRef.value()
+                }
             } else {
                 playCardButtonEnabled = true
                 showGoButton = false
@@ -288,10 +295,17 @@ fun CribbageMainScreen() {
                             !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
                         }
                         if (playerPlayable.isEmpty()) {
-                            // Show Go button instead of auto-handling
-                            showGoButton = true
-                            playCardButtonEnabled = false
-                            gameStatus += "\nNo legal moves. Press 'Go' to continue."
+                            // Only show Go button if player has cards left; otherwise auto-handle
+                            if (playerCardsPlayed.size < 4) {
+                                showGoButton = true
+                                playCardButtonEnabled = false
+                                gameStatus += "\nNo legal moves. Press 'Go' to continue."
+                            } else {
+                                // Player has no cards left, auto-handle Go
+                                showGoButton = false
+                                playCardButtonEnabled = false
+                                autoHandleGoRef.value()
+                            }
                         } else {
                             playCardButtonEnabled = true
                             showGoButton = false
@@ -380,10 +394,17 @@ fun CribbageMainScreen() {
                                 !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
                             }
                             if (playerPlayableAfter.isEmpty()) {
-                                // Show Go button instead of auto-handling
-                                showGoButton = true
-                                playCardButtonEnabled = false
-                                gameStatus += "\nNo legal moves. Press 'Go' to continue."
+                                // Only show Go button if player has cards left; otherwise auto-handle
+                                if (playerCardsPlayed.size < 4) {
+                                    showGoButton = true
+                                    playCardButtonEnabled = false
+                                    gameStatus += "\nNo legal moves. Press 'Go' to continue."
+                                } else {
+                                    // Player has no cards left, auto-handle Go
+                                    showGoButton = false
+                                    playCardButtonEnabled = false
+                                    autoHandleGoRef.value()
+                                }
                             } else {
                                 playCardButtonEnabled = true
                                 showGoButton = false
@@ -546,7 +567,11 @@ fun CribbageMainScreen() {
         dealButtonEnabled = false
         selectCribButtonEnabled = true
         currentPhase = GamePhase.CRIB_SELECTION
-        gameStatus = context.getString(R.string.select_cards_for_crib)
+        gameStatus = if (isPlayerDealer) {
+            context.getString(R.string.select_cards_for_your_crib)
+        } else {
+            context.getString(R.string.select_cards_for_opponent_crib)
+        }
 
         // Hide cut for dealer screen after first deal
         showCutForDealer = false
@@ -632,10 +657,17 @@ fun CribbageMainScreen() {
                                     !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
                                 }
                                 if (playerPlayable.isEmpty()) {
-                                    // Show Go button instead of auto-handling
-                                    showGoButton = true
-                                    playCardButtonEnabled = false
-                                    gameStatus += "\nNo legal moves. Press 'Go' to continue."
+                                    // Only show Go button if player has cards left; otherwise auto-handle
+                                    if (playerCardsPlayed.size < 4) {
+                                        showGoButton = true
+                                        playCardButtonEnabled = false
+                                        gameStatus += "\nNo legal moves. Press 'Go' to continue."
+                                    } else {
+                                        // Player has no cards left, auto-handle Go
+                                        showGoButton = false
+                                        playCardButtonEnabled = false
+                                        autoHandleGoRef.value()
+                                    }
                                 } else {
                                     playCardButtonEnabled = true
                                     showGoButton = false
@@ -710,10 +742,17 @@ fun CribbageMainScreen() {
                                         !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
                                     }
                                     if (playerPlayable.isEmpty()) {
-                                        // Show Go button instead of auto-handling
-                                        showGoButton = true
-                                        playCardButtonEnabled = false
-                                        gameStatus += "\nNo legal moves. Press 'Go' to continue."
+                                        // Only show Go button if player has cards left; otherwise auto-handle
+                                        if (playerCardsPlayed.size < 4) {
+                                            showGoButton = true
+                                            playCardButtonEnabled = false
+                                            gameStatus += "\nNo legal moves. Press 'Go' to continue."
+                                        } else {
+                                            // Player has no cards left, auto-handle Go
+                                            showGoButton = false
+                                            playCardButtonEnabled = false
+                                            autoHandleGoRef.value()
+                                        }
                                     } else {
                                         playCardButtonEnabled = true
                                         showGoButton = false
@@ -872,8 +911,28 @@ fun CribbageMainScreen() {
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
+            // Always show the game area
+            GameAreaContent(
+                currentPhase = currentPhase,
+                cutPlayerCard = if (showCutForDealer && gameStarted && dealButtonEnabled) cutPlayerCard else null,
+                cutOpponentCard = if (showCutForDealer && gameStarted && dealButtonEnabled) cutOpponentCard else null,
+                opponentHand = opponentHand,
+                opponentCardsPlayed = opponentCardsPlayed,
+                starterCard = starterCard,
+                peggingCount = peggingCount,
+                peggingPile = peggingDisplayPile,
+                playerHand = playerHand,
+                playerCardsPlayed = playerCardsPlayed,
+                selectedCards = selectedCards,
+                cribHand = cribHand,
+                isPlayerDealer = isPlayerDealer,
+                isPlayerTurn = isPlayerTurn,
+                gameStatus = gameStatus,
+                onCardClick = { toggleCardSelection(it) }
+            )
+
+            // Show hand counting dialogs on top when in counting phase
             if (isInHandCountingPhase) {
-                // Show hand counting display during counting phase
                 HandCountingDisplay(
                     playerHand = playerHand,
                     opponentHand = opponentHand,
@@ -883,25 +942,6 @@ fun CribbageMainScreen() {
                     currentCountingPhase = countingPhase,
                     handScores = handScores,
                     onDialogDismissed = onDialogDismissed
-                )
-            } else {
-                GameAreaContent(
-                    currentPhase = currentPhase,
-                    cutPlayerCard = if (showCutForDealer && gameStarted && dealButtonEnabled) cutPlayerCard else null,
-                    cutOpponentCard = if (showCutForDealer && gameStarted && dealButtonEnabled) cutOpponentCard else null,
-                    opponentHand = opponentHand,
-                    opponentCardsPlayed = opponentCardsPlayed,
-                    starterCard = starterCard,
-                    peggingCount = peggingCount,
-                    peggingPile = peggingDisplayPile,
-                    playerHand = playerHand,
-                    playerCardsPlayed = playerCardsPlayed,
-                    selectedCards = selectedCards,
-                    cribHand = cribHand,
-                    isPlayerDealer = isPlayerDealer,
-                    isPlayerTurn = isPlayerTurn,
-                    gameStatus = gameStatus,
-                    onCardClick = { toggleCardSelection(it) }
                 )
             }
         }

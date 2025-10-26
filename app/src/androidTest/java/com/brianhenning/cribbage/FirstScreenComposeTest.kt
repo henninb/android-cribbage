@@ -119,8 +119,10 @@ class FirstScreenComposeTest {
         composeTestRule.onNodeWithText("Start Game").performClick()
         composeTestRule.onNodeWithText(context.getString(R.string.deal_cards)).performClick()
         
-        // Verify cards are dealt
-        composeTestRule.onNodeWithText(context.getString(R.string.select_cards_for_crib)).assertIsDisplayed()
+        // Verify cards are dealt - message depends on who is dealer
+        val hasYourCrib = composeTestRule.onAllNodesWithText(context.getString(R.string.select_cards_for_your_crib)).fetchSemanticsNodes().isNotEmpty()
+        val hasOpponentCrib = composeTestRule.onAllNodesWithText(context.getString(R.string.select_cards_for_opponent_crib)).fetchSemanticsNodes().isNotEmpty()
+        assert(hasYourCrib || hasOpponentCrib) { "Expected crib selection message not found" }
         composeTestRule.onNodeWithText("Select for Crib").assertIsDisplayed()
     }
     
