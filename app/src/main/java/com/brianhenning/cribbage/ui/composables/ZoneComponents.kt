@@ -1,9 +1,12 @@
 package com.brianhenning.cribbage.ui.composables
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.FastOutSlowInEasing
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -36,6 +39,71 @@ data class ScoreAnimationState(
     val isPlayer: Boolean,
     val timestamp: Long = System.currentTimeMillis()
 )
+
+/**
+ * Thirty-One Banner Animation
+ * Shows a celebratory "31!" banner when count reaches exactly 31
+ */
+@Composable
+fun ThirtyOneBannerAnimation(
+    onAnimationComplete: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val currentTheme = LocalSeasonalTheme.current
+
+    var animationStarted by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        animationStarted = true
+        delay(1500) // Hold for 1.5 seconds
+        onAnimationComplete()
+    }
+
+    // Scale animation: pop in with bounce
+    val scale by animateFloatAsState(
+        targetValue = if (animationStarted) 1.3f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "banner_scale"
+    )
+
+    // Flash background color animation
+    val backgroundColor by animateColorAsState(
+        targetValue = if (animationStarted) Color(0xFFFFD700).copy(alpha = 0.9f) else Color.Transparent,
+        animationSpec = tween(
+            durationMillis = 300,
+            easing = FastOutSlowInEasing
+        ),
+        label = "banner_background"
+    )
+
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = backgroundColor
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+        ) {
+            Text(
+                text = "31!",
+                style = MaterialTheme.typography.displayLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color(0xFF1565C0), // Deep blue for contrast on gold
+                modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp)
+            )
+        }
+    }
+}
 
 /**
  * Pegging Score Animation
@@ -226,7 +294,7 @@ fun CompactScoreHeader(
                         card = starterCard,
                         isRevealed = true,
                         isClickable = false,
-                        cardSize = CardSize.Medium
+                        cardSize = CardSize.Small
                     )
                 }
             }
@@ -321,6 +389,8 @@ fun GameAreaContent(
     gameStatus: String,
     showWelcomeScreen: Boolean,
     onCardClick: (Int) -> Unit,
+    show31Banner: Boolean = false,
+    onBannerComplete: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -480,6 +550,14 @@ fun GameAreaContent(
                     color = MaterialTheme.colorScheme.primary
                 )
             }
+        }
+
+        // Show "31!" banner overlay when count reaches 31
+        if (show31Banner) {
+            ThirtyOneBannerAnimation(
+                onAnimationComplete = onBannerComplete,
+                modifier = Modifier.align(Alignment.Center)
+            )
         }
     }
 }
@@ -846,9 +924,10 @@ private fun CribbageBoardTrack(
         label = "opponent_peg_position"
     )
 
-    // Get theme colors
-    val boardPrimaryColor = MaterialTheme.colorScheme.tertiary
-    val boardSecondaryColor = MaterialTheme.colorScheme.tertiaryContainer
+    // Get theme colors - use seasonal theme for consistency with header
+    val currentTheme = LocalSeasonalTheme.current
+    val boardPrimaryColor = currentTheme.colors.boardPrimary
+    val boardSecondaryColor = currentTheme.colors.boardSecondary
     val outlineColor = MaterialTheme.colorScheme.outline
 
     Canvas(modifier = modifier) {

@@ -16,6 +16,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
@@ -42,24 +45,42 @@ fun GameCard(
         animationSpec = tween(200),
         label = "card_scale"
     )
-    
+
     val alpha by animateFloatAsState(
-        targetValue = if (isPlayed) 0.4f else 1.0f,
+        targetValue = if (isPlayed) 0.5f else 1.0f,
         animationSpec = tween(300),
         label = "card_alpha"
     )
 
     val elevation by animateFloatAsState(
-        targetValue = if (isSelected) 8f else 2f,
+        targetValue = if (isSelected) 8f else if (isPlayed) 0f else 2f,
         animationSpec = tween(200),
         label = "card_elevation"
     )
+
+    // Grayscale color matrix for played cards
+    val grayscaleMatrix = ColorMatrix().apply {
+        setToSaturation(0f)
+    }
+
+    val colorFilter = if (isPlayed) {
+        ColorFilter.colorMatrix(grayscaleMatrix)
+    } else {
+        null
+    }
 
     Card(
         modifier = modifier
             .size(cardSize.width, cardSize.height)
             .scale(scale)
             .alpha(alpha)
+            .then(
+                if (isPlayed) {
+                    Modifier.border(2.dp, Color.Red.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                } else {
+                    Modifier
+                }
+            )
             .clickable(enabled = isClickable && !isPlayed) { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = elevation.dp),
         colors = CardDefaults.cardColors(
@@ -75,6 +96,7 @@ fun GameCard(
                 Image(
                     painter = painterResource(id = getCardResourceId(card)),
                     contentDescription = "${card.rank} of ${card.suit}",
+                    colorFilter = colorFilter,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(4.dp)
@@ -83,6 +105,7 @@ fun GameCard(
                 Image(
                     painter = painterResource(id = R.drawable.back_dark),
                     contentDescription = "Hidden card",
+                    colorFilter = colorFilter,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(4.dp)

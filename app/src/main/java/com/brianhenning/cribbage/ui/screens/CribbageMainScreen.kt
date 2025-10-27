@@ -107,6 +107,22 @@ fun CribbageMainScreen() {
     var playerScoreAnimation by remember { mutableStateOf<ScoreAnimationState?>(null) }
     var opponentScoreAnimation by remember { mutableStateOf<ScoreAnimationState?>(null) }
 
+    // "31!" banner state
+    var show31Banner by remember { mutableStateOf(false) }
+    var previousPeggingCount by remember { mutableIntStateOf(0) }
+
+    // Detect when pegging count reaches exactly 31 and trigger banner
+    LaunchedEffect(peggingCount) {
+        if (peggingCount == 31 && previousPeggingCount != 31) {
+            // Count just reached 31
+            show31Banner = true
+        } else if (peggingCount == 0 && previousPeggingCount == 31) {
+            // Count reset after 31 - banner already shown
+            show31Banner = false
+        }
+        previousPeggingCount = peggingCount
+    }
+
     // Check game over function: if either score goes past 120, end the game.
     val checkGameOverFunction: () -> Unit = {
         if (playerScore > 120 || opponentScore > 120) {
@@ -252,10 +268,18 @@ fun CribbageMainScreen() {
                 Player.PLAYER -> {
                     playerScore += 1
                     gameStatus += "\nGo point for You!"
+                    // Trigger +1 animation for player
+                    if (isPeggingPhase) {
+                        playerScoreAnimation = ScoreAnimationState(1, true)
+                    }
                 }
                 Player.OPPONENT -> {
                     opponentScore += 1
                     gameStatus += "\nGo point for Opponent!"
+                    // Trigger +1 animation for opponent
+                    if (isPeggingPhase) {
+                        opponentScoreAnimation = ScoreAnimationState(1, false)
+                    }
                 }
                 else -> {}
             }
@@ -1034,7 +1058,9 @@ fun CribbageMainScreen() {
                 isPlayerTurn = isPlayerTurn,
                 gameStatus = gameStatus,
                 showWelcomeScreen = !gameStarted,
-                onCardClick = { toggleCardSelection(it) }
+                onCardClick = { toggleCardSelection(it) },
+                show31Banner = show31Banner,
+                onBannerComplete = { show31Banner = false }
             )
 
             // Show hand counting dialogs on top when in counting phase

@@ -16,8 +16,8 @@ android {
         applicationId = "com.brianhenning.cribbage"
         minSdk = 24
         targetSdk = 35
-        versionCode = 10
-        versionName = "1.0.9"
+        versionCode = 12
+        versionName = "1.0.11"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -40,7 +40,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            signingConfig = signingConfigs.release
             minifyEnabled = true // Enable ProGuard/R8 for release
             shrinkResources = true // Remove unused resources
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
