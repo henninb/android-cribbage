@@ -1,14 +1,15 @@
 package com.brianhenning.cribbage.ui.composables
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material3.*
@@ -16,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -25,6 +27,83 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.brianhenning.cribbage.ui.screens.Card as CribbageCard
 import com.brianhenning.cribbage.ui.theme.LocalSeasonalTheme
+
+/**
+ * Data class to represent an active score animation
+ */
+data class ScoreAnimationState(
+    val points: Int,
+    val isPlayer: Boolean,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+/**
+ * Pegging Score Animation
+ * Shows a "+X" animation that pops up and fades out
+ */
+@Composable
+fun PeggingScoreAnimation(
+    points: Int,
+    isPlayer: Boolean,
+    onAnimationComplete: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val currentTheme = LocalSeasonalTheme.current
+
+    // Animation color: green for player, orange for opponent
+    val animationColor = if (isPlayer) {
+        Color(0xFF4CAF50) // Green
+    } else {
+        Color(0xFFFF9800) // Orange
+    }
+
+    var animationStarted by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        animationStarted = true
+    }
+
+    // Scale animation: pop from 0 to 1.5, then settle to 1
+    val scale by animateFloatAsState(
+        targetValue = if (animationStarted) 1.2f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "score_scale"
+    )
+
+    // Fade animation: fade out after showing
+    val alpha by animateFloatAsState(
+        targetValue = if (animationStarted) 0f else 1f,
+        animationSpec = tween(
+            durationMillis = 1500,
+            delayMillis = 300,
+            easing = LinearEasing
+        ),
+        label = "score_alpha",
+        finishedListener = {
+            onAnimationComplete()
+        }
+    )
+
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "+$points",
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.ExtraBold,
+            color = animationColor.copy(alpha = alpha),
+            modifier = Modifier
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
+        )
+    }
+}
 
 /**
  * Zone 1: Compact Score Header
@@ -39,6 +118,9 @@ fun CompactScoreHeader(
     opponentScore: Int,
     isPlayerDealer: Boolean,
     starterCard: CribbageCard?,
+    playerScoreAnimation: ScoreAnimationState? = null,
+    opponentScoreAnimation: ScoreAnimationState? = null,
+    onAnimationComplete: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val currentTheme = LocalSeasonalTheme.current
@@ -58,14 +140,31 @@ fun CompactScoreHeader(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Player score section
-                ScoreSection(
-                    label = "You",
-                    score = playerScore,
-                    isDealer = isPlayerDealer,
-                    isPlayer = true,
-                    modifier = Modifier.weight(1f)
-                )
+                // Player score section with animation overlay
+                Box(modifier = Modifier.weight(1f)) {
+                    ScoreSection(
+                        label = "You",
+                        score = playerScore,
+                        isDealer = isPlayerDealer,
+                        isPlayer = true
+                    )
+
+                    // Player score animation (positioned to the right of score)
+                    if (playerScoreAnimation != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 8.dp)
+                        ) {
+                            PeggingScoreAnimation(
+                                points = playerScoreAnimation.points,
+                                isPlayer = playerScoreAnimation.isPlayer,
+                                onAnimationComplete = { onAnimationComplete(true) }
+                            )
+                        }
+                    }
+                }
 
                 // Divider
                 VerticalDivider(
@@ -75,14 +174,31 @@ fun CompactScoreHeader(
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                 )
 
-                // Opponent score section
-                ScoreSection(
-                    label = "Opponent",
-                    score = opponentScore,
-                    isDealer = !isPlayerDealer,
-                    isPlayer = false,
-                    modifier = Modifier.weight(1f)
-                )
+                // Opponent score section with animation overlay
+                Box(modifier = Modifier.weight(1f)) {
+                    ScoreSection(
+                        label = "Opponent",
+                        score = opponentScore,
+                        isDealer = !isPlayerDealer,
+                        isPlayer = false
+                    )
+
+                    // Opponent score animation (positioned to the left of score)
+                    if (opponentScoreAnimation != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .align(Alignment.CenterStart)
+                                .padding(start = 8.dp)
+                        ) {
+                            PeggingScoreAnimation(
+                                points = opponentScoreAnimation.points,
+                                isPlayer = opponentScoreAnimation.isPlayer,
+                                onAnimationComplete = { onAnimationComplete(false) }
+                            )
+                        }
+                    }
+                }
             }
 
             // Theme indicator in top-left corner
@@ -123,8 +239,7 @@ private fun ScoreSection(
     label: String,
     score: Int,
     isDealer: Boolean,
-    isPlayer: Boolean,
-    modifier: Modifier = Modifier
+    isPlayer: Boolean
 ) {
     val currentTheme = LocalSeasonalTheme.current
 
@@ -137,7 +252,6 @@ private fun ScoreSection(
     }
 
     Column(
-        modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
@@ -205,6 +319,7 @@ fun GameAreaContent(
     isPlayerDealer: Boolean,
     isPlayerTurn: Boolean,
     gameStatus: String,
+    showWelcomeScreen: Boolean,
     onCardClick: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -214,13 +329,15 @@ fun GameAreaContent(
     ) {
         when (currentPhase) {
             GamePhase.SETUP -> {
-                // Show cut cards if available
-                AnimatedVisibility(
-                    visible = cutPlayerCard != null && cutOpponentCard != null,
-                    enter = fadeIn(animationSpec = tween(300)),
-                    exit = fadeOut(animationSpec = tween(300))
-                ) {
-                    if (cutPlayerCard != null && cutOpponentCard != null) {
+                // Show welcome screen only on first app start, otherwise show cut cards
+                if (showWelcomeScreen) {
+                    WelcomeHomeScreen()
+                } else if (cutPlayerCard != null && cutOpponentCard != null) {
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(animationSpec = tween(300)),
+                        exit = fadeOut(animationSpec = tween(300))
+                    ) {
                         CutForDealerDisplay(
                             playerCard = cutPlayerCard,
                             opponentCard = cutOpponentCard
@@ -260,7 +377,8 @@ fun GameAreaContent(
                         hand = playerHand,
                         selectedCards = selectedCards,
                         playedCards = playerCardsPlayed,
-                        onCardClick = onCardClick
+                        onCardClick = onCardClick,
+                        isPlayerTurn = true  // Always clickable during crib selection
                     )
                 }
             }
@@ -280,9 +398,10 @@ fun GameAreaContent(
                     )
 
                     // Pegging count (large and prominent)
+                    val currentTheme = LocalSeasonalTheme.current
                     Card(
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primary
+                            containerColor = currentTheme.colors.boardPrimary
                         )
                     ) {
                         Text(
@@ -290,7 +409,7 @@ fun GameAreaContent(
                             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimary
+                            color = currentTheme.colors.accentLight
                         )
                     }
 
@@ -327,7 +446,8 @@ fun GameAreaContent(
                         hand = playerHand,
                         selectedCards = selectedCards,
                         playedCards = playerCardsPlayed,
-                        onCardClick = onCardClick
+                        onCardClick = onCardClick,
+                        isPlayerTurn = isPlayerTurn  // Only clickable when it's player's turn
                     )
                 }
             }
@@ -495,7 +615,8 @@ private fun PlayerHandCompact(
     selectedCards: Set<Int>,
     playedCards: Set<Int>,
     onCardClick: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isPlayerTurn: Boolean = true
 ) {
     LazyRow(
         modifier = modifier,
@@ -508,7 +629,7 @@ private fun PlayerHandCompact(
                 isSelected = selectedCards.contains(index),
                 isPlayed = playedCards.contains(index),
                 isRevealed = true,
-                isClickable = !playedCards.contains(index),
+                isClickable = isPlayerTurn && !playedCards.contains(index),
                 onClick = { onCardClick(index) },
                 cardSize = CardSize.Large
             )
@@ -530,6 +651,7 @@ fun ActionBar(
     showGoButton: Boolean,
     gameOver: Boolean,
     selectedCardsCount: Int,
+    isPlayerDealer: Boolean,
     onStartGame: () -> Unit,
     onEndGame: () -> Unit,
     onDeal: () -> Unit,
@@ -585,7 +707,7 @@ fun ActionBar(
                     enabled = selectedCardsCount == 2,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Discard")
+                    Text(if (isPlayerDealer) "My Crib" else "Opponent's Crib")
                 }
                 OutlinedButton(
                     onClick = onReportBug,
@@ -648,10 +770,11 @@ fun CribbageBoard(
     opponentScore: Int,
     modifier: Modifier = Modifier
 ) {
+    val currentTheme = LocalSeasonalTheme.current
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = currentTheme.colors.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -678,27 +801,27 @@ fun CribbageBoard(
                 Text(
                     text = "0",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "30",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "60",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "90",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "121",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
@@ -776,6 +899,291 @@ private fun CribbageBoardTrack(
                 start = Offset(markerX, playerTrackY - 15f),
                 end = Offset(markerX, opponentTrackY + 15f),
                 strokeWidth = 2f
+            )
+        }
+    }
+}
+
+
+/**
+ * Winner Modal - Shown when a game is won
+ */
+@Composable
+fun WinnerModal(
+    playerWon: Boolean,
+    playerScore: Int,
+    opponentScore: Int,
+    wasSkunk: Boolean,
+    gamesWon: Int,
+    gamesLost: Int,
+    skunksFor: Int,
+    skunksAgainst: Int,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.5f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = modifier
+                .fillMaxWidth(0.9f)
+                .wrapContentHeight(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Winner celebration icon
+                Text(
+                    text = if (playerWon) "\uD83C\uDFC6" else "\uD83D\uDE14",
+                    style = MaterialTheme.typography.displayLarge,
+                    fontSize = 80.sp
+                )
+
+                // Winner announcement
+                Text(
+                    text = if (playerWon) "You Win!" else "Opponent Wins!",
+                    style = MaterialTheme.typography.displayMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (playerWon)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.secondary
+                )
+
+                // Skunk indicator
+                if (wasSkunk) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "\uD83E\uDDA8",
+                                style = MaterialTheme.typography.headlineMedium
+                            )
+                            Text(
+                                text = "SKUNK!",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
+                        }
+                    }
+                }
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                )
+
+                // Final scores
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "You",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = playerScore.toString(),
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Text(
+                        text = "-",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Opponent",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = opponentScore.toString(),
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                )
+
+                // Match statistics
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Match Record",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "$gamesWon - $gamesLost",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Skunks: $skunksFor - $skunksAgainst",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Dismiss button
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text(
+                        text = "OK",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Welcome Home Screen - Shown before game starts
+ */
+@Composable
+fun WelcomeHomeScreen(
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        // App icon/logo area
+        Card(
+            modifier = Modifier.size(120.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "🃏",
+                    style = MaterialTheme.typography.displayLarge,
+                    fontSize = 72.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // App title
+        Text(
+            text = "Cribbage",
+            style = MaterialTheme.typography.displayLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Classic Card Game",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        // Welcome message
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Welcome!",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Play cribbage against the computer. Be the first to reach 121 points!",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Instruction hint
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "👇",
+                style = MaterialTheme.typography.titleLarge
+            )
+            Text(
+                text = "Tap \"Start New Game\" below to begin",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium
             )
         }
     }

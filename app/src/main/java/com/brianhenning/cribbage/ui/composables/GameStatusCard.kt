@@ -28,6 +28,7 @@ fun GameStatusCard(
     gameStatus: String,
     currentPhase: GamePhase,
     isPlayerTurn: Boolean,
+    showInstructions: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -71,6 +72,33 @@ fun GameStatusCard(
                     textAlign = TextAlign.Start,
                     lineHeight = MaterialTheme.typography.bodySmall.lineHeight
                 )
+            }
+
+            // Show instructions hint based on current phase
+            AnimatedVisibility(visible = showInstructions && currentPhase.instructionHint != null) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "💡",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            text = currentPhase.instructionHint ?: "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
         }
     }
@@ -227,11 +255,11 @@ private fun ScoreColumn(
     }
 }
 
-enum class GamePhase(val displayName: String, val showTurnIndicator: Boolean) {
-    SETUP("Game Setup", false),
-    DEALING("Dealing Cards", false),
-    CRIB_SELECTION("Selecting for Crib", false),
-    PEGGING("Pegging", true),
-    HAND_COUNTING("Counting Hands", false),
-    GAME_OVER("Game Over", false)
+enum class GamePhase(val displayName: String, val showTurnIndicator: Boolean, val instructionHint: String? = null) {
+    SETUP("Game Setup", false, "Tap \"Start New Game\" to begin"),
+    DEALING("Dealing Cards", false, "Tap \"Deal Cards\" to deal 6 cards to each player"),
+    CRIB_SELECTION("Selecting for Crib", false, "Select 2 cards by tapping them, then tap the button to place them in the crib"),
+    PEGGING("Pegging", true, "Tap a card to immediately play it"),
+    HAND_COUNTING("Counting Hands", false, null),
+    GAME_OVER("Game Over", false, "Tap \"Start New Game\" to play again")
 }

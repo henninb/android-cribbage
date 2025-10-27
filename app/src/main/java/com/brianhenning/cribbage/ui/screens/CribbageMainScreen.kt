@@ -81,6 +81,9 @@ fun CribbageMainScreen() {
     var starterCard by remember { mutableStateOf<Card?>(null) }
     var peggingManager by remember { mutableStateOf<PeggingRoundManager?>(null) }
 
+    // State barrier to prevent race conditions during opponent's turn
+    var isOpponentActionInProgress by remember { mutableStateOf(false) }
+
     // UI state variables
     var gameStatus by remember { mutableStateOf(context.getString(R.string.welcome_to_cribbage)) }
     var currentPhase by remember { mutableStateOf(GamePhase.SETUP) }
@@ -91,12 +94,18 @@ fun CribbageMainScreen() {
     var gameOver by remember { mutableStateOf(false) }
     var showPeggingCount by remember { mutableStateOf(false) }
     var showGoButton by remember { mutableStateOf(false) }
+    var showWinnerModal by remember { mutableStateOf(false) }
+    var winnerModalData by remember { mutableStateOf<WinnerModalData?>(null) }
     
     // Hand counting state
     var isInHandCountingPhase by remember { mutableStateOf(false) }
     var countingPhase by remember { mutableStateOf(CountingPhase.NONE) }
     var handScores by remember { mutableStateOf(HandScores()) }
     var waitingForDialogDismissal by remember { mutableStateOf(false) }
+
+    // Score animation state (for pegging phase)
+    var playerScoreAnimation by remember { mutableStateOf<ScoreAnimationState?>(null) }
+    var opponentScoreAnimation by remember { mutableStateOf<ScoreAnimationState?>(null) }
 
     // Check game over function: if either score goes past 120, end the game.
     val checkGameOverFunction: () -> Unit = {
@@ -135,6 +144,19 @@ fun CribbageMainScreen() {
             playCardButtonEnabled = false
             showHandCountingButton = false
             showPeggingCount = false
+
+            // Show winner modal
+            winnerModalData = WinnerModalData(
+                playerWon = playerWins,
+                playerScore = playerScore,
+                opponentScore = opponentScore,
+                wasSkunk = skunked,
+                gamesWon = gamesWon,
+                gamesLost = gamesLost,
+                skunksFor = skunksFor,
+                skunksAgainst = skunksAgainst
+            )
+            showWinnerModal = true
         }
     }
 
@@ -182,6 +204,14 @@ fun CribbageMainScreen() {
             gameStatus += if (isPlayer) "\nScored ${pts.runPoints} for a run by You!" else "\nScored ${pts.runPoints} for a run by Opponent!"
         }
         if (awarded > 0) {
+            // Trigger score animation during pegging phase
+            if (isPeggingPhase) {
+                if (isPlayer) {
+                    playerScoreAnimation = ScoreAnimationState(awarded, true)
+                } else {
+                    opponentScoreAnimation = ScoreAnimationState(awarded, false)
+                }
+            }
             checkGameOverFunction()
         }
     }
@@ -197,15 +227,23 @@ fun CribbageMainScreen() {
 
     fun applyManagerStateToUi() {
         val mgr = peggingManager ?: return
+        android.util.Log.d("CribbageDebug", "=== applyManagerStateToUi START ===")
+        android.util.Log.d("CribbageDebug", "  BEFORE: isPlayerTurn=$isPlayerTurn, peggingCount=$peggingCount, isOpponentActionInProgress=$isOpponentActionInProgress")
+        android.util.Log.d("CribbageDebug", "  MANAGER: isPlayerTurn=${mgr.isPlayerTurn}, peggingCount=${mgr.peggingCount}, pile size=${mgr.peggingPile.size}")
+
         peggingCount = mgr.peggingCount
         peggingPile = mgr.peggingPile.toList()
-        isPlayerTurn = (mgr.isPlayerTurn == Player.PLAYER)
+        val newPlayerTurn = (mgr.isPlayerTurn == Player.PLAYER)
+        isPlayerTurn = newPlayerTurn
         consecutiveGoes = mgr.consecutiveGoes
         lastPlayerWhoPlayed = when (mgr.lastPlayerWhoPlayed) {
             Player.PLAYER -> "player"
             Player.OPPONENT -> "opponent"
             else -> null
         }
+
+        android.util.Log.d("CribbageDebug", "  AFTER: isPlayerTurn=$isPlayerTurn, peggingCount=$peggingCount")
+        android.util.Log.d("CribbageDebug", "=== applyManagerStateToUi END ===")
     }
 
     fun applyManagerReset(reset: SubRoundReset) {
@@ -266,7 +304,12 @@ fun CribbageMainScreen() {
                 showGoButton = false
             }
         } else {
+            // Set state barrier BEFORE scheduling opponent action
+            isOpponentActionInProgress = true
+            android.util.Log.d("CribbageDebug", ">>> Opponent turn starting, setting barrier")
+
             Handler(Looper.getMainLooper()).postDelayed({
+                android.util.Log.d("CribbageDebug", ">>> Opponent postDelayed callback executing")
                 val chosen = chooseSmartOpponentCard(opponentHand, opponentCardsPlayed, peggingCount, peggingPile)
                 if (chosen != null) {
                     val (cardIndex, cardToPlay) = chosen
@@ -276,7 +319,12 @@ fun CribbageMainScreen() {
                     val pileBeforePlay = mgr.peggingPile.toList() + cardToPlay
                     val countBeforeReset = mgr.peggingCount + cardToPlay.getValue()
 
+                    android.util.Log.d("CribbageDebug", ">>> Opponent playing: ${cardToPlay.getSymbol()}")
                     val outcome = mgr.onPlay(cardToPlay)
+
+                    // Immediately sync manager state to UI BEFORE any other operations
+                    applyManagerStateToUi()
+
                     opponentCardsPlayed = opponentCardsPlayed + cardIndex
                     peggingDisplayPile = peggingDisplayPile + cardToPlay
                     gameStatus = context.getString(R.string.played_opponent, cardToPlay.getSymbol())
@@ -285,7 +333,6 @@ fun CribbageMainScreen() {
                     val pts = PeggingScorer.pointsForPile(pileBeforePlay, countBeforeReset)
                     awardPeggingPoints(false, pts, cardToPlay)
 
-                    applyManagerStateToUi()
                     if (outcome.reset != null) {
                         applyManagerReset(outcome.reset)
                     }
@@ -315,7 +362,11 @@ fun CribbageMainScreen() {
                 } else {
                     autoHandleGoRef.value()
                 }
-            }, 1000)
+
+                // Clear state barrier AFTER all opponent actions complete
+                isOpponentActionInProgress = false
+                android.util.Log.d("CribbageDebug", ">>> Opponent turn complete, clearing barrier")
+            }, 500) // Reduced from 1000ms to 500ms
         }
     }
 
@@ -348,9 +399,17 @@ fun CribbageMainScreen() {
             return@letUnit
         }
 
+        // Set state barrier if opponent will play next
+        val nowPlayerTurn = (mgr.isPlayerTurn == Player.PLAYER)
+        if (!nowPlayerTurn) {
+            isOpponentActionInProgress = true
+            android.util.Log.d("CribbageDebug", ">>> GO handling: Opponent will play, setting barrier")
+        }
+
         Handler(Looper.getMainLooper()).postDelayed({
-            val nowPlayerTurn = (mgr.isPlayerTurn == Player.PLAYER)
-            val currentLegalMoves = if (nowPlayerTurn) {
+            android.util.Log.d("CribbageDebug", ">>> GO postDelayed callback executing")
+            val nowPlayerTurnInCallback = (mgr.isPlayerTurn == Player.PLAYER)
+            val currentLegalMoves = if (nowPlayerTurnInCallback) {
                 playerHand.filterIndexed { index, card ->
                     !playerCardsPlayed.contains(index) && (mgr.peggingCount + card.getValue() <= 31)
                 }
@@ -363,9 +422,11 @@ fun CribbageMainScreen() {
             if (currentLegalMoves.isEmpty()) {
                 autoHandleGoRef.value()
             } else {
-                if (nowPlayerTurn) {
+                if (nowPlayerTurnInCallback) {
                     playCardButtonEnabled = true
                     gameStatus += "\n${context.getString(R.string.pegging_your_turn)}"
+                    // Clear barrier if it was set
+                    isOpponentActionInProgress = false
                 } else {
                     val chosen = chooseSmartOpponentCard(opponentHand, opponentCardsPlayed, peggingCount, peggingPile)
                     if (chosen != null) {
@@ -375,7 +436,12 @@ fun CribbageMainScreen() {
                         val pileBeforePlay = mgr.peggingPile.toList() + cardToPlay
                         val countBeforeReset = mgr.peggingCount + cardToPlay.getValue()
 
+                        android.util.Log.d("CribbageDebug", ">>> Opponent playing after GO: ${cardToPlay.getSymbol()}")
                         val oppOutcome = mgr.onPlay(cardToPlay)
+
+                        // Immediately sync manager state to UI BEFORE any other operations
+                        applyManagerStateToUi()
+
                         opponentCardsPlayed = opponentCardsPlayed + oppCardIndex
                         peggingDisplayPile = peggingDisplayPile + cardToPlay
                         gameStatus = context.getString(R.string.played_opponent, cardToPlay.getSymbol())
@@ -384,7 +450,6 @@ fun CribbageMainScreen() {
                         val pts = PeggingScorer.pointsForPile(pileBeforePlay, countBeforeReset)
                         awardPeggingPoints(false, pts, cardToPlay)
 
-                        applyManagerStateToUi()
                         if (oppOutcome.reset != null) {
                             applyManagerReset(oppOutcome.reset)
                         }
@@ -414,30 +479,30 @@ fun CribbageMainScreen() {
                     } else {
                         autoHandleGoRef.value()
                     }
+                    // Clear barrier after opponent action completes
+                    isOpponentActionInProgress = false
+                    android.util.Log.d("CribbageDebug", ">>> GO handling: Opponent action complete, clearing barrier")
                 }
             }
-        }, 1000)
+        }, 500) // Reduced from 1000ms to 500ms
     }
 
-    // Revised card selection behavior with two-click selection during pegging phase.
+    // Card selection behavior: single-tap during pegging, multi-select during crib selection
     val toggleCardSelection = { cardIndex: Int ->
         if (isPeggingPhase) {
+            // Single tap to immediately play during pegging
             if (isPlayerTurn && !playerCardsPlayed.contains(cardIndex)) {
                 val cardToPlay = playerHand[cardIndex]
                 if (peggingCount + cardToPlay.getValue() <= 31) {
-                    // First click: highlight the card
-                    if (!selectedCards.contains(cardIndex)) {
-                        selectedCards = setOf(cardIndex)
-                        gameStatus = context.getString(R.string.card_selected_tap_again, cardToPlay.getSymbol())
-                    } else {
-                        // Second click: play the card
-                        playSelectedCardRef.value()
-                    }
+                    // Immediately play the card on single tap
+                    selectedCards = setOf(cardIndex)
+                    playSelectedCardRef.value()
                 } else {
                     gameStatus = context.getString(R.string.illegal_move_exceeds_31, cardToPlay.getSymbol())
                 }
             }
         } else {
+            // Multi-select for crib selection (toggle on/off)
             selectedCards = if (selectedCards.contains(cardIndex)) {
                 selectedCards - cardIndex
             } else if (selectedCards.size < 2) {
@@ -615,6 +680,7 @@ fun CribbageMainScreen() {
                 checkGameOverFunction()
             }
             Handler(Looper.getMainLooper()).postDelayed({
+                android.util.Log.d("CribbageDebug", ">>> Starting pegging phase")
                 isPeggingPhase = true
                 isPlayerTurn = !isPlayerDealer
                 playCardButtonEnabled = true
@@ -627,7 +693,12 @@ fun CribbageMainScreen() {
                 else
                     context.getString(R.string.pegging_opponent_turn)
                 if (!isPlayerTurn) {
+                    // Set state barrier before opponent's first play
+                    isOpponentActionInProgress = true
+                    android.util.Log.d("CribbageDebug", ">>> Opponent starts pegging, setting barrier")
+
                     Handler(Looper.getMainLooper()).postDelayed({
+                        android.util.Log.d("CribbageDebug", ">>> Opponent first play callback executing")
                         val chosen = chooseSmartOpponentCard(opponentHand, opponentCardsPlayed, peggingCount, peggingPile)
                         if (chosen != null) {
                             val (cardIndex, cardToPlay) = chosen
@@ -638,16 +709,20 @@ fun CribbageMainScreen() {
                             val pileBeforePlay = mgr.peggingPile.toList() + cardToPlay
                             val countBeforeReset = mgr.peggingCount + cardToPlay.getValue()
 
+                            android.util.Log.d("CribbageDebug", ">>> Opponent first play: ${cardToPlay.getSymbol()}")
                             val outcome = mgr.onPlay(cardToPlay)
+
+                            // Immediately sync manager state to UI BEFORE any other operations
+                            applyManagerStateToUi()
+
                             opponentCardsPlayed = opponentCardsPlayed + cardIndex
                             peggingDisplayPile = peggingDisplayPile + cardToPlay
-                        gameStatus = context.getString(R.string.played_opponent, cardToPlay.getSymbol())
+                            gameStatus = context.getString(R.string.played_opponent, cardToPlay.getSymbol())
 
                             // Score using saved pile/count
                             val pts = PeggingScorer.pointsForPile(pileBeforePlay, countBeforeReset)
                             awardPeggingPoints(false, pts, cardToPlay)
 
-                            applyManagerStateToUi()
                             if (outcome.reset != null) {
                                 applyManagerReset(outcome.reset)
                             }
@@ -676,9 +751,13 @@ fun CribbageMainScreen() {
                         } else {
                             autoHandleGoRef.value()
                         }
-                    }, 1000)
+
+                        // Clear barrier after opponent's first play completes
+                        isOpponentActionInProgress = false
+                        android.util.Log.d("CribbageDebug", ">>> Opponent first play complete, clearing barrier")
+                    }, 500) // Reduced from 1000ms to 500ms
                 }
-            }, 1000)
+            }, 500) // Reduced from 1000ms to 500ms
         }
     }
 
@@ -713,7 +792,13 @@ fun CribbageMainScreen() {
                     if (outcome.reset == null) {
                         playCardButtonEnabled = false
                         gameStatus += "\n${context.getString(R.string.pegging_opponent_turn)}"
+
+                        // Set state barrier before opponent responds to player's play
+                        isOpponentActionInProgress = true
+                        android.util.Log.d("CribbageDebug", ">>> Player played, opponent will respond, setting barrier")
+
                         Handler(Looper.getMainLooper()).postDelayed({
+                            android.util.Log.d("CribbageDebug", ">>> Opponent response callback executing")
                             val chosen = chooseSmartOpponentCard(opponentHand, opponentCardsPlayed, peggingCount, peggingPile)
                             if (chosen != null) {
                                 val (oppCardIndex, cardToPlay) = chosen
@@ -723,16 +808,20 @@ fun CribbageMainScreen() {
                                 val pileBeforePlay = mgr.peggingPile.toList() + cardToPlay
                                 val countBeforeReset = mgr.peggingCount + cardToPlay.getValue()
 
+                                android.util.Log.d("CribbageDebug", ">>> Opponent responding: ${cardToPlay.getSymbol()}")
                                 val oppOutcome = mgr.onPlay(cardToPlay)
+
+                                // Immediately sync manager state to UI BEFORE any other operations
+                                applyManagerStateToUi()
+
                                 opponentCardsPlayed = opponentCardsPlayed + oppCardIndex
                                 peggingDisplayPile = peggingDisplayPile + cardToPlay
-                        gameStatus = context.getString(R.string.played_opponent, cardToPlay.getSymbol())
+                                gameStatus = context.getString(R.string.played_opponent, cardToPlay.getSymbol())
 
                                 // Score using saved pile/count
                                 val pts = PeggingScorer.pointsForPile(pileBeforePlay, countBeforeReset)
                                 awardPeggingPoints(false, pts, cardToPlay)
 
-                                applyManagerStateToUi()
                                 if (oppOutcome.reset != null) {
                                     applyManagerReset(oppOutcome.reset)
                                 }
@@ -762,7 +851,11 @@ fun CribbageMainScreen() {
                             } else {
                                 autoHandleGoRef.value()
                             }
-                        }, 1000)
+
+                            // Clear barrier after opponent response completes
+                            isOpponentActionInProgress = false
+                            android.util.Log.d("CribbageDebug", ">>> Opponent response complete, clearing barrier")
+                        }, 500) // Reduced from 1000ms to 500ms
                     }
                 } else {
                     gameStatus = context.getString(R.string.illegal_move_exceeds_31, playedCard.getSymbol())
@@ -893,14 +986,26 @@ fun CribbageMainScreen() {
 
     // New zone-based layout (NO scrolling!)
     Column(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
     ) {
         // Zone 1: Compact Score Header (always visible, includes starter card)
         CompactScoreHeader(
             playerScore = playerScore,
             opponentScore = opponentScore,
             isPlayerDealer = isPlayerDealer,
-            starterCard = starterCard
+            starterCard = starterCard,
+            playerScoreAnimation = playerScoreAnimation,
+            opponentScoreAnimation = opponentScoreAnimation,
+            onAnimationComplete = { isPlayer ->
+                if (isPlayer) {
+                    playerScoreAnimation = null
+                } else {
+                    opponentScoreAnimation = null
+                }
+            }
         )
 
         // Zone 2: Dynamic Game Area (flexible height)
@@ -928,6 +1033,7 @@ fun CribbageMainScreen() {
                 isPlayerDealer = isPlayerDealer,
                 isPlayerTurn = isPlayerTurn,
                 gameStatus = gameStatus,
+                showWelcomeScreen = !gameStarted,
                 onCardClick = { toggleCardSelection(it) }
             )
 
@@ -944,6 +1050,24 @@ fun CribbageMainScreen() {
                     onDialogDismissed = onDialogDismissed
                 )
             }
+
+            // Show winner modal on top when game is over
+            if (showWinnerModal && winnerModalData != null) {
+                WinnerModal(
+                    playerWon = winnerModalData!!.playerWon,
+                    playerScore = winnerModalData!!.playerScore,
+                    opponentScore = winnerModalData!!.opponentScore,
+                    wasSkunk = winnerModalData!!.wasSkunk,
+                    gamesWon = winnerModalData!!.gamesWon,
+                    gamesLost = winnerModalData!!.gamesLost,
+                    skunksFor = winnerModalData!!.skunksFor,
+                    skunksAgainst = winnerModalData!!.skunksAgainst,
+                    onDismiss = {
+                        showWinnerModal = false
+                        startNewGame()
+                    }
+                )
+            }
         }
 
         // Zone 3: Context-Sensitive Action Bar
@@ -956,6 +1080,7 @@ fun CribbageMainScreen() {
             showGoButton = showGoButton,
             gameOver = gameOver,
             selectedCardsCount = selectedCards.size,
+            isPlayerDealer = isPlayerDealer,
             onStartGame = { startNewGame() },
             onEndGame = { endGame() },
             onDeal = { dealCards() },
@@ -975,7 +1100,29 @@ fun CribbageMainScreen() {
                     opponentHand = opponentHand,
                     cribHand = cribHand,
                     matchSummary = "${gamesWon}-${gamesLost} (Skunks ${skunksFor}-${skunksAgainst})",
-                    gameStatus = gameStatus
+                    gameStatus = gameStatus,
+                    // Additional debug state
+                    currentPhase = currentPhase,
+                    gameStarted = gameStarted,
+                    gameOver = gameOver,
+                    isPlayerTurn = isPlayerTurn,
+                    isPeggingPhase = isPeggingPhase,
+                    isInHandCountingPhase = isInHandCountingPhase,
+                    selectedCards = selectedCards,
+                    playerCardsPlayed = playerCardsPlayed,
+                    opponentCardsPlayed = opponentCardsPlayed,
+                    peggingDisplayPile = peggingDisplayPile,
+                    dealButtonEnabled = dealButtonEnabled,
+                    selectCribButtonEnabled = selectCribButtonEnabled,
+                    playCardButtonEnabled = playCardButtonEnabled,
+                    showHandCountingButton = showHandCountingButton,
+                    showGoButton = showGoButton,
+                    peggingManager = peggingManager,
+                    countingPhase = countingPhase,
+                    handScores = handScores,
+                    waitingForDialogDismissal = waitingForDialogDismissal,
+                    consecutiveGoes = consecutiveGoes,
+                    lastPlayerWhoPlayed = lastPlayerWhoPlayed
                 )
                 sendBugReportEmail(context, context.getString(R.string.feedback_email), context.getString(R.string.bug_report_subject), body)
             }
@@ -1110,6 +1257,28 @@ private fun buildBugReportBody(
     cribHand: List<Card>,
     matchSummary: String,
     gameStatus: String,
+    // Additional debug state
+    currentPhase: GamePhase,
+    gameStarted: Boolean,
+    gameOver: Boolean,
+    isPlayerTurn: Boolean,
+    isPeggingPhase: Boolean,
+    isInHandCountingPhase: Boolean,
+    selectedCards: Set<Int>,
+    playerCardsPlayed: Set<Int>,
+    opponentCardsPlayed: Set<Int>,
+    peggingDisplayPile: List<Card>,
+    dealButtonEnabled: Boolean,
+    selectCribButtonEnabled: Boolean,
+    playCardButtonEnabled: Boolean,
+    showHandCountingButton: Boolean,
+    showGoButton: Boolean,
+    peggingManager: PeggingRoundManager?,
+    countingPhase: CountingPhase,
+    handScores: HandScores,
+    waitingForDialogDismissal: Boolean,
+    consecutiveGoes: Int,
+    lastPlayerWhoPlayed: String?,
 ): String {
     val manufacturer = android.os.Build.MANUFACTURER
     val model = android.os.Build.MODEL
@@ -1145,6 +1314,48 @@ private fun buildBugReportBody(
         appendLine("Crib: ${cribHand.symbols()}")
         appendLine("Match: $matchSummary")
         appendLine()
+        appendLine("— Detailed Debug State —")
+        appendLine("Game Phase: $currentPhase")
+        appendLine("Game Started: $gameStarted")
+        appendLine("Game Over: $gameOver")
+        appendLine("Is Player Turn: $isPlayerTurn")
+        appendLine("Is Pegging Phase: $isPeggingPhase")
+        appendLine("Is In Hand Counting Phase: $isInHandCountingPhase")
+        appendLine()
+        appendLine("— Card State —")
+        appendLine("Selected Cards: ${selectedCards.toList().sorted()}")
+        appendLine("Player Cards Played: ${playerCardsPlayed.toList().sorted()}")
+        appendLine("Opponent Cards Played: ${opponentCardsPlayed.toList().sorted()}")
+        appendLine("Pegging Display Pile: ${peggingDisplayPile.symbols()}")
+        appendLine()
+        appendLine("— Button State —")
+        appendLine("Deal Button Enabled: $dealButtonEnabled")
+        appendLine("Select Crib Button Enabled: $selectCribButtonEnabled")
+        appendLine("Play Card Button Enabled: $playCardButtonEnabled")
+        appendLine("Show Hand Counting Button: $showHandCountingButton")
+        appendLine("Show Go Button: $showGoButton")
+        appendLine()
+        appendLine("— Pegging Manager State —")
+        val mgr = peggingManager
+        if (mgr != null) {
+            appendLine("Manager Is Player Turn: ${mgr.isPlayerTurn}")
+            appendLine("Manager Pegging Count: ${mgr.peggingCount}")
+            appendLine("Manager Pegging Pile: ${mgr.peggingPile.symbols()}")
+            appendLine("Manager Consecutive Goes: ${mgr.consecutiveGoes}")
+            appendLine("Manager Last Player Who Played: ${mgr.lastPlayerWhoPlayed}")
+        } else {
+            appendLine("Pegging Manager: null")
+        }
+        appendLine()
+        appendLine("— Counting State —")
+        appendLine("Counting Phase: $countingPhase")
+        appendLine("Hand Scores: NonDealer=${handScores.nonDealerScore}, Dealer=${handScores.dealerScore}, Crib=${handScores.cribScore}")
+        appendLine("Waiting For Dialog Dismissal: $waitingForDialogDismissal")
+        appendLine()
+        appendLine("— Additional Info —")
+        appendLine("Consecutive Goes: $consecutiveGoes")
+        appendLine("Last Player Who Played: $lastPlayerWhoPlayed")
+        appendLine()
         appendLine("Status log:\n$gameStatus")
     }
 }
@@ -1162,3 +1373,14 @@ private fun sendBugReportEmail(context: Context, to: String, subject: String, bo
         // No email client available - silently ignore
     }
 }
+
+data class WinnerModalData(
+    val playerWon: Boolean,
+    val playerScore: Int,
+    val opponentScore: Int,
+    val wasSkunk: Boolean,
+    val gamesWon: Int,
+    val gamesLost: Int,
+    val skunksFor: Int,
+    val skunksAgainst: Int
+)

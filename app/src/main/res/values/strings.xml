@@ -54,4 +54,8 @@
     <string name="bug_report_subject">Cribbage Bug Report</string>
     <string name="feedback_email">henninb+cribbage@gmail.com</string>
     <string name="bug_report_error_no_email">No email app available</string>
+    <string name="instructions_start">Tap \"Start New Game\" to begin</string>
+    <string name="instructions_deal">Tap \"Deal Cards\" to deal 6 cards to each player</string>
+    <string name="instructions_crib">Select 2 cards by tapping them, then tap the button to place them in the crib</string>
+    <string name="instructions_pegging">Tap a card to select it, then tap \"Play Card\" to play it</string>
 </resources>
