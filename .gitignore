@@ -29,3 +29,17 @@ keystore.properties
 *.bak
 *~
 testers.csv
+
+# iOS/KMM (generated artifacts)
+# Keep `iosApp/Podfile.lock` tracked for reproducible installs.
+iosApp/BUILD_SUCCESS.md
+iosApp/Cribbage.xcodeproj/
+iosApp/Cribbage.xcworkspace/
+iosApp/Cribbage/
+iosApp/Pods/
+iosApp/DerivedData/
+
+# Xcode user state (per-user noise)
+*.xcuserdata/
+*.xcuserstate
+*.xcscmblueprint

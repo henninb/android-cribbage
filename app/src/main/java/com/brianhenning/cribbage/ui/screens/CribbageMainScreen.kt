@@ -261,24 +261,10 @@ fun CribbageMainScreen() {
     }
 
     // Check if pegging phase is complete and transition to hand counting
+    // Pegging is ONLY complete when all 8 cards have been played (4 player + 4 opponent)
+    // Note: "No legal moves" scenarios are handled by Go/reset logic, NOT by this function
     fun checkPeggingComplete() {
-        // Check if all 8 cards have been played
         if (playerCardsPlayed.size == 4 && opponentCardsPlayed.size == 4) {
-            isPeggingPhase = false
-            currentPhase = GamePhase.HAND_COUNTING
-            gameStatus += "\nPegging phase complete. Proceed to hand scoring."
-            showHandCountingButton = true
-            return
-        }
-
-        // Check if no legal moves remain for either player
-        val playerLegal = playerHand.filterIndexed { index, card ->
-            !playerCardsPlayed.contains(index) && (card.getValue() + peggingCount <= 31)
-        }
-        val opponentLegal = opponentHand.filterIndexed { index, card ->
-            !opponentCardsPlayed.contains(index) && (card.getValue() + peggingCount <= 31)
-        }
-        if (playerLegal.isEmpty() && opponentLegal.isEmpty()) {
             isPeggingPhase = false
             currentPhase = GamePhase.HAND_COUNTING
             gameStatus += "\nPegging phase complete. Proceed to hand scoring."
@@ -340,22 +326,20 @@ fun CribbageMainScreen() {
         else
             context.getString(R.string.pegging_opponent_turn)
 
-        // End of pegging if no legal moves for either side
-        val playerLegal = playerHand.filterIndexed { index, card ->
-            !playerCardsPlayed.contains(index) && (card.getValue() + peggingCount <= 31)
-        }
-        val opponentLegal = opponentHand.filterIndexed { index, card ->
-            !opponentCardsPlayed.contains(index) && (card.getValue() + peggingCount <= 31)
-        }
-        if (playerLegal.isEmpty() && opponentLegal.isEmpty()) {
-            isPeggingPhase = false
-            currentPhase = GamePhase.HAND_COUNTING
-            gameStatus += "\nPegging phase complete. Proceed to hand scoring."
-            showHandCountingButton = true
+        // Check if pegging is complete (all 8 cards played)
+        // This must be done HERE rather than in handleNextRound because we need to
+        // skip the opponent scheduling logic below if pegging is complete
+        checkPeggingComplete()
+        if (!isPeggingPhase) {
+            // Pegging is complete - don't schedule any more moves
             return
         }
 
+        // Pegging continues - set up next turn
         if (isPlayerTurn) {
+            val playerLegal = playerHand.filterIndexed { index, card ->
+                !playerCardsPlayed.contains(index) && (card.getValue() + peggingCount <= 31)
+            }
             if (playerLegal.isEmpty()) {
                 // Only show Go button if player has cards left; otherwise auto-handle
                 if (playerCardsPlayed.size < 4) {
@@ -638,8 +622,7 @@ fun CribbageMainScreen() {
         pendingReset?.let { pending ->
             applyManagerReset(pending.resetData)
             pendingReset = null
-            // Check if pegging is now complete after the reset
-            checkPeggingComplete()
+            // Note: checkPeggingComplete() is called inside applyManagerReset
         }
     }
 
@@ -946,9 +929,14 @@ fun CribbageMainScreen() {
                         )
                         // Don't continue - wait for user to acknowledge
                     } else {
-                        // No reset - continue with normal flow
-                        playCardButtonEnabled = false
-                        gameStatus += "\n${context.getString(R.string.pegging_opponent_turn)}"
+                        // Check if pegging is complete after player's play
+                        checkPeggingComplete()
+
+                        // Only continue if still in pegging phase
+                        if (isPeggingPhase) {
+                            // No reset - continue with normal flow
+                            playCardButtonEnabled = false
+                            gameStatus += "\n${context.getString(R.string.pegging_opponent_turn)}"
 
                         // Set state barrier before opponent responds to player's play
                         isOpponentActionInProgress = true
@@ -1038,6 +1026,7 @@ fun CribbageMainScreen() {
                             isOpponentActionInProgress = false
                             android.util.Log.d("CribbageDebug", ">>> Opponent response complete, clearing barrier")
                         }, 500) // Reduced from 1000ms to 500ms
+                        } // End if (isPeggingPhase)
                     } // End else (no reset)
                 } else {
                     gameStatus = context.getString(R.string.illegal_move_exceeds_31, playedCard.getSymbol())

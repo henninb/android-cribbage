@@ -1,3 +1,88 @@
+# BUG: Transition from pegging to counting not always happening
+
+## Original Issue
+The transition from the pegging part of the game to the counting part of the game was not always happening after the pegging portion was completed.
+
+## Root Causes Identified
+
+1. **Missing check after player card play**: When the player played a card that didn't trigger a reset, `checkPeggingComplete()` was never called. This meant that if the player played the 8th card without triggering a 31 or Go, the game would continue trying to schedule opponent moves instead of transitioning to hand counting.
+
+2. **Duplicate and INCORRECT logic in `applyManagerReset`**: The function had its own logic for checking if pegging was complete (lines 344-356), but it checked for "no legal moves" which is WRONG - that scenario should trigger a Go/reset, not end the pegging phase. The function did NOT check if all 8 cards had been played, which is the ONLY condition that should end pegging.
+
+3. **Wrong placement of completion check**: The original fix attempted to call `checkPeggingComplete()` in `handleNextRound` AFTER `applyManagerReset`, but this was too late because `applyManagerReset` would schedule opponent actions that shouldn't happen if pegging is complete.
+
+4. **Incorrect logic in `checkPeggingComplete()` itself**: The function was checking TWO conditions (all 8 cards played OR no legal moves), but it should ONLY check if all 8 cards have been played. The "no legal moves" scenario is handled by the Go/reset system, not by ending the pegging phase.
+
+## Fix Applied
+
+### Change 1: Add completion check after player plays (no reset case)
+In `playSelectedCardRef.value` around line 948-956, added:
+```kotlin
+} else {
+    // Check if pegging is complete after player's play
+    checkPeggingComplete()
+
+    // Only continue if still in pegging phase
+    if (isPeggingPhase) {
+        // Continue with normal flow
+```
+
+This ensures that when the player plays a card that doesn't trigger a reset, we immediately check if all 8 cards have been played.
+
+### Change 2: Fix `checkPeggingComplete()` to only check for all 8 cards played
+Simplified the function to ONLY check if all 8 cards have been played (lines 266-273):
+```kotlin
+fun checkPeggingComplete() {
+    if (playerCardsPlayed.size == 4 && opponentCardsPlayed.size == 4) {
+        isPeggingPhase = false
+        currentPhase = GamePhase.HAND_COUNTING
+        gameStatus += "\nPegging phase complete. Proceed to hand scoring."
+        showHandCountingButton = true
+    }
+}
+```
+
+Removed the incorrect "no legal moves" check since that scenario is handled by the Go/reset logic.
+
+### Change 3: Consolidate completion check in `applyManagerReset`
+Replaced the duplicate incorrect logic with a single call to `checkPeggingComplete()` (lines 329-336):
+```kotlin
+// Check if pegging is complete (all 8 cards played)
+// This must be done HERE rather than in handleNextRound because we need to
+// skip the opponent scheduling logic below if pegging is complete
+checkPeggingComplete()
+if (!isPeggingPhase) {
+    // Pegging is complete - don't schedule any more moves
+    return
+}
+```
+
+This ensures the check happens:
+- After a reset is applied
+- Before any opponent actions are scheduled
+- Using the correct logic (checks ONLY "all 8 cards played")
+
+### Change 4: Close the new conditional block
+Added closing brace for the `if (isPeggingPhase)` block at line 1046.
+
+## Testing Notes
+The fix ensures `checkPeggingComplete()` is called in all the right places:
+1. After opponent plays (already existed)
+2. After player plays without reset (NEW)
+3. After any reset is applied via `applyManagerReset` (NEW)
+
+The function checks ONLY ONE condition:
+- All 8 cards have been played (4 player + 4 opponent)
+
+When this condition is true, the game transitions to hand counting phase.
+
+**Important**: The "no legal moves" scenario does NOT end the pegging phase. Instead, it triggers the Go/reset system, which:
+1. Awards a Go point to the last player who was able to play
+2. Resets the count to 0
+3. Continues the pegging phase until all 8 cards are played
+
+---
+
 > you need to ensure that the transition from the pegging part of the game to the counting part of the game always happens after the pegging portion is completed. right now that is not happening for some or
 all cases. fix this.
 
