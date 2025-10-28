@@ -2,6 +2,9 @@
 
 platform :ios, '14.0'
 
+# Specify the Xcode project
+project 'Cribbage.xcodeproj'
+
 target 'Cribbage' do
   use_frameworks!
 
