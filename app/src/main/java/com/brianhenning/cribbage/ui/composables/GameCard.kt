@@ -24,7 +24,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.brianhenning.cribbage.R
-import com.brianhenning.cribbage.ui.screens.Card as CribbageCard
+import com.brianhenning.cribbage.shared.domain.model.Card as CribbageCard
 import com.brianhenning.cribbage.ui.screens.getCardResourceId
 import com.brianhenning.cribbage.ui.theme.CardBackground
 import com.brianhenning.cribbage.ui.theme.SelectedCard

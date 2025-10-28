@@ -1,10 +1,11 @@
 package com.brianhenning.cribbage
 
-import com.brianhenning.cribbage.logic.dealSixToEach
-import com.brianhenning.cribbage.logic.dealerFromCut
-import com.brianhenning.cribbage.ui.screens.Card
-import com.brianhenning.cribbage.ui.screens.Rank
-import com.brianhenning.cribbage.ui.screens.Suit
+import com.brianhenning.cribbage.shared.domain.logic.dealSixToEach
+import com.brianhenning.cribbage.shared.domain.logic.dealerFromCut
+import com.brianhenning.cribbage.shared.domain.logic.Player
+import com.brianhenning.cribbage.shared.domain.model.Card
+import com.brianhenning.cribbage.shared.domain.model.Rank
+import com.brianhenning.cribbage.shared.domain.model.Suit
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -53,7 +54,7 @@ class DealUtilsTest {
         val playerCut = Card(Rank.ACE, Suit.CLUBS)   // low
         val oppCut = Card(Rank.KING, Suit.CLUBS)     // high
         val who = dealerFromCut(playerCut, oppCut)
-        assertEquals("Player should be dealer when holding lower cut", com.brianhenning.cribbage.logic.Player.PLAYER, who)
+        assertEquals("Player should be dealer when holding lower cut", Player.PLAYER, who)
     }
 
     @Test
@@ -61,7 +62,7 @@ class DealUtilsTest {
         val playerCut = Card(Rank.QUEEN, Suit.HEARTS)
         val oppCut = Card(Rank.FIVE, Suit.SPADES)
         val who = dealerFromCut(playerCut, oppCut)
-        assertEquals(com.brianhenning.cribbage.logic.Player.OPPONENT, who)
+        assertEquals(Player.OPPONENT, who)
     }
 
     @Test

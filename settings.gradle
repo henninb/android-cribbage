@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "cribbage"
 include ':app'
+include ':shared'

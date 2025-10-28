@@ -1,8 +1,8 @@
 package com.brianhenning.cribbage
 
-import com.brianhenning.cribbage.logic.dealSixToEach
-import com.brianhenning.cribbage.ui.screens.Card
-import com.brianhenning.cribbage.ui.screens.createDeck
+import com.brianhenning.cribbage.shared.domain.logic.dealSixToEach
+import com.brianhenning.cribbage.shared.domain.model.Card
+import com.brianhenning.cribbage.shared.domain.model.createDeck
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertEquals

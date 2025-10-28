@@ -28,7 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.brianhenning.cribbage.ui.screens.Card as CribbageCard
+import com.brianhenning.cribbage.shared.domain.model.Card as CribbageCard
 import com.brianhenning.cribbage.ui.theme.LocalSeasonalTheme
 
 /**
@@ -39,6 +39,112 @@ data class ScoreAnimationState(
     val isPlayer: Boolean,
     val timestamp: Long = System.currentTimeMillis()
 )
+
+/**
+ * Pegging Round Acknowledgment UI
+ * Shows pile, count, score when 31 or Go occurs
+ * Requires user to tap "Next Round" button to continue
+ */
+@Composable
+fun PeggingRoundAcknowledgment(
+    pile: List<CribbageCard>,
+    finalCount: Int,
+    scoreAwarded: Int,
+    onNextRound: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val currentTheme = LocalSeasonalTheme.current
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = currentTheme.colors.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Title
+            Text(
+                text = if (finalCount == 31) "31!" else "Go!",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+                color = currentTheme.colors.primary
+            )
+
+            // Final count
+            Text(
+                text = "Count: $finalCount",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            // Score awarded
+            if (scoreAwarded > 0) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = currentTheme.colors.primary.copy(alpha = 0.2f)
+                    )
+                ) {
+                    Text(
+                        text = "+$scoreAwarded",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = currentTheme.colors.primary
+                    )
+                }
+            }
+
+            // Pegging pile
+            if (pile.isNotEmpty()) {
+                Text(
+                    text = "Cards Played:",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy((-20).dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp)
+                ) {
+                    itemsIndexed(pile) { _, card ->
+                        GameCard(
+                            card = card,
+                            isRevealed = true,
+                            isClickable = false,
+                            cardSize = CardSize.Medium
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Next Round button
+            Button(
+                onClick = onNextRound,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = currentTheme.colors.primary
+                )
+            ) {
+                Text(
+                    text = "Next Round",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
 
 /**
  * Thirty-One Banner Animation
@@ -391,12 +497,26 @@ fun GameAreaContent(
     onCardClick: (Int) -> Unit,
     show31Banner: Boolean = false,
     onBannerComplete: () -> Unit = {},
+    pendingReset: com.brianhenning.cribbage.ui.screens.PendingResetState? = null,
+    onNextRound: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
+        // Show pending reset UI if it exists (takes priority over other displays)
+        if (pendingReset != null) {
+            PeggingRoundAcknowledgment(
+                pile = pendingReset.pile,
+                finalCount = pendingReset.finalCount,
+                scoreAwarded = pendingReset.scoreAwarded,
+                onNextRound = onNextRound,
+                modifier = Modifier.align(Alignment.Center)
+            )
+            return@Box
+        }
+
         when (currentPhase) {
             GamePhase.SETUP -> {
                 // Show welcome screen only on first app start, otherwise show cut cards
@@ -524,12 +644,7 @@ fun GameAreaContent(
 
             GamePhase.HAND_COUNTING -> {
                 // This will be handled by the existing HandCountingDisplay
-                // For now, show a simple message
-                Text(
-                    text = "Counting hands...",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                // No message shown during hand counting phase
             }
 
             GamePhase.DEALING -> {
@@ -739,6 +854,8 @@ fun ActionBar(
     onReportBug: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val currentTheme = LocalSeasonalTheme.current
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -800,7 +917,7 @@ fun ActionBar(
                     onClick = onCountHands,
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary
+                        containerColor = currentTheme.colors.primary
                     )
                 ) {
                     Text("Count Hands")

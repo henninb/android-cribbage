@@ -1,7 +1,7 @@
-package com.brianhenning.cribbage.logic
+package com.brianhenning.cribbage.shared.domain.logic
 
-import com.brianhenning.cribbage.ui.screens.Card
-import com.brianhenning.cribbage.ui.screens.Rank
+import com.brianhenning.cribbage.shared.domain.model.Card
+import com.brianhenning.cribbage.shared.domain.model.Rank
 
 /**
  * Smart opponent AI for cribbage game decisions

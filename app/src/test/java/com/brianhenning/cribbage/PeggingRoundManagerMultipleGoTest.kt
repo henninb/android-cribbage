@@ -1,10 +1,10 @@
 package com.brianhenning.cribbage
 
-import com.brianhenning.cribbage.logic.PeggingRoundManager
-import com.brianhenning.cribbage.logic.Player
-import com.brianhenning.cribbage.ui.screens.Card
-import com.brianhenning.cribbage.ui.screens.Rank
-import com.brianhenning.cribbage.ui.screens.Suit
+import com.brianhenning.cribbage.shared.domain.logic.PeggingRoundManager
+import com.brianhenning.cribbage.shared.domain.logic.Player
+import com.brianhenning.cribbage.shared.domain.model.Card
+import com.brianhenning.cribbage.shared.domain.model.Rank
+import com.brianhenning.cribbage.shared.domain.model.Suit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotNull
@@ -92,9 +92,10 @@ class PeggingRoundManagerMultipleGoTest {
 
         // Opponent plays to hit exactly 31
         val outcome = manager.onPlay(Card(Rank.KING, Suit.CLUBS))
-        assertNotNull("Playing 31 should trigger reset", outcome.reset)
-        assertEquals(true, outcome.reset!!.resetFor31)
-        assertNull("31 reset should not award GO point", outcome.reset.goPointTo)
+        val resetData = outcome.reset
+        assertNotNull("Playing 31 should trigger reset", resetData)
+        assertEquals(true, resetData!!.resetFor31)
+        assertNull("31 reset should not award GO point", resetData.goPointTo)
 
         // State should be reset
         assertEquals(0, manager.peggingCount)

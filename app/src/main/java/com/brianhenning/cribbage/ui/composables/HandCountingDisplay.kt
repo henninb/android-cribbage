@@ -2,6 +2,7 @@ package com.brianhenning.cribbage.ui.composables
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,8 +17,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.brianhenning.cribbage.logic.DetailedScoreBreakdown
-import com.brianhenning.cribbage.ui.screens.Card as CribbageCard
+import com.brianhenning.cribbage.shared.domain.logic.DetailedScoreBreakdown
+import com.brianhenning.cribbage.shared.domain.model.Card as CribbageCard
 
 @Composable
 fun HandCountingDisplay(
@@ -250,35 +251,42 @@ fun ScoreBreakdownDialog(
                             color = MaterialTheme.colorScheme.outline
                         )
 
-                        // Score entries
-                        breakdown.entries.forEach { entry ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = entry.cards.joinToString(" ") { it.getSymbol() },
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.weight(1.3f)
-                                )
-                                Text(
-                                    text = entry.type,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Text(
-                                    text = entry.points.toString(),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.secondary,
-                                    textAlign = TextAlign.End,
-                                    modifier = Modifier.weight(0.7f)
-                                )
+                        // Score entries (scrollable)
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 300.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            items(breakdown.entries) { entry ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = entry.cards.joinToString(" ") { it.getSymbol() },
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.weight(1.3f)
+                                    )
+                                    Text(
+                                        text = entry.type,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(
+                                        text = entry.points.toString(),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.secondary,
+                                        textAlign = TextAlign.End,
+                                        modifier = Modifier.weight(0.7f)
+                                    )
+                                }
                             }
                         }
 

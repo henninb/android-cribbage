@@ -1,9 +1,9 @@
 package com.brianhenning.cribbage
 
-import com.brianhenning.cribbage.logic.CribbageScorer
-import com.brianhenning.cribbage.ui.screens.Card
-import com.brianhenning.cribbage.ui.screens.Rank
-import com.brianhenning.cribbage.ui.screens.Suit
+import com.brianhenning.cribbage.shared.domain.logic.CribbageScorer
+import com.brianhenning.cribbage.shared.domain.model.Card
+import com.brianhenning.cribbage.shared.domain.model.Rank
+import com.brianhenning.cribbage.shared.domain.model.Suit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

@@ -20,15 +20,31 @@ import com.brianhenning.cribbage.ui.composables.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
-import com.brianhenning.cribbage.logic.dealSixToEach
-import com.brianhenning.cribbage.logic.dealerFromCut
-import com.brianhenning.cribbage.logic.CribbageScorer
-import com.brianhenning.cribbage.logic.PeggingScorer
-import com.brianhenning.cribbage.logic.PeggingPoints
-import com.brianhenning.cribbage.logic.PeggingRoundManager
-import com.brianhenning.cribbage.logic.Player
-import com.brianhenning.cribbage.logic.SubRoundReset
-import com.brianhenning.cribbage.logic.OpponentAI
+import com.brianhenning.cribbage.shared.domain.logic.dealSixToEach
+import com.brianhenning.cribbage.shared.domain.logic.dealerFromCut
+import com.brianhenning.cribbage.shared.domain.logic.CribbageScorer
+import com.brianhenning.cribbage.shared.domain.logic.PeggingScorer
+import com.brianhenning.cribbage.shared.domain.logic.PeggingPoints
+import com.brianhenning.cribbage.shared.domain.logic.PeggingRoundManager
+import com.brianhenning.cribbage.shared.domain.logic.Player
+import com.brianhenning.cribbage.shared.domain.logic.SubRoundReset
+import com.brianhenning.cribbage.shared.domain.logic.OpponentAI
+import com.brianhenning.cribbage.shared.domain.logic.ScoreEntry
+import com.brianhenning.cribbage.shared.domain.logic.DetailedScoreBreakdown
+import com.brianhenning.cribbage.shared.domain.model.Card
+import com.brianhenning.cribbage.shared.domain.model.Rank
+import com.brianhenning.cribbage.shared.domain.model.Suit
+import com.brianhenning.cribbage.shared.domain.model.createDeck
+
+/**
+ * State for pending reset - shown to user before clearing pile
+ */
+data class PendingResetState(
+    val pile: List<Card>,
+    val finalCount: Int,
+    val scoreAwarded: Int,
+    val resetData: SubRoundReset
+)
 
 @Composable
 fun CribbageMainScreen() {
@@ -110,6 +126,9 @@ fun CribbageMainScreen() {
     // "31!" banner state
     var show31Banner by remember { mutableStateOf(false) }
     var previousPeggingCount by remember { mutableIntStateOf(0) }
+
+    // Pending reset state (for showing pile/count/score before clearing)
+    var pendingReset by remember { mutableStateOf<PendingResetState?>(null) }
 
     // Detect when pegging count reaches exactly 31 and trigger banner
     LaunchedEffect(peggingCount) {
@@ -241,6 +260,32 @@ fun CribbageMainScreen() {
         awardPeggingPoints(isPlayer, pts, cardPlayed)
     }
 
+    // Check if pegging phase is complete and transition to hand counting
+    fun checkPeggingComplete() {
+        // Check if all 8 cards have been played
+        if (playerCardsPlayed.size == 4 && opponentCardsPlayed.size == 4) {
+            isPeggingPhase = false
+            currentPhase = GamePhase.HAND_COUNTING
+            gameStatus += "\nPegging phase complete. Proceed to hand scoring."
+            showHandCountingButton = true
+            return
+        }
+
+        // Check if no legal moves remain for either player
+        val playerLegal = playerHand.filterIndexed { index, card ->
+            !playerCardsPlayed.contains(index) && (card.getValue() + peggingCount <= 31)
+        }
+        val opponentLegal = opponentHand.filterIndexed { index, card ->
+            !opponentCardsPlayed.contains(index) && (card.getValue() + peggingCount <= 31)
+        }
+        if (playerLegal.isEmpty() && opponentLegal.isEmpty()) {
+            isPeggingPhase = false
+            currentPhase = GamePhase.HAND_COUNTING
+            gameStatus += "\nPegging phase complete. Proceed to hand scoring."
+            showHandCountingButton = true
+        }
+    }
+
     fun applyManagerStateToUi() {
         val mgr = peggingManager ?: return
         android.util.Log.d("CribbageDebug", "=== applyManagerStateToUi START ===")
@@ -357,15 +402,30 @@ fun CribbageMainScreen() {
                     val pts = PeggingScorer.pointsForPile(pileBeforePlay, countBeforeReset)
                     awardPeggingPoints(false, pts, cardToPlay)
 
-                    if (outcome.reset != null) {
-                        applyManagerReset(outcome.reset)
+                    val resetData = outcome.reset
+                    if (resetData != null) {
+                        // Set pending reset to show pile/count/score before clearing
+                        pendingReset = PendingResetState(
+                            pile = pileBeforePlay,
+                            finalCount = countBeforeReset,
+                            scoreAwarded = pts.total,
+                            resetData = resetData
+                        )
+                        // Clear barrier and wait for user to acknowledge
+                        isOpponentActionInProgress = false
+                        return@postDelayed
                     }
 
                     if (outcome.reset == null) {
-                        val playerPlayable = playerHand.filterIndexed { index, card ->
-                            !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
-                        }
-                        if (playerPlayable.isEmpty()) {
+                        // Check if pegging is complete after opponent's play
+                        checkPeggingComplete()
+
+                        // Only continue if still in pegging phase
+                        if (isPeggingPhase) {
+                            val playerPlayable = playerHand.filterIndexed { index, card ->
+                                !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
+                            }
+                            if (playerPlayable.isEmpty()) {
                             // Only show Go button if player has cards left; otherwise auto-handle
                             if (playerCardsPlayed.size < 4) {
                                 showGoButton = true
@@ -384,7 +444,16 @@ fun CribbageMainScreen() {
                         }
                     }
                 } else {
-                    autoHandleGoRef.value()
+                    // Opponent has no legal card to play
+                    // Only handle GO if opponent still has cards remaining
+                    if (opponentCardsPlayed.size < 4) {
+                        autoHandleGoRef.value()
+                    } else {
+                        // Opponent has no cards left, just pass turn to player
+                        playCardButtonEnabled = true
+                        showGoButton = false
+                        gameStatus += "\n${context.getString(R.string.pegging_your_turn)}"
+                    }
                 }
 
                 // Clear state barrier AFTER all opponent actions complete
@@ -415,11 +484,22 @@ fun CribbageMainScreen() {
             }
         }
 
+        // Save pile and count before calling onGo (which may reset)
+        val pileBeforeGo = mgr.peggingPile.toList()
+        val countBeforeGo = mgr.peggingCount
+
         val reset = mgr.onGo(opponentHasLegalMove = opponentLegalMoves.isNotEmpty())
         applyManagerStateToUi()
 
         if (reset != null) {
-            applyManagerReset(reset)
+            // Set pending reset to show pile/count/score before clearing
+            val goScore = if (reset.goPointTo != null) 1 else 0
+            pendingReset = PendingResetState(
+                pile = pileBeforeGo,
+                finalCount = countBeforeGo,
+                scoreAwarded = goScore,
+                resetData = reset
+            )
             return@letUnit
         }
 
@@ -474,15 +554,30 @@ fun CribbageMainScreen() {
                         val pts = PeggingScorer.pointsForPile(pileBeforePlay, countBeforeReset)
                         awardPeggingPoints(false, pts, cardToPlay)
 
-                        if (oppOutcome.reset != null) {
-                            applyManagerReset(oppOutcome.reset)
+                        val oppResetData = oppOutcome.reset
+                        if (oppResetData != null) {
+                            // Set pending reset to show pile/count/score before clearing
+                            pendingReset = PendingResetState(
+                                pile = pileBeforePlay,
+                                finalCount = countBeforeReset,
+                                scoreAwarded = pts.total,
+                                resetData = oppResetData
+                            )
+                            // Clear barrier and wait for user to acknowledge
+                            isOpponentActionInProgress = false
+                            return@postDelayed
                         }
 
                         if (oppOutcome.reset == null) {
-                            val playerPlayableAfter = playerHand.filterIndexed { index, card ->
-                                !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
-                            }
-                            if (playerPlayableAfter.isEmpty()) {
+                            // Check if pegging is complete after opponent's play
+                            checkPeggingComplete()
+
+                            // Only continue if still in pegging phase
+                            if (isPeggingPhase) {
+                                val playerPlayableAfter = playerHand.filterIndexed { index, card ->
+                                    !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
+                                }
+                                if (playerPlayableAfter.isEmpty()) {
                                 // Only show Go button if player has cards left; otherwise auto-handle
                                 if (playerCardsPlayed.size < 4) {
                                     showGoButton = true
@@ -498,6 +593,7 @@ fun CribbageMainScreen() {
                                 playCardButtonEnabled = true
                                 showGoButton = false
                                 gameStatus += "\n${context.getString(R.string.pegging_your_turn)}"
+                            }
                             }
                         }
                     } else {
@@ -534,6 +630,16 @@ fun CribbageMainScreen() {
             } else {
                 selectedCards
             }
+        }
+    }
+
+    // Handle player acknowledging the end of a pegging round (31 or Go)
+    val handleNextRound: () -> Unit = {
+        pendingReset?.let { pending ->
+            applyManagerReset(pending.resetData)
+            pendingReset = null
+            // Check if pegging is now complete after the reset
+            checkPeggingComplete()
         }
     }
 
@@ -610,14 +716,14 @@ fun CribbageMainScreen() {
             run {
                 var pCut: Card
                 var oCut: Card
-                var who: com.brianhenning.cribbage.logic.Player?
+                var who: Player?
                 do {
                     val deck = createDeck().shuffled()
                     pCut = deck[0]
                     oCut = deck[1]
                     who = dealerFromCut(pCut, oCut)
                 } while (who == null)
-                isPlayerDealer = (who == com.brianhenning.cribbage.logic.Player.PLAYER)
+                isPlayerDealer = (who == Player.PLAYER)
                 // Save cut cards for UI header and persist
                 cutPlayerCard = pCut
                 cutOpponentCard = oCut
@@ -697,9 +803,13 @@ fun CribbageMainScreen() {
                 if (isPlayerDealer) {
                     playerScore += 2
                     gameStatus += "\nDealer gets 2 points for his heels."
+                    // Trigger +2 animation for player
+                    playerScoreAnimation = ScoreAnimationState(2, true)
                 } else {
                     opponentScore += 2
                     gameStatus += "\nDealer gets 2 points for his heels."
+                    // Trigger +2 animation for opponent
+                    opponentScoreAnimation = ScoreAnimationState(2, false)
                 }
                 checkGameOverFunction()
             }
@@ -747,15 +857,30 @@ fun CribbageMainScreen() {
                             val pts = PeggingScorer.pointsForPile(pileBeforePlay, countBeforeReset)
                             awardPeggingPoints(false, pts, cardToPlay)
 
-                            if (outcome.reset != null) {
-                                applyManagerReset(outcome.reset)
+                            val resetData = outcome.reset
+                            if (resetData != null) {
+                                // Set pending reset to show pile/count/score before clearing
+                                pendingReset = PendingResetState(
+                                    pile = pileBeforePlay,
+                                    finalCount = countBeforeReset,
+                                    scoreAwarded = pts.total,
+                                    resetData = resetData
+                                )
+                                // Clear barrier and wait for user to acknowledge
+                                isOpponentActionInProgress = false
+                                return@postDelayed
                             }
 
                             if (outcome.reset == null) {
-                                val playerPlayable = playerHand.filterIndexed { index, card ->
-                                    !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
-                                }
-                                if (playerPlayable.isEmpty()) {
+                                // Check if pegging is complete after opponent's play
+                                checkPeggingComplete()
+
+                                // Only continue if still in pegging phase
+                                if (isPeggingPhase) {
+                                    val playerPlayable = playerHand.filterIndexed { index, card ->
+                                        !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
+                                    }
+                                    if (playerPlayable.isEmpty()) {
                                     // Only show Go button if player has cards left; otherwise auto-handle
                                     if (playerCardsPlayed.size < 4) {
                                         showGoButton = true
@@ -770,6 +895,7 @@ fun CribbageMainScreen() {
                                 } else {
                                     playCardButtonEnabled = true
                                     showGoButton = false
+                                }
                                 }
                             }
                         } else {
@@ -809,11 +935,18 @@ fun CribbageMainScreen() {
                     awardPeggingPoints(true, pts, playedCard)
 
                     applyManagerStateToUi()
-                    if (outcome.reset != null) {
-                        applyManagerReset(outcome.reset)
-                    }
-
-                    if (outcome.reset == null) {
+                    val resetData = outcome.reset
+                    if (resetData != null) {
+                        // Set pending reset to show pile/count/score before clearing
+                        pendingReset = PendingResetState(
+                            pile = pileBeforePlay,
+                            finalCount = countBeforeReset,
+                            scoreAwarded = pts.total,
+                            resetData = resetData
+                        )
+                        // Don't continue - wait for user to acknowledge
+                    } else {
+                        // No reset - continue with normal flow
                         playCardButtonEnabled = false
                         gameStatus += "\n${context.getString(R.string.pegging_opponent_turn)}"
 
@@ -846,15 +979,30 @@ fun CribbageMainScreen() {
                                 val pts = PeggingScorer.pointsForPile(pileBeforePlay, countBeforeReset)
                                 awardPeggingPoints(false, pts, cardToPlay)
 
-                                if (oppOutcome.reset != null) {
-                                    applyManagerReset(oppOutcome.reset)
+                                val oppResetData2 = oppOutcome.reset
+                                if (oppResetData2 != null) {
+                                    // Set pending reset to show pile/count/score before clearing
+                                    pendingReset = PendingResetState(
+                                        pile = pileBeforePlay,
+                                        finalCount = countBeforeReset,
+                                        scoreAwarded = pts.total,
+                                        resetData = oppResetData2
+                                    )
+                                    // Clear barrier and wait for user to acknowledge
+                                    isOpponentActionInProgress = false
+                                    return@postDelayed
                                 }
 
                                 if (oppOutcome.reset == null) {
-                                    val playerPlayable = playerHand.filterIndexed { index, card ->
-                                        !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
-                                    }
-                                    if (playerPlayable.isEmpty()) {
+                                    // Check if pegging is complete after opponent's play
+                                    checkPeggingComplete()
+
+                                    // Only continue if still in pegging phase
+                                    if (isPeggingPhase) {
+                                        val playerPlayable = playerHand.filterIndexed { index, card ->
+                                            !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
+                                        }
+                                        if (playerPlayable.isEmpty()) {
                                         // Only show Go button if player has cards left; otherwise auto-handle
                                         if (playerCardsPlayed.size < 4) {
                                             showGoButton = true
@@ -871,16 +1019,26 @@ fun CribbageMainScreen() {
                                         showGoButton = false
                                         gameStatus += "\n${context.getString(R.string.pegging_your_turn)}"
                                     }
+                                    }
                                 }
                             } else {
-                                autoHandleGoRef.value()
+                                // Opponent has no legal card to play
+                                // Only handle GO if opponent still has cards remaining
+                                if (opponentCardsPlayed.size < 4) {
+                                    autoHandleGoRef.value()
+                                } else {
+                                    // Opponent has no cards left, just pass turn to player
+                                    playCardButtonEnabled = true
+                                    showGoButton = false
+                                    gameStatus += "\n${context.getString(R.string.pegging_your_turn)}"
+                                }
                             }
 
                             // Clear barrier after opponent response completes
                             isOpponentActionInProgress = false
                             android.util.Log.d("CribbageDebug", ">>> Opponent response complete, clearing barrier")
                         }, 500) // Reduced from 1000ms to 500ms
-                    }
+                    } // End else (no reset)
                 } else {
                     gameStatus = context.getString(R.string.illegal_move_exceeds_31, playedCard.getSymbol())
                 }
@@ -933,8 +1091,16 @@ fun CribbageMainScreen() {
             )
             if (isPlayerDealer) {
                 opponentScore += nonDealerBreakdown.totalScore
+                // Trigger animation for opponent's non-dealer hand
+                if (nonDealerBreakdown.totalScore > 0) {
+                    opponentScoreAnimation = ScoreAnimationState(nonDealerBreakdown.totalScore, false)
+                }
             } else {
                 playerScore += nonDealerBreakdown.totalScore
+                // Trigger animation for player's non-dealer hand
+                if (nonDealerBreakdown.totalScore > 0) {
+                    playerScoreAnimation = ScoreAnimationState(nonDealerBreakdown.totalScore, true)
+                }
             }
             checkGameOverFunction()
             if (gameOver) return@launch
@@ -955,8 +1121,16 @@ fun CribbageMainScreen() {
             )
             if (isPlayerDealer) {
                 playerScore += dealerBreakdown.totalScore
+                // Trigger animation for player's dealer hand
+                if (dealerBreakdown.totalScore > 0) {
+                    playerScoreAnimation = ScoreAnimationState(dealerBreakdown.totalScore, true)
+                }
             } else {
                 opponentScore += dealerBreakdown.totalScore
+                // Trigger animation for opponent's dealer hand
+                if (dealerBreakdown.totalScore > 0) {
+                    opponentScoreAnimation = ScoreAnimationState(dealerBreakdown.totalScore, false)
+                }
             }
             checkGameOverFunction()
             if (gameOver) return@launch
@@ -977,8 +1151,16 @@ fun CribbageMainScreen() {
             )
             if (isPlayerDealer) {
                 playerScore += cribBreakdown.totalScore
+                // Trigger animation for player's crib
+                if (cribBreakdown.totalScore > 0) {
+                    playerScoreAnimation = ScoreAnimationState(cribBreakdown.totalScore, true)
+                }
             } else {
                 opponentScore += cribBreakdown.totalScore
+                // Trigger animation for opponent's crib
+                if (cribBreakdown.totalScore > 0) {
+                    opponentScoreAnimation = ScoreAnimationState(cribBreakdown.totalScore, false)
+                }
             }
             checkGameOverFunction()
             if (gameOver) return@launch
@@ -1060,7 +1242,9 @@ fun CribbageMainScreen() {
                 showWelcomeScreen = !gameStarted,
                 onCardClick = { toggleCardSelection(it) },
                 show31Banner = show31Banner,
-                onBannerComplete = { show31Banner = false }
+                onBannerComplete = { show31Banner = false },
+                pendingReset = pendingReset,
+                onNextRound = handleNextRound
             )
 
             // Show hand counting dialogs on top when in counting phase
@@ -1160,60 +1344,6 @@ fun CribbageMainScreen() {
             opponentScore = opponentScore
         )
     }
-}
-
-enum class Suit { HEARTS, DIAMONDS, CLUBS, SPADES }
-enum class Rank { ACE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, TEN, JACK, QUEEN, KING }
-
-data class Card(val rank: Rank, val suit: Suit) {
-    fun getValue(): Int {
-        return when (rank) {
-            Rank.ACE -> 1
-            Rank.TWO -> 2
-            Rank.THREE -> 3
-            Rank.FOUR -> 4
-            Rank.FIVE -> 5
-            Rank.SIX -> 6
-            Rank.SEVEN -> 7
-            Rank.EIGHT -> 8
-            Rank.NINE -> 9
-            Rank.TEN, Rank.JACK, Rank.QUEEN, Rank.KING -> 10
-        }
-    }
-    fun getSymbol(): String {
-        val rankSymbol = when (rank) {
-            Rank.ACE -> "A"
-            Rank.TWO -> "2"
-            Rank.THREE -> "3"
-            Rank.FOUR -> "4"
-            Rank.FIVE -> "5"
-            Rank.SIX -> "6"
-            Rank.SEVEN -> "7"
-            Rank.EIGHT -> "8"
-            Rank.NINE -> "9"
-            Rank.TEN -> "10"
-            Rank.JACK -> "J"
-            Rank.QUEEN -> "Q"
-            Rank.KING -> "K"
-        }
-        val suitSymbol = when (suit) {
-            Suit.SPADES -> "♠"
-            Suit.HEARTS -> "♥"
-            Suit.DIAMONDS -> "♦"
-            Suit.CLUBS -> "♣"
-        }
-        return "$rankSymbol$suitSymbol"
-    }
-}
-
-fun createDeck(): List<Card> {
-    val deck = mutableListOf<Card>()
-    for (suit in Suit.entries) {
-        for (rank in Rank.entries) {
-            deck.add(Card(rank, suit))
-        }
-    }
-    return deck
 }
 
 fun getCardResourceId(card: Card): Int {

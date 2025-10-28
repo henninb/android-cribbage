@@ -1,6 +1,6 @@
-package com.brianhenning.cribbage.logic
+package com.brianhenning.cribbage.shared.domain.logic
 
-import com.brianhenning.cribbage.ui.screens.Card
+import com.brianhenning.cribbage.shared.domain.model.Card
 
 data class DealResult(
     val playerHand: List<Card>,
@@ -43,4 +43,3 @@ fun dealerFromCut(playerCut: Card, opponentCut: Card): Player? {
         else -> Player.OPPONENT
     }
 }
-

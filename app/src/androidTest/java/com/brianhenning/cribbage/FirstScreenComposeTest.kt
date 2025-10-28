@@ -4,10 +4,10 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.brianhenning.cribbage.ui.screens.CribbageMainScreen
-import com.brianhenning.cribbage.logic.PeggingRoundManager
-import com.brianhenning.cribbage.logic.Player
-import com.brianhenning.cribbage.logic.SubRoundReset
-import com.brianhenning.cribbage.ui.screens.Card
+import com.brianhenning.cribbage.shared.domain.logic.PeggingRoundManager
+import com.brianhenning.cribbage.shared.domain.logic.Player
+import com.brianhenning.cribbage.shared.domain.logic.SubRoundReset
+import com.brianhenning.cribbage.shared.domain.model.Card
 import com.brianhenning.cribbage.ui.screens.Rank
 import com.brianhenning.cribbage.ui.screens.Suit
 import androidx.compose.material3.Button

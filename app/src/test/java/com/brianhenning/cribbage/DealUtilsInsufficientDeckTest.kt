@@ -1,11 +1,11 @@
 package com.brianhenning.cribbage
 
-import com.brianhenning.cribbage.logic.dealSixToEach
-import com.brianhenning.cribbage.logic.dealerFromCut
-import com.brianhenning.cribbage.logic.Player
-import com.brianhenning.cribbage.ui.screens.Card
-import com.brianhenning.cribbage.ui.screens.Rank
-import com.brianhenning.cribbage.ui.screens.Suit
+import com.brianhenning.cribbage.shared.domain.logic.dealSixToEach
+import com.brianhenning.cribbage.shared.domain.logic.dealerFromCut
+import com.brianhenning.cribbage.shared.domain.logic.Player
+import com.brianhenning.cribbage.shared.domain.model.Card
+import com.brianhenning.cribbage.shared.domain.model.Rank
+import com.brianhenning.cribbage.shared.domain.model.Suit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue

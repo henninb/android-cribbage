@@ -14,7 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.brianhenning.cribbage.ui.screens.Card as CribbageCard
+import com.brianhenning.cribbage.shared.domain.model.Card as CribbageCard
 
 @Composable
 fun PlayerHandDisplay(

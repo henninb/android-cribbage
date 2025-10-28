@@ -1,10 +1,10 @@
 package com.brianhenning.cribbage
 
-import com.brianhenning.cribbage.logic.PeggingRoundManager
-import com.brianhenning.cribbage.logic.Player
-import com.brianhenning.cribbage.ui.screens.Card
-import com.brianhenning.cribbage.ui.screens.Rank
-import com.brianhenning.cribbage.ui.screens.Suit
+import com.brianhenning.cribbage.shared.domain.logic.PeggingRoundManager
+import com.brianhenning.cribbage.shared.domain.logic.Player
+import com.brianhenning.cribbage.shared.domain.model.Card
+import com.brianhenning.cribbage.shared.domain.model.Rank
+import com.brianhenning.cribbage.shared.domain.model.Suit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -406,5 +406,75 @@ class PeggingRoundManagerEdgeCasesTest {
 
         manager.onPlay(Card(Rank.ACE, Suit.CLUBS))
         assertEquals(3, manager.peggingCount)
+    }
+
+    // ========== Regression Test for Bug: Opponent Out of Cards ==========
+
+    @Test
+    fun bugRegression_opponentPlaysLastCard_turnCorrectlySwitchesToPlayer() {
+        // This test reproduces the bug scenario from the user report where:
+        // - Opponent played J♦ then J♠, count at 20
+        // - After opponent's play, turn state incorrectly showed OPPONENT instead of PLAYER
+        // Expected: Turn should correctly be PLAYER after opponent plays
+
+        val manager = PeggingRoundManager(startingPlayer = Player.OPPONENT)
+
+        // Opponent plays Jack of Diamonds (10)
+        manager.onPlay(Card(Rank.JACK, Suit.DIAMONDS))
+        assertEquals(10, manager.peggingCount)
+        assertEquals(Player.PLAYER, manager.isPlayerTurn)
+
+        // Player plays a card (simulating they have cards left)
+        manager.onPlay(Card(Rank.ACE, Suit.DIAMONDS))
+        assertEquals(11, manager.peggingCount)
+        assertEquals(Player.OPPONENT, manager.isPlayerTurn)
+
+        // Opponent plays Jack of Spades (10) - count now at 21
+        manager.onPlay(Card(Rank.JACK, Suit.SPADES))
+        assertEquals(21, manager.peggingCount)
+
+        // CRITICAL ASSERTION: After opponent plays,
+        // turn MUST be PLAYER, not OPPONENT
+        assertEquals("After opponent plays, turn must switch to PLAYER",
+            Player.PLAYER, manager.isPlayerTurn)
+
+        // Player should now be able to play Queen (10), making count 31
+        val outcome = manager.onPlay(Card(Rank.QUEEN, Suit.HEARTS))
+
+        // Hitting 31 triggers a reset
+        assertNotNull(outcome.reset)
+        assertTrue(outcome.reset!!.resetFor31)
+        assertEquals(0, manager.peggingCount)
+    }
+
+    @Test
+    fun bugRegression_afterOpponentLastCard_playerCanPlayLegalCard() {
+        // Simplified version: Verify that after opponent plays their last card,
+        // the manager state correctly indicates it's the player's turn
+
+        val manager = PeggingRoundManager(startingPlayer = Player.OPPONENT)
+
+        // Opponent plays a card
+        manager.onPlay(Card(Rank.TEN, Suit.HEARTS))
+        assertEquals(10, manager.peggingCount)
+        assertEquals(Player.PLAYER, manager.isPlayerTurn)
+
+        // Player plays a card
+        manager.onPlay(Card(Rank.TEN, Suit.DIAMONDS))
+        assertEquals(20, manager.peggingCount)
+        assertEquals(Player.OPPONENT, manager.isPlayerTurn)
+
+        // Opponent plays another card (simulating their "last" card in actual game)
+        manager.onPlay(Card(Rank.FIVE, Suit.CLUBS))
+        assertEquals(25, manager.peggingCount)
+
+        // CRITICAL: Turn should now be PLAYER, not OPPONENT
+        assertEquals("Turn must be PLAYER after opponent plays",
+            Player.PLAYER, manager.isPlayerTurn)
+
+        // Verify player can play a legal card (5 + 25 = 30, which is <= 31)
+        manager.onPlay(Card(Rank.FIVE, Suit.SPADES))
+        assertEquals(30, manager.peggingCount)
+        assertEquals(Player.OPPONENT, manager.isPlayerTurn)
     }
 }
