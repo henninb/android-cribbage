@@ -1,0 +1,72 @@
+name: Cribbage
+options:
+  bundleIdPrefix: com.brianhenning
+  deploymentTarget:
+    iOS: "14.0"
+
+settings:
+  MARKETING_VERSION: "1.0.0"
+  CURRENT_PROJECT_VERSION: "1"
+  DEVELOPMENT_TEAM: ""  # You can set this later in Xcode
+
+targets:
+  Cribbage:
+    type: application
+    platform: iOS
+    sources:
+      - path: Cribbage
+        name: "Source Files"
+        type: group
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.brianhenning.Cribbage
+        INFOPLIST_FILE: Cribbage/Info.plist
+        ENABLE_BITCODE: NO
+        SWIFT_VERSION: "5.0"
+        IPHONEOS_DEPLOYMENT_TARGET: "14.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        FRAMEWORK_SEARCH_PATHS:
+          - "$(inherited)"
+          - "$(PROJECT_DIR)/../shared/build/bin/iosSimulatorArm64/debugFramework"
+          - "$(PROJECT_DIR)/Pods"
+      debug:
+        SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+      release:
+        SWIFT_OPTIMIZATION_LEVEL: "-O"
+    dependencies:
+      - framework: ../shared/build/bin/iosSimulatorArm64/debugFramework/shared.framework
+        embed: true
+    preBuildScripts:
+      - name: "Build Shared Framework"
+        script: |
+          cd "${SRCROOT}/.."
+          ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
+    info:
+      path: Cribbage/Info.plist
+      properties:
+        CFBundleDevelopmentRegion: en
+        CFBundleDisplayName: Cribbage
+        CFBundleExecutable: $(EXECUTABLE_NAME)
+        CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
+        CFBundleInfoDictionaryVersion: "6.0"
+        CFBundleName: $(PRODUCT_NAME)
+        CFBundlePackageType: APPL
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: Default Configuration
+                UISceneDelegateClassName: ""
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
