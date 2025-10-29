@@ -1137,6 +1137,157 @@ private fun CribbageBoardTrack(
     }
 }
 
+/**
+ * Cut Card Display - Shows the cut card before pegging begins
+ */
+@Composable
+fun CutCardDisplay(
+    cutCard: CribbageCard,
+    playerScore: Int,
+    opponentScore: Int,
+    isJack: Boolean,
+    dealerGetsPoints: Boolean,
+    onContinue: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val currentTheme = LocalSeasonalTheme.current
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.5f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = modifier
+                .fillMaxWidth(0.85f)
+                .wrapContentHeight(),
+            colors = CardDefaults.cardColors(
+                containerColor = currentTheme.colors.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Title
+                Text(
+                    text = "Cut Card",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = currentTheme.colors.primary
+                )
+
+                // Cut card display
+                GameCard(
+                    card = cutCard,
+                    isRevealed = true,
+                    isClickable = false,
+                    cardSize = CardSize.Large
+                )
+
+                // Card description
+                Text(
+                    text = cutCard.getSymbol(),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                // His Heels bonus if Jack
+                if (isJack) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = currentTheme.colors.primary.copy(alpha = 0.2f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "His Heels!",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = currentTheme.colors.primary
+                            )
+                            Text(
+                                text = if (dealerGetsPoints) "Dealer gets 2 points" else "+2 Points",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+
+                // Current scores
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(32.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "You",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "$playerScore",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Text(
+                            text = "—",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "Opponent",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "$opponentScore",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Continue button
+                Button(
+                    onClick = onContinue,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = currentTheme.colors.primary
+                    )
+                ) {
+                    Text(
+                        text = "Start Pegging",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
 
 /**
  * Winner Modal - Shown when a game is won

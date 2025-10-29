@@ -115,7 +115,8 @@ fun CribbageMainScreen() {
     var showGoButton by remember { mutableStateOf(false) }
     var showWinnerModal by remember { mutableStateOf(false) }
     var winnerModalData by remember { mutableStateOf<WinnerModalData?>(null) }
-    
+    var showCutCardDisplay by remember { mutableStateOf(false) }
+
     // Hand counting state
     var isInHandCountingPhase by remember { mutableStateOf(false) }
     var countingPhase by remember { mutableStateOf(CountingPhase.NONE) }
@@ -737,19 +738,31 @@ fun CribbageMainScreen() {
             starterCard = drawDeck.first()
             drawDeck = drawDeck.drop(1)
             gameStatus = "Cut card: ${starterCard?.getSymbol()}"
-            if (starterCard?.rank == Rank.JACK) {
-                if (isPlayerDealer) {
-                    playerScore += 2
-                    gameStatus += "\nDealer gets 2 points for his heels."
-                    playerScoreAnimation = ScoreAnimationState(2, true)
-                } else {
-                    opponentScore += 2
-                    gameStatus += "\nDealer gets 2 points for his heels."
-                    opponentScoreAnimation = ScoreAnimationState(2, false)
-                }
-                checkGameOverFunction()
+
+            // Show cut card display modal
+            showCutCardDisplay = true
+        }
+    }
+
+    // Start pegging phase - called after cut card display is dismissed
+    val startPeggingPhase: () -> Unit = {
+        showCutCardDisplay = false
+
+        // Award His Heels points if cut card is Jack
+        if (starterCard?.rank == Rank.JACK) {
+            if (isPlayerDealer) {
+                playerScore += 2
+                gameStatus += "\nDealer gets 2 points for his heels."
+                playerScoreAnimation = ScoreAnimationState(2, true)
+            } else {
+                opponentScore += 2
+                gameStatus += "\nDealer gets 2 points for his heels."
+                opponentScoreAnimation = ScoreAnimationState(2, false)
             }
-            Handler(Looper.getMainLooper()).postDelayed({
+            checkGameOverFunction()
+        }
+
+        Handler(Looper.getMainLooper()).postDelayed({
                 android.util.Log.d("CribbageDebug", ">>> Starting pegging phase")
                 isPeggingPhase = true
                 isPlayerTurn = !isPlayerDealer
@@ -829,7 +842,6 @@ fun CribbageMainScreen() {
                     }, 500) // Reduced from 1000ms to 500ms
                 }
             }, 500) // Reduced from 1000ms to 500ms
-        }
     }
 
     playSelectedCardRef.value = {
@@ -1160,6 +1172,18 @@ fun CribbageMainScreen() {
                     currentCountingPhase = countingPhase,
                     handScores = handScores,
                     onDialogDismissed = onDialogDismissed
+                )
+            }
+
+            // Show cut card display before pegging phase
+            if (showCutCardDisplay && starterCard != null) {
+                CutCardDisplay(
+                    cutCard = starterCard!!,
+                    playerScore = playerScore,
+                    opponentScore = opponentScore,
+                    isJack = starterCard!!.rank == Rank.JACK,
+                    dealerGetsPoints = isPlayerDealer,
+                    onContinue = startPeggingPhase
                 )
             }
 
