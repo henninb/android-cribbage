@@ -79,6 +79,10 @@ fun CribbageMainScreen() {
         skunksAgainst = prefs.getInt("skunksAgainst", 0)
         doubleSkunksFor = prefs.getInt("doubleSkunksFor", 0)
         doubleSkunksAgainst = prefs.getInt("doubleSkunksAgainst", 0)
+        android.util.Log.d("SkunkDebug", "=== LOADED FROM PREFS ===")
+        android.util.Log.d("SkunkDebug", "Games: $gamesWon-$gamesLost")
+        android.util.Log.d("SkunkDebug", "Skunks: $skunksFor-$skunksAgainst")
+        android.util.Log.d("SkunkDebug", "Double Skunks: $doubleSkunksFor-$doubleSkunksAgainst")
         val cpr = prefs.getInt("cutPlayerRank", -1)
         val cps = prefs.getInt("cutPlayerSuit", -1)
         val cor = prefs.getInt("cutOppRank", -1)
@@ -166,12 +170,24 @@ fun CribbageMainScreen() {
 
             if (playerWins) {
                 gamesWon += 1
-                if (isSingleSkunk) skunksFor += 1
-                if (isDoubleSkunk) doubleSkunksFor += 1
+                if (isSingleSkunk) {
+                    skunksFor += 1
+                    android.util.Log.d("SkunkDebug", "Single skunk for player! skunksFor=$skunksFor")
+                }
+                if (isDoubleSkunk) {
+                    doubleSkunksFor += 1
+                    android.util.Log.d("SkunkDebug", "Double skunk for player! doubleSkunksFor=$doubleSkunksFor")
+                }
             } else {
                 gamesLost += 1
-                if (isSingleSkunk) skunksAgainst += 1
-                if (isDoubleSkunk) doubleSkunksAgainst += 1
+                if (isSingleSkunk) {
+                    skunksAgainst += 1
+                    android.util.Log.d("SkunkDebug", "Single skunk against player! skunksAgainst=$skunksAgainst")
+                }
+                if (isDoubleSkunk) {
+                    doubleSkunksAgainst += 1
+                    android.util.Log.d("SkunkDebug", "Double skunk against player! doubleSkunksAgainst=$doubleSkunksAgainst")
+                }
             }
 
             // Persist match stats and next dealer (loser deals next)
@@ -199,6 +215,13 @@ fun CribbageMainScreen() {
             showPeggingCount = false
 
             // Show winner modal
+            android.util.Log.d("SkunkDebug", "=== WINNER MODAL DATA ===")
+            android.util.Log.d("SkunkDebug", "Final scores: Player=$playerScore, Opponent=$opponentScore")
+            android.util.Log.d("SkunkDebug", "Winner: ${if (playerWins) "Player" else "Opponent"}, Loser score: $loserScore")
+            android.util.Log.d("SkunkDebug", "Skunk type: isSingleSkunk=$isSingleSkunk, isDoubleSkunk=$isDoubleSkunk")
+            android.util.Log.d("SkunkDebug", "Counter values: skunksFor=$skunksFor, skunksAgainst=$skunksAgainst")
+            android.util.Log.d("SkunkDebug", "Counter values: doubleSkunksFor=$doubleSkunksFor, doubleSkunksAgainst=$doubleSkunksAgainst")
+
             winnerModalData = WinnerModalData(
                 playerWon = playerWins,
                 playerScore = playerScore,
