@@ -286,7 +286,7 @@ fun PeggingScoreAnimation(
     val alpha by animateFloatAsState(
         targetValue = if (animationStarted) 0f else 1f,
         animationSpec = tween(
-            durationMillis = 1500,
+            durationMillis = 2500,
             delayMillis = 300,
             easing = LinearEasing
         ),

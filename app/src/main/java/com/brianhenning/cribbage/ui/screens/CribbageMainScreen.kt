@@ -741,9 +741,11 @@ fun CribbageMainScreen() {
                 if (isPlayerDealer) {
                     playerScore += 2
                     gameStatus += "\nDealer gets 2 points for his heels."
+                    playerScoreAnimation = ScoreAnimationState(2, true)
                 } else {
                     opponentScore += 2
                     gameStatus += "\nDealer gets 2 points for his heels."
+                    opponentScoreAnimation = ScoreAnimationState(2, false)
                 }
                 checkGameOverFunction()
             }
@@ -941,6 +943,41 @@ fun CribbageMainScreen() {
     // Handle dialog dismissal and continue counting
     val onDialogDismissed = {
         waitingForDialogDismissal = false
+
+        // Trigger score animation based on current counting phase
+        when (countingPhase) {
+            CountingPhase.NON_DEALER -> {
+                val score = handScores.nonDealerScore
+                if (score > 0) {
+                    if (isPlayerDealer) {
+                        opponentScoreAnimation = ScoreAnimationState(score, false)
+                    } else {
+                        playerScoreAnimation = ScoreAnimationState(score, true)
+                    }
+                }
+            }
+            CountingPhase.DEALER -> {
+                val score = handScores.dealerScore
+                if (score > 0) {
+                    if (isPlayerDealer) {
+                        playerScoreAnimation = ScoreAnimationState(score, true)
+                    } else {
+                        opponentScoreAnimation = ScoreAnimationState(score, false)
+                    }
+                }
+            }
+            CountingPhase.CRIB -> {
+                val score = handScores.cribScore
+                if (score > 0) {
+                    if (isPlayerDealer) {
+                        playerScoreAnimation = ScoreAnimationState(score, true)
+                    } else {
+                        opponentScoreAnimation = ScoreAnimationState(score, false)
+                    }
+                }
+            }
+            else -> {}
+        }
     }
 
     // Enhanced hand counting process with opponent card reveals
