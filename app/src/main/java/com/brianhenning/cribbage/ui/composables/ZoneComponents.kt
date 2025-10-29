@@ -1329,6 +1329,7 @@ fun CutCardDisplay(
 
 /**
  * Winner Modal - Shown when a game is won
+ * Modal overlay that requires user acknowledgment via OK button
  */
 @Composable
 fun WinnerModal(
@@ -1348,7 +1349,11 @@ fun WinnerModal(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.5f)),
+            .background(Color.Black.copy(alpha = 0.5f))
+            .pointerInput(Unit) {
+                // Consume all touch events to prevent background interaction
+                detectTapGestures { /* Do nothing - just consume the tap */ }
+            },
         contentAlignment = Alignment.Center
     ) {
         Card(
@@ -1481,16 +1486,37 @@ fun WinnerModal(
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        Text(
-                            text = "Skunks: $skunksFor - $skunksAgainst",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "Double Skunks: $doubleSkunksFor - $doubleSkunksAgainst",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "Skunks",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "$skunksFor - $skunksAgainst",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "Double Skunks",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "$doubleSkunksFor - $doubleSkunksAgainst",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
                     }
                 }
 
