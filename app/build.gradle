@@ -20,6 +20,9 @@ android {
         versionName = "1.0.20"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Hidden debug feature for score testing
+        buildConfigField "boolean", "ENABLE_DEBUG_SCORE_CHEAT", "true"
     }
 
     configurations.all {
@@ -64,6 +67,7 @@ android {
     buildFeatures {
         compose = true
         viewBinding = true
+        buildConfig = true
     }
 }
 

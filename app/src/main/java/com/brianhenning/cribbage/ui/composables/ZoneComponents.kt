@@ -9,6 +9,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -24,6 +25,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -330,11 +332,47 @@ fun CompactScoreHeader(
     playerScoreAnimation: ScoreAnimationState? = null,
     opponentScoreAnimation: ScoreAnimationState? = null,
     onAnimationComplete: (Boolean) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onTripleTap: (() -> Unit)? = null
 ) {
     val currentTheme = LocalSeasonalTheme.current
+    var tapCount by remember { mutableIntStateOf(0) }
+    var lastTapTime by remember { mutableLongStateOf(0L) }
+
+    // Reset tap count after 1 second of no taps
+    LaunchedEffect(tapCount) {
+        if (tapCount > 0) {
+            delay(1000)
+            tapCount = 0
+        }
+    }
+
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (onTripleTap != null) {
+                    Modifier.pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = {
+                                val currentTime = System.currentTimeMillis()
+                                if (currentTime - lastTapTime < 500) {
+                                    tapCount++
+                                    if (tapCount >= 3) {
+                                        onTripleTap()
+                                        tapCount = 0
+                                    }
+                                } else {
+                                    tapCount = 1
+                                }
+                                lastTapTime = currentTime
+                            }
+                        )
+                    }
+                } else {
+                    Modifier
+                }
+            ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         ),

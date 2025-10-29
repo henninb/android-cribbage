@@ -15,6 +15,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.brianhenning.cribbage.BuildConfig
 import com.brianhenning.cribbage.R
 import com.brianhenning.cribbage.ui.composables.*
 import kotlinx.coroutines.delay
@@ -130,6 +131,9 @@ fun CribbageMainScreen() {
     // Score animation state (for pegging phase)
     var playerScoreAnimation by remember { mutableStateOf<ScoreAnimationState?>(null) }
     var opponentScoreAnimation by remember { mutableStateOf<ScoreAnimationState?>(null) }
+
+    // Debug score dialog state (hidden feature for testing)
+    var showDebugScoreDialog by remember { mutableStateOf(false) }
 
     // "31!" banner state
     var show31Banner by remember { mutableStateOf(false) }
@@ -1140,6 +1144,11 @@ fun CribbageMainScreen() {
                 } else {
                     opponentScoreAnimation = null
                 }
+            },
+            onTripleTap = if (BuildConfig.ENABLE_DEBUG_SCORE_CHEAT) {
+                { showDebugScoreDialog = true }
+            } else {
+                null
             }
         )
 
@@ -1218,6 +1227,25 @@ fun CribbageMainScreen() {
                     onDismiss = {
                         showWinnerModal = false
                         startNewGame()
+                    }
+                )
+            }
+
+            // Hidden debug score dialog (activated via triple-tap on score header)
+            if (showDebugScoreDialog && BuildConfig.ENABLE_DEBUG_SCORE_CHEAT) {
+                DebugScoreDialog(
+                    currentPlayerScore = playerScore,
+                    currentOpponentScore = opponentScore,
+                    onAdjustPlayerScore = { adjustment ->
+                        val newScore = (playerScore + adjustment).coerceAtLeast(0)
+                        playerScore = newScore
+                    },
+                    onAdjustOpponentScore = { adjustment ->
+                        val newScore = (opponentScore + adjustment).coerceAtLeast(0)
+                        opponentScore = newScore
+                    },
+                    onDismiss = {
+                        showDebugScoreDialog = false
                     }
                 )
             }

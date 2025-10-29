@@ -548,6 +548,24 @@ class GameEngine(
     fun setOpponentActionInProgress(inProgress: Boolean) {
         _state.value = _state.value.copy(isOpponentActionInProgress = inProgress)
     }
+
+    /**
+     * DEBUG ONLY: Adjust player score for testing purposes.
+     * @param adjustment The amount to add (positive) or subtract (negative)
+     */
+    fun debugAdjustPlayerScore(adjustment: Int) {
+        val newScore = (_state.value.playerScore + adjustment).coerceAtLeast(0)
+        _state.value = _state.value.copy(playerScore = newScore)
+    }
+
+    /**
+     * DEBUG ONLY: Adjust opponent score for testing purposes.
+     * @param adjustment The amount to add (positive) or subtract (negative)
+     */
+    fun debugAdjustOpponentScore(adjustment: Int) {
+        val newScore = (_state.value.opponentScore + adjustment).coerceAtLeast(0)
+        _state.value = _state.value.copy(opponentScore = newScore)
+    }
 }
 
 /**
