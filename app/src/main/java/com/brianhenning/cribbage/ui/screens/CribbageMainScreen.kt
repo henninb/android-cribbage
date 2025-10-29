@@ -64,6 +64,8 @@ fun CribbageMainScreen() {
     var gamesLost by remember { mutableIntStateOf(0) }
     var skunksFor by remember { mutableIntStateOf(0) }
     var skunksAgainst by remember { mutableIntStateOf(0) }
+    var doubleSkunksFor by remember { mutableIntStateOf(0) }
+    var doubleSkunksAgainst by remember { mutableIntStateOf(0) }
     var cutPlayerCard by remember { mutableStateOf<Card?>(null) }
     var cutOpponentCard by remember { mutableStateOf<Card?>(null) }
     var showCutForDealer by remember { mutableStateOf(false) }
@@ -74,6 +76,8 @@ fun CribbageMainScreen() {
         gamesLost = prefs.getInt("gamesLost", 0)
         skunksFor = prefs.getInt("skunksFor", 0)
         skunksAgainst = prefs.getInt("skunksAgainst", 0)
+        doubleSkunksFor = prefs.getInt("doubleSkunksFor", 0)
+        doubleSkunksAgainst = prefs.getInt("doubleSkunksAgainst", 0)
         val cpr = prefs.getInt("cutPlayerRank", -1)
         val cps = prefs.getInt("cutPlayerSuit", -1)
         val cor = prefs.getInt("cutOppRank", -1)
@@ -150,14 +154,20 @@ fun CribbageMainScreen() {
             val playerWins = playerScore > opponentScore
             val winner = if (playerWins) "You" else "Opponent"
             val loserScore = if (playerWins) opponentScore else playerScore
-            val skunked = loserScore < 61
+
+            // Check for skunks: single skunk < 91, double skunk < 61
+            val isDoubleSkunk = loserScore < 61
+            val isSingleSkunk = loserScore < 91 && !isDoubleSkunk
+            val skunked = isSingleSkunk || isDoubleSkunk
 
             if (playerWins) {
                 gamesWon += 1
-                if (skunked) skunksFor += 1
+                if (isSingleSkunk) skunksFor += 1
+                if (isDoubleSkunk) doubleSkunksFor += 1
             } else {
                 gamesLost += 1
-                if (skunked) skunksAgainst += 1
+                if (isSingleSkunk) skunksAgainst += 1
+                if (isDoubleSkunk) doubleSkunksAgainst += 1
             }
 
             // Persist match stats and next dealer (loser deals next)
@@ -167,11 +177,14 @@ fun CribbageMainScreen() {
                 .putInt("gamesLost", gamesLost)
                 .putInt("skunksFor", skunksFor)
                 .putInt("skunksAgainst", skunksAgainst)
+                .putInt("doubleSkunksFor", doubleSkunksFor)
+                .putInt("doubleSkunksAgainst", doubleSkunksAgainst)
                 .putBoolean("nextDealerIsPlayer", !playerWins)
                 .apply()
 
-            gameStatus += "\nGame Over: $winner wins!" + (if (skunked) " Skunk!" else "") +
-                "\nMatch: ${gamesWon}-${gamesLost} (Skunks ${skunksFor}-${skunksAgainst})"
+            val skunkMessage = if (isDoubleSkunk) " Double Skunk!" else if (isSingleSkunk) " Skunk!" else ""
+            gameStatus += "\nGame Over: $winner wins!$skunkMessage" +
+                "\nMatch: ${gamesWon}-${gamesLost} (Skunks ${skunksFor}-${skunksAgainst}, Double ${doubleSkunksFor}-${doubleSkunksAgainst})"
             // Hide the cut card.
             starterCard = null
             // Disable game actions.
@@ -190,7 +203,9 @@ fun CribbageMainScreen() {
                 gamesWon = gamesWon,
                 gamesLost = gamesLost,
                 skunksFor = skunksFor,
-                skunksAgainst = skunksAgainst
+                skunksAgainst = skunksAgainst,
+                doubleSkunksFor = doubleSkunksFor,
+                doubleSkunksAgainst = doubleSkunksAgainst
             )
             showWinnerModal = true
         }
@@ -1198,6 +1213,8 @@ fun CribbageMainScreen() {
                     gamesLost = winnerModalData!!.gamesLost,
                     skunksFor = winnerModalData!!.skunksFor,
                     skunksAgainst = winnerModalData!!.skunksAgainst,
+                    doubleSkunksFor = winnerModalData!!.doubleSkunksFor,
+                    doubleSkunksAgainst = winnerModalData!!.doubleSkunksAgainst,
                     onDismiss = {
                         showWinnerModal = false
                         startNewGame()
@@ -1518,5 +1535,7 @@ data class WinnerModalData(
     val gamesWon: Int,
     val gamesLost: Int,
     val skunksFor: Int,
-    val skunksAgainst: Int
+    val skunksAgainst: Int,
+    val doubleSkunksFor: Int = 0,
+    val doubleSkunksAgainst: Int = 0
 )

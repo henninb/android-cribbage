@@ -1302,6 +1302,8 @@ fun WinnerModal(
     gamesLost: Int,
     skunksFor: Int,
     skunksAgainst: Int,
+    doubleSkunksFor: Int = 0,
+    doubleSkunksAgainst: Int = 0,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1443,6 +1445,11 @@ fun WinnerModal(
                         )
                         Text(
                             text = "Skunks: $skunksFor - $skunksAgainst",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "Double Skunks: $doubleSkunksFor - $doubleSkunksAgainst",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
