@@ -51,7 +51,9 @@ fun PeggingRoundAcknowledgment(
     finalCount: Int,
     scoreAwarded: Int,
     onNextRound: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    playerCardsRemaining: Int = 0,
+    opponentCardsRemaining: Int = 0
 ) {
     val currentTheme = LocalSeasonalTheme.current
 
@@ -103,6 +105,39 @@ fun PeggingRoundAcknowledgment(
                 }
             }
 
+            // Cards remaining
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "You:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "$playerCardsRemaining cards left",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "Opponent:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "$opponentCardsRemaining cards left",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
             // Pegging pile
             if (pile.isNotEmpty()) {
                 Text(
@@ -128,7 +163,7 @@ fun PeggingRoundAcknowledgment(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Next Round button
+            // OK button to acknowledge and continue
             Button(
                 onClick = onNextRound,
                 modifier = Modifier.fillMaxWidth(),
@@ -137,7 +172,7 @@ fun PeggingRoundAcknowledgment(
                 )
             ) {
                 Text(
-                    text = "Next Round",
+                    text = "OK",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -512,7 +547,9 @@ fun GameAreaContent(
                 finalCount = pendingReset.finalCount,
                 scoreAwarded = pendingReset.scoreAwarded,
                 onNextRound = onNextRound,
-                modifier = Modifier.align(Alignment.Center)
+                modifier = Modifier.align(Alignment.Center),
+                playerCardsRemaining = playerHand.size - playerCardsPlayed.size,
+                opponentCardsRemaining = opponentHand.size - opponentCardsPlayed.size
             )
             return@Box
         }
