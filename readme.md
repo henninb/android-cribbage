@@ -190,35 +190,3 @@ ck=true`
 
 This project’s license is not specified in this repository. If you plan to publi
 sh or share, add a `LICENSE` file.
-
-
-
-
-
-
-● Perfect! Now let me verify the changes will work for 8 cards. Let me calculate:
-
-  With new settings (maxOverlap = 65f, availableWidth = screenWidth - 64f):
-  - Small phone (360dp screen): availableWidth = 296dp
-  - 8 cards: 80 + (7 × 15) = 80 + 105 = 185dp ✓ Fits with plenty of room
-  - If it still doesn't fit, it will scale down to 65% minimum
-
-  Let me mark the todo as complete and test:
-
-● Great! I've made the following changes to fix the card overlap issue in the PeggingRoundAcknowledgment modal:
-
-  Changes Made:
-
-  1. Increased maxOverlap from 55f to 65f - Cards will now overlap more, allowing more cards to fit
-  2. Reduced minimum scale from 0.7f to 0.65f - If overlap isn't enough, cards can scale down to 65% of original size
-  3. Adjusted availableWidth calculation from screenWidth - 32f to screenWidth - 64f - Better accounts for modal padding on both sides
-
-  What this means for your card display:
-
-  - 3 cards: Will display with minimal overlap (~10-20dp)
-  - 4-6 cards: Will display with moderate overlap (~30-45dp)
-  - 7-8 cards: Will display with maximum overlap (65dp) and may scale down slightly if needed on very small screens
-
-  The algorithm will automatically calculate the optimal overlap for any number of cards between 3-8, ensuring all cards are visible on screen without being cut off.
-
-  Would you like me to test this by building the app, or do you want to test it yourself first?
