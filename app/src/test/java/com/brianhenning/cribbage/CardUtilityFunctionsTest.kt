@@ -3,7 +3,7 @@ package com.brianhenning.cribbage
 import com.brianhenning.cribbage.shared.domain.model.Card
 import com.brianhenning.cribbage.shared.domain.model.Rank
 import com.brianhenning.cribbage.shared.domain.model.Suit
-import com.brianhenning.cribbage.ui.screens.getCardResourceId
+import com.brianhenning.cribbage.ui.utils.getCardResourceId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue

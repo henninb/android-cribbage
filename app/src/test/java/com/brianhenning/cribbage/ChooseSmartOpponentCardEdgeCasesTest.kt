@@ -3,7 +3,7 @@ package com.brianhenning.cribbage
 import com.brianhenning.cribbage.shared.domain.model.Card
 import com.brianhenning.cribbage.shared.domain.model.Rank
 import com.brianhenning.cribbage.shared.domain.model.Suit
-import com.brianhenning.cribbage.ui.screens.chooseSmartOpponentCard
+import com.brianhenning.cribbage.ui.utils.chooseSmartOpponentCard
 import org.junit.Assert.*
 import org.junit.Test
 
