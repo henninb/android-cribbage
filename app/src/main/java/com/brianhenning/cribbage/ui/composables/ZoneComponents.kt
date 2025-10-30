@@ -77,7 +77,7 @@ private fun calculateCardOverlapAndScale(
 
     // If we don't fit even with max overlap, we need to scale down
     val scaleNeeded = availableWidth / minTotalWidth
-    return Pair(maxOverlap, scaleNeeded.coerceIn(0.7f, 1f)) // Don't scale smaller than 70%
+    return Pair(maxOverlap, scaleNeeded.coerceIn(0.65f, 1f)) // Don't scale smaller than 65%
 }
 
 /**
@@ -189,13 +189,13 @@ fun PeggingRoundAcknowledgment(
                 // Calculate dynamic overlap based on pile size and screen width
                 val configuration = LocalConfiguration.current
                 val screenWidth = configuration.screenWidthDp.toFloat()
-                val availableWidth = screenWidth - 32f // Account for card padding
+                val availableWidth = screenWidth - 64f // Account for card padding and modal padding
                 val (overlap, scale) = calculateCardOverlapAndScale(
                     cardCount = pile.size,
                     cardWidth = CardSize.Medium.width.value,
                     availableWidth = availableWidth,
                     minOverlap = 10f,
-                    maxOverlap = 55f
+                    maxOverlap = 65f
                 )
 
                 LazyRow(
