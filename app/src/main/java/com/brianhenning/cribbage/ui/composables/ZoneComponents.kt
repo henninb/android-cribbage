@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.brianhenning.cribbage.shared.domain.model.Card as CribbageCard
 import com.brianhenning.cribbage.ui.theme.LocalSeasonalTheme
+import androidx.compose.ui.platform.LocalConfiguration
 
 /**
  * Data class to represent an active score animation
@@ -42,6 +43,42 @@ data class ScoreAnimationState(
     val isPlayer: Boolean,
     val timestamp: Long = System.currentTimeMillis()
 )
+
+/**
+ * Calculate optimal card overlap based on number of cards, card size, and available width
+ * Uses a hybrid approach: overlaps cards, and scales down if necessary
+ *
+ * @param cardCount Number of cards to display
+ * @param cardWidth Width of a single card in dp
+ * @param availableWidth Available screen width in dp
+ * @param minOverlap Minimum overlap in dp (more overlap = cards closer together)
+ * @param maxOverlap Maximum overlap in dp (cards can't overlap more than this)
+ * @return Pair of (overlap in dp, scale factor)
+ */
+private fun calculateCardOverlapAndScale(
+    cardCount: Int,
+    cardWidth: Float,
+    availableWidth: Float,
+    minOverlap: Float = 10f,
+    maxOverlap: Float = 60f
+): Pair<Float, Float> {
+    if (cardCount <= 1) return Pair(0f, 1f)
+
+    // Calculate needed total width with minimum overlap
+    val minTotalWidth = cardWidth + (cardCount - 1) * (cardWidth - maxOverlap)
+
+    // If we fit with max overlap, calculate exact overlap needed
+    if (minTotalWidth <= availableWidth) {
+        // Solve: cardWidth + (n-1) * (cardWidth - overlap) = availableWidth
+        val neededOverlap = ((cardWidth * cardCount - availableWidth) / (cardCount - 1))
+            .coerceIn(minOverlap, maxOverlap)
+        return Pair(neededOverlap, 1f)
+    }
+
+    // If we don't fit even with max overlap, we need to scale down
+    val scaleNeeded = availableWidth / minTotalWidth
+    return Pair(maxOverlap, scaleNeeded.coerceIn(0.7f, 1f)) // Don't scale smaller than 70%
+}
 
 /**
  * Pegging Round Acknowledgment UI
@@ -149,9 +186,25 @@ fun PeggingRoundAcknowledgment(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
+                // Calculate dynamic overlap based on pile size and screen width
+                val configuration = LocalConfiguration.current
+                val screenWidth = configuration.screenWidthDp.toFloat()
+                val availableWidth = screenWidth - 32f // Account for card padding
+                val (overlap, scale) = calculateCardOverlapAndScale(
+                    cardCount = pile.size,
+                    cardWidth = CardSize.Medium.width.value,
+                    availableWidth = availableWidth,
+                    minOverlap = 10f,
+                    maxOverlap = 55f
+                )
+
                 LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy((-20).dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp)
+                    horizontalArrangement = Arrangement.spacedBy((-overlap).dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp),
+                    modifier = Modifier.graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
                 ) {
                     itemsIndexed(pile) { _, card ->
                         GameCard(
@@ -679,11 +732,27 @@ fun GameAreaContent(
                         )
                     }
 
-                    // Pegging pile (compact inline)
+                    // Pegging pile (compact inline with dynamic overlap)
                     if (peggingPile.isNotEmpty()) {
+                        // Calculate dynamic overlap based on pile size and screen width
+                        val configuration = LocalConfiguration.current
+                        val screenWidth = configuration.screenWidthDp.toFloat()
+                        val availableWidth = screenWidth - 32f // Account for card padding
+                        val (overlap, scale) = calculateCardOverlapAndScale(
+                            cardCount = peggingPile.size,
+                            cardWidth = CardSize.Medium.width.value,
+                            availableWidth = availableWidth,
+                            minOverlap = 10f,
+                            maxOverlap = 55f
+                        )
+
                         LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy((-20).dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp)
+                            horizontalArrangement = Arrangement.spacedBy((-overlap).dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                            modifier = Modifier.graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            }
                         ) {
                             itemsIndexed(peggingPile) { _, card ->
                                 GameCard(
@@ -1360,8 +1429,8 @@ fun WinnerModal(
     ) {
         Card(
             modifier = modifier
-                .fillMaxWidth(0.95f)
-                .wrapContentHeight(),
+                .fillMaxWidth(0.98f)
+                .fillMaxHeight(0.90f),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
@@ -1371,49 +1440,59 @@ fun WinnerModal(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp),
+                    .fillMaxHeight()
+                    .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // FIXED HEADER: Winner celebration icon and announcement
-                Text(
-                    text = if (playerWon) "\uD83C\uDFC6" else "\uD83D\uDE14",
-                    style = MaterialTheme.typography.displayLarge,
-                    fontSize = 64.sp
-                )
+                // FIXED HEADER: Winner announcement with trophy and skunk indicator
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Trophy icon (smaller, to the side)
+                    Text(
+                        text = if (playerWon) "\uD83C\uDFC6" else "\uD83D\uDE14",
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontSize = 40.sp
+                    )
 
-                Text(
-                    text = if (playerWon) "You Win!" else "Opponent Wins!",
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = if (playerWon)
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.secondary
-                )
+                    Spacer(modifier = Modifier.width(12.dp))
 
-                // Skunk indicator (if applicable)
-                if (wasSkunk) {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                        )
+                    // Winner announcement with optional skunk indicator
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Row(
-                            modifier = Modifier.padding(8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "\uD83E\uDDA8",
-                                style = MaterialTheme.typography.headlineSmall
-                            )
-                            Text(
-                                text = "SKUNK!",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.tertiary
-                            )
+                        Text(
+                            text = if (playerWon) "You Win!" else "Opponent Wins!",
+                            style = MaterialTheme.typography.displaySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (playerWon)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.secondary
+                        )
+
+                        // Compact skunk indicator integrated below winner text
+                        if (wasSkunk) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(top = 4.dp)
+                            ) {
+                                Text(
+                                    text = "\uD83E\uDDA8",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontSize = 18.sp
+                                )
+                                Text(
+                                    text = "SKUNK!",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                            }
                         }
                     }
                 }
@@ -1427,7 +1506,7 @@ fun WinnerModal(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 400.dp),
+                        .weight(1f),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // Final scores
@@ -1570,7 +1649,7 @@ fun WinnerModal(
                     )
                 ) {
                     Text(
-                        text = "OK",
+                        text = "Accept",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
