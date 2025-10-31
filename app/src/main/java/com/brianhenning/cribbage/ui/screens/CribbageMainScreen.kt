@@ -22,7 +22,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 import com.brianhenning.cribbage.shared.domain.logic.dealSixToEach
-import com.brianhenning.cribbage.shared.domain.logic.dealerFromCut
 import com.brianhenning.cribbage.shared.domain.logic.CribbageScorer
 import com.brianhenning.cribbage.shared.domain.logic.PeggingScorer
 import com.brianhenning.cribbage.shared.domain.logic.PeggingPoints
@@ -37,6 +36,7 @@ import com.brianhenning.cribbage.shared.domain.model.Rank
 import com.brianhenning.cribbage.shared.domain.model.Suit
 import com.brianhenning.cribbage.shared.domain.model.createDeck
 import com.brianhenning.cribbage.game.logic.GameScoreManager
+import com.brianhenning.cribbage.game.logic.DealerManager
 import com.brianhenning.cribbage.game.repository.PreferencesRepository
 
 /**
@@ -706,33 +706,26 @@ fun CribbageMainScreen() {
             cutPlayerCard = null
             cutOpponentCard = null
             showCutForDealer = false
-            gameStatus = context.getString(R.string.dealer_set_by_previous, if (isPlayerDealer) "You are dealer" else "Opponent is dealer")
+            val dealerMessage = DealerManager.formatPreviousGameDealerMessage(isPlayerDealer)
+            gameStatus = context.getString(R.string.dealer_set_by_previous, dealerMessage)
         } else {
             // Cut for dealer per rules: lower card deals first
-            run {
-                var pCut: Card
-                var oCut: Card
-                var who: Player?
-                do {
-                    val deck = createDeck().shuffled()
-                    pCut = deck[0]
-                    oCut = deck[1]
-                    who = dealerFromCut(pCut, oCut)
-                } while (who == null)
-                isPlayerDealer = (who == Player.PLAYER)
-                // Save cut cards for UI header and persist
-                cutPlayerCard = pCut
-                cutOpponentCard = oCut
-                showCutForDealer = true  // Only show cut screen on first round
-                prefsRepository.saveCutCards(
-                    PreferencesRepository.CutCards(
-                        playerCard = pCut,
-                        opponentCard = oCut
-                    )
+            val cutResult = DealerManager.determineDealer()
+            isPlayerDealer = cutResult.isPlayerDealer
+            cutPlayerCard = cutResult.playerCutCard
+            cutOpponentCard = cutResult.opponentCutCard
+            showCutForDealer = true  // Only show cut screen on first round
+
+            // Save cut cards for UI header and persist
+            prefsRepository.saveCutCards(
+                PreferencesRepository.CutCards(
+                    playerCard = cutResult.playerCutCard,
+                    opponentCard = cutResult.opponentCutCard
                 )
-                gameStatus = "Cut for deal: You ${pCut.getSymbol()} vs Opponent ${oCut.getSymbol()}\n" +
-                        if (isPlayerDealer) "You are dealer" else "Opponent is dealer"
-            }
+            )
+
+            gameStatus = "Cut for deal: You ${cutResult.playerCutCard.getSymbol()} vs Opponent ${cutResult.opponentCutCard.getSymbol()}\n" +
+                    if (isPlayerDealer) "You are dealer" else "Opponent is dealer"
         }
 
         dealButtonEnabled = true
