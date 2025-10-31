@@ -36,6 +36,7 @@ import com.brianhenning.cribbage.shared.domain.model.Card
 import com.brianhenning.cribbage.shared.domain.model.Rank
 import com.brianhenning.cribbage.shared.domain.model.Suit
 import com.brianhenning.cribbage.shared.domain.model.createDeck
+import com.brianhenning.cribbage.game.logic.GameScoreManager
 import com.brianhenning.cribbage.game.repository.PreferencesRepository
 
 /**
@@ -160,35 +161,46 @@ fun CribbageMainScreen() {
 
     // Check game over function: if either score goes past 120, end the game.
     val checkGameOverFunction: () -> Unit = {
-        if (playerScore > 120 || opponentScore > 120) {
+        val gameResult = GameScoreManager.checkGameOver(playerScore, opponentScore)
+
+        if (gameResult.isGameOver) {
             gameOver = true
-            val playerWins = playerScore > opponentScore
-            val winner = if (playerWins) "You" else "Opponent"
-            val loserScore = if (playerWins) opponentScore else playerScore
+            val winner = GameScoreManager.formatWinner(gameResult.playerWins)
 
-            // Check for skunks: single skunk < 91, double skunk < 61
-            val isDoubleSkunk = loserScore < 61
-            val isSingleSkunk = loserScore < 91 && !isDoubleSkunk
-            val skunked = isSingleSkunk || isDoubleSkunk
+            // Update match statistics
+            val updatedStats = GameScoreManager.updateMatchStats(
+                GameScoreManager.UpdatedMatchStats(
+                    gamesWon = gamesWon,
+                    gamesLost = gamesLost,
+                    skunksFor = skunksFor,
+                    skunksAgainst = skunksAgainst,
+                    doubleSkunksFor = doubleSkunksFor,
+                    doubleSkunksAgainst = doubleSkunksAgainst
+                ),
+                gameResult
+            )
 
-            if (playerWins) {
-                gamesWon += 1
-                if (isSingleSkunk) {
-                    skunksFor += 1
+            // Update state variables
+            gamesWon = updatedStats.gamesWon
+            gamesLost = updatedStats.gamesLost
+            skunksFor = updatedStats.skunksFor
+            skunksAgainst = updatedStats.skunksAgainst
+            doubleSkunksFor = updatedStats.doubleSkunksFor
+            doubleSkunksAgainst = updatedStats.doubleSkunksAgainst
+
+            // Log debug info
+            if (gameResult.playerWins) {
+                if (gameResult.isSingleSkunk) {
                     android.util.Log.d("SkunkDebug", "Single skunk for player! skunksFor=$skunksFor")
                 }
-                if (isDoubleSkunk) {
-                    doubleSkunksFor += 1
+                if (gameResult.isDoubleSkunk) {
                     android.util.Log.d("SkunkDebug", "Double skunk for player! doubleSkunksFor=$doubleSkunksFor")
                 }
             } else {
-                gamesLost += 1
-                if (isSingleSkunk) {
-                    skunksAgainst += 1
+                if (gameResult.isSingleSkunk) {
                     android.util.Log.d("SkunkDebug", "Single skunk against player! skunksAgainst=$skunksAgainst")
                 }
-                if (isDoubleSkunk) {
-                    doubleSkunksAgainst += 1
+                if (gameResult.isDoubleSkunk) {
                     android.util.Log.d("SkunkDebug", "Double skunk against player! doubleSkunksAgainst=$doubleSkunksAgainst")
                 }
             }
@@ -204,9 +216,9 @@ fun CribbageMainScreen() {
                     doubleSkunksAgainst = doubleSkunksAgainst
                 )
             )
-            prefsRepository.saveNextDealerIsPlayer(!playerWins)
+            prefsRepository.saveNextDealerIsPlayer(!gameResult.playerWins)
 
-            val skunkMessage = if (isDoubleSkunk) " Double Skunk!" else if (isSingleSkunk) " Skunk!" else ""
+            val skunkMessage = GameScoreManager.formatSkunkMessage(gameResult)
             gameStatus += "\nGame Over: $winner wins!$skunkMessage" +
                 "\nMatch: ${gamesWon}-${gamesLost} (Skunks ${skunksFor}-${skunksAgainst}, Double ${doubleSkunksFor}-${doubleSkunksAgainst})"
             // Hide the cut card.
@@ -221,16 +233,16 @@ fun CribbageMainScreen() {
             // Show winner modal
             android.util.Log.d("SkunkDebug", "=== WINNER MODAL DATA ===")
             android.util.Log.d("SkunkDebug", "Final scores: Player=$playerScore, Opponent=$opponentScore")
-            android.util.Log.d("SkunkDebug", "Winner: ${if (playerWins) "Player" else "Opponent"}, Loser score: $loserScore")
-            android.util.Log.d("SkunkDebug", "Skunk type: isSingleSkunk=$isSingleSkunk, isDoubleSkunk=$isDoubleSkunk")
+            android.util.Log.d("SkunkDebug", "Winner: ${if (gameResult.playerWins) "Player" else "Opponent"}, Loser score: ${gameResult.loserScore}")
+            android.util.Log.d("SkunkDebug", "Skunk type: isSingleSkunk=${gameResult.isSingleSkunk}, isDoubleSkunk=${gameResult.isDoubleSkunk}")
             android.util.Log.d("SkunkDebug", "Counter values: skunksFor=$skunksFor, skunksAgainst=$skunksAgainst")
             android.util.Log.d("SkunkDebug", "Counter values: doubleSkunksFor=$doubleSkunksFor, doubleSkunksAgainst=$doubleSkunksAgainst")
 
             winnerModalData = WinnerModalData(
-                playerWon = playerWins,
+                playerWon = gameResult.playerWins,
                 playerScore = playerScore,
                 opponentScore = opponentScore,
-                wasSkunk = skunked,
+                wasSkunk = gameResult.isSkunked,
                 gamesWon = gamesWon,
                 gamesLost = gamesLost,
                 skunksFor = skunksFor,
