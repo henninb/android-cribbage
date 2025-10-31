@@ -34,7 +34,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.brianhenning.cribbage.shared.domain.model.Card as CribbageCard
 import com.brianhenning.cribbage.ui.theme.LocalSeasonalTheme
-import com.brianhenning.cribbage.game.state.PendingResetState
 
 /**
  * Calculate optimal card overlap based on number of cards, card size, and available width
@@ -263,7 +262,7 @@ fun GameAreaContent(
     onCardClick: (Int) -> Unit,
     show31Banner: Boolean = false,
     onBannerComplete: () -> Unit = {},
-    pendingReset: PendingResetState? = null,
+    pendingReset: com.brianhenning.cribbage.ui.screens.PendingResetState? = null,
     onNextRound: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
