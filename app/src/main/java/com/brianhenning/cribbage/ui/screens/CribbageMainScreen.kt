@@ -36,6 +36,7 @@ import com.brianhenning.cribbage.shared.domain.model.Card
 import com.brianhenning.cribbage.shared.domain.model.Rank
 import com.brianhenning.cribbage.shared.domain.model.Suit
 import com.brianhenning.cribbage.shared.domain.model.createDeck
+import com.brianhenning.cribbage.game.repository.PreferencesRepository
 
 /**
  * State for pending reset - shown to user before clearing pile
@@ -50,6 +51,7 @@ data class PendingResetState(
 @Composable
 fun CribbageMainScreen() {
     val context = LocalContext.current
+    val prefsRepository = remember { PreferencesRepository(context) }
 
     // Game state variables
     var gameStarted by remember { mutableStateOf(false) }
@@ -72,24 +74,25 @@ fun CribbageMainScreen() {
     var showCutForDealer by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        val prefs = context.getSharedPreferences("cribbage_prefs", Context.MODE_PRIVATE)
-        gamesWon = prefs.getInt("gamesWon", 0)
-        gamesLost = prefs.getInt("gamesLost", 0)
-        skunksFor = prefs.getInt("skunksFor", 0)
-        skunksAgainst = prefs.getInt("skunksAgainst", 0)
-        doubleSkunksFor = prefs.getInt("doubleSkunksFor", 0)
-        doubleSkunksAgainst = prefs.getInt("doubleSkunksAgainst", 0)
+        // Load match statistics
+        val stats = prefsRepository.loadMatchStats()
+        gamesWon = stats.gamesWon
+        gamesLost = stats.gamesLost
+        skunksFor = stats.skunksFor
+        skunksAgainst = stats.skunksAgainst
+        doubleSkunksFor = stats.doubleSkunksFor
+        doubleSkunksAgainst = stats.doubleSkunksAgainst
+
         android.util.Log.d("SkunkDebug", "=== LOADED FROM PREFS ===")
         android.util.Log.d("SkunkDebug", "Games: $gamesWon-$gamesLost")
         android.util.Log.d("SkunkDebug", "Skunks: $skunksFor-$skunksAgainst")
         android.util.Log.d("SkunkDebug", "Double Skunks: $doubleSkunksFor-$doubleSkunksAgainst")
-        val cpr = prefs.getInt("cutPlayerRank", -1)
-        val cps = prefs.getInt("cutPlayerSuit", -1)
-        val cor = prefs.getInt("cutOppRank", -1)
-        val cos = prefs.getInt("cutOppSuit", -1)
-        if (cpr >= 0 && cps >= 0 && cor >= 0 && cos >= 0) {
-            cutPlayerCard = Card(Rank.entries[cpr], Suit.entries[cps])
-            cutOpponentCard = Card(Rank.entries[cor], Suit.entries[cos])
+
+        // Load cut cards if they exist
+        val cutCards = prefsRepository.loadCutCards()
+        if (cutCards != null) {
+            cutPlayerCard = cutCards.playerCard
+            cutOpponentCard = cutCards.opponentCard
         }
     }
 
@@ -191,16 +194,17 @@ fun CribbageMainScreen() {
             }
 
             // Persist match stats and next dealer (loser deals next)
-            val prefs = context.getSharedPreferences("cribbage_prefs", Context.MODE_PRIVATE)
-            prefs.edit()
-                .putInt("gamesWon", gamesWon)
-                .putInt("gamesLost", gamesLost)
-                .putInt("skunksFor", skunksFor)
-                .putInt("skunksAgainst", skunksAgainst)
-                .putInt("doubleSkunksFor", doubleSkunksFor)
-                .putInt("doubleSkunksAgainst", doubleSkunksAgainst)
-                .putBoolean("nextDealerIsPlayer", !playerWins)
-                .apply()
+            prefsRepository.saveMatchStats(
+                PreferencesRepository.MatchStats(
+                    gamesWon = gamesWon,
+                    gamesLost = gamesLost,
+                    skunksFor = skunksFor,
+                    skunksAgainst = skunksAgainst,
+                    doubleSkunksFor = doubleSkunksFor,
+                    doubleSkunksAgainst = doubleSkunksAgainst
+                )
+            )
+            prefsRepository.saveNextDealerIsPlayer(!playerWins)
 
             val skunkMessage = if (isDoubleSkunk) " Double Skunk!" else if (isSingleSkunk) " Skunk!" else ""
             gameStatus += "\nGame Over: $winner wins!$skunkMessage" +
@@ -685,9 +689,8 @@ fun CribbageMainScreen() {
         handScores = HandScores()
 
         // Dealer selection: if a previous game exists, loser deals first; otherwise perform a cut
-        val prefs = context.getSharedPreferences("cribbage_prefs", Context.MODE_PRIVATE)
-        if (prefs.contains("nextDealerIsPlayer")) {
-            isPlayerDealer = prefs.getBoolean("nextDealerIsPlayer", false)
+        if (prefsRepository.hasNextDealerPreference()) {
+            isPlayerDealer = prefsRepository.loadNextDealerIsPlayer()
             cutPlayerCard = null
             cutOpponentCard = null
             showCutForDealer = false
@@ -709,12 +712,12 @@ fun CribbageMainScreen() {
                 cutPlayerCard = pCut
                 cutOpponentCard = oCut
                 showCutForDealer = true  // Only show cut screen on first round
-                prefs.edit()
-                    .putInt("cutPlayerRank", pCut.rank.ordinal)
-                    .putInt("cutPlayerSuit", pCut.suit.ordinal)
-                    .putInt("cutOppRank", oCut.rank.ordinal)
-                    .putInt("cutOppSuit", oCut.suit.ordinal)
-                    .apply()
+                prefsRepository.saveCutCards(
+                    PreferencesRepository.CutCards(
+                        playerCard = pCut,
+                        opponentCard = oCut
+                    )
+                )
                 gameStatus = "Cut for deal: You ${pCut.getSymbol()} vs Opponent ${oCut.getSymbol()}\n" +
                         if (isPlayerDealer) "You are dealer" else "Opponent is dealer"
             }
