@@ -102,15 +102,28 @@ open -a Simulator
 
 # Step 6: Install app
 print_status "Installing app on simulator..."
-APP_PATH="$HOME/Library/Developer/Xcode/DerivedData/Cribbage-*/Build/Products/Debug-iphonesimulator/Cribbage.app"
-APP_PATH=$(echo $APP_PATH)  # Expand glob
 
-if [ ! -d "$APP_PATH" ]; then
-    print_error "Could not find built app at: $APP_PATH"
-    print_warning "Looking for app in DerivedData..."
-    find "$HOME/Library/Developer/Xcode/DerivedData" -name "Cribbage.app" -type d 2>/dev/null | head -1
+# Find the app, excluding Index.noindex directory (which may have incomplete builds)
+# Prioritize the regular Build/Products path
+APP_PATH=$(find "$HOME/Library/Developer/Xcode/DerivedData" -name "Cribbage.app" \
+    -path "*/Build/Products/Debug-iphonesimulator/*" \
+    ! -path "*/Index.noindex/*" \
+    -type d 2>/dev/null | head -1)
+
+# If not found in regular path, try Index.noindex as fallback
+if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+    APP_PATH=$(find "$HOME/Library/Developer/Xcode/DerivedData" -name "Cribbage.app" \
+        -path "*/Index.noindex/Build/Products/Debug-iphonesimulator/*" \
+        -type d 2>/dev/null | head -1)
+fi
+
+# If still not found, error out
+if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+    print_error "Could not find built app in DerivedData"
     exit 1
 fi
+
+print_success "Found app at: $APP_PATH"
 
 if xcrun simctl install "$SIMULATOR_UDID" "$APP_PATH"; then
     print_success "App installed successfully"

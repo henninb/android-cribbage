@@ -46,6 +46,14 @@ class GameViewModel: ObservableObject {
 
     func startNewGame() {
         gameEngine.startNewGame()
+
+        // Automatically cut for dealer by generating two random cards
+        let deck = CardKt.createDeck().shuffled()
+        if deck.count >= 2 {
+            let playerCutCard = deck[0]
+            let opponentCutCard = deck[1]
+            gameEngine.cutForDealer(playerCutCard: playerCutCard, opponentCutCard: opponentCutCard)
+        }
     }
 
     func cutForDealer(playerCard: Card, opponentCard: Card) {

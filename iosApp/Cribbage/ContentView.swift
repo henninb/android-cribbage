@@ -418,6 +418,29 @@ struct PeggingView: View {
     let gameState: GameState
     let viewModel: GameViewModel
 
+    // Computed property: show Go button when player has no legal moves but still has cards
+    private var showGoButton: Bool {
+        guard gameState.isPlayerTurn && !gameState.isOpponentActionInProgress else {
+            return false
+        }
+
+        // Check if player has cards left
+        let playerCardsPlayed = gameState.playerCardsPlayed.count
+        guard playerCardsPlayed < 4 else {
+            return false
+        }
+
+        // Check if player has any legal moves
+        let hand = gameState.playerHand
+        let peggingCount = gameState.peggingCount
+        let hasLegalMove = hand.indices.contains { index in
+            !gameState.playerCardsPlayed.contains(KotlinInt(value: Int32(index))) &&
+            (peggingCount + hand[index].getValue()) <= 31
+        }
+
+        return !hasLegalMove
+    }
+
     var body: some View {
         VStack(spacing: 8) {
             // Opponent hand
@@ -460,6 +483,33 @@ struct PeggingView: View {
                 .fontWeight(.semibold)
                 .foregroundColor(gameState.isPlayerTurn ? .blue : .orange)
 
+            // Go button (when player has no legal moves)
+            if showGoButton {
+                Button(action: {
+                    NSLog("🟢 Go button tapped")
+                    viewModel.handleGo()
+
+                    // After player says Go, trigger opponent turn
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        triggerOpponentTurn()
+                    }
+                }) {
+                    Text("Go")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.orange)
+                        .cornerRadius(10)
+                }
+                .padding(.horizontal)
+
+                Text("No legal moves. Press 'Go' to continue.")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
+            }
+
             // Player hand
             PlayerHandCompact(
                 hand: gameState.playerHand,
@@ -467,11 +517,83 @@ struct PeggingView: View {
                 playedIndices: gameState.playerCardsPlayed,
                 isPlayerTurn: gameState.isPlayerTurn,
                 onCardTap: { index in
-                    if gameState.isPlayerTurn {
-                        _ = viewModel.playCard(cardIndex: index, isPlayer: true)
+                    NSLog("🔵 Card tapped at index: \(index)")
+                    NSLog("🔵 isPlayerTurn: \(gameState.isPlayerTurn)")
+                    NSLog("🔵 isOpponentActionInProgress: \(gameState.isOpponentActionInProgress)")
+                    NSLog("🔵 currentPhase: \(gameState.currentPhase)")
+
+                    if gameState.isPlayerTurn && !gameState.isOpponentActionInProgress {
+                        NSLog("🔵 Calling playCard...")
+                        let success = viewModel.playCard(cardIndex: index, isPlayer: true)
+                        NSLog("🔵 playCard returned: \(success)")
+
+                        // After player plays successfully, trigger opponent AI
+                        if success {
+                            NSLog("🔵 Play was successful, checking phase: \(gameState.currentPhase)")
+                            if gameState.currentPhase == .pegging {
+                                NSLog("🔵 Phase is pegging, calling triggerOpponentTurn")
+                                triggerOpponentTurn()
+                            } else {
+                                NSLog("🔵 Phase is NOT pegging, it's: \(gameState.currentPhase)")
+                            }
+                        } else {
+                            NSLog("🔵 Play was NOT successful")
+                        }
+                    } else {
+                        NSLog("🔵 Conditions not met - not calling playCard")
                     }
                 }
             )
+        }
+    }
+
+    private func triggerOpponentTurn() {
+        NSLog("🎯 triggerOpponentTurn called")
+
+        // Set barrier to prevent player from playing during opponent's turn
+        viewModel.setOpponentActionInProgress(true)
+
+        // Wait 500ms (same as Android) then trigger opponent AI
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            NSLog("🎯 500ms delay completed, executing opponent AI")
+
+            // Get fresh game state
+            let currentState = self.viewModel.gameState
+            NSLog("🎯 Opponent hand size: \(currentState.opponentHand.count)")
+            NSLog("🎯 Opponent played: \(currentState.opponentCardsPlayed)")
+            NSLog("🎯 Pegging count: \(currentState.peggingCount)")
+            NSLog("🎯 Is player turn: \(currentState.isPlayerTurn)")
+
+            // Choose a card for the opponent using AI
+            let result = OpponentAI.shared.choosePeggingCard(
+                hand: currentState.opponentHand,
+                playedIndices: currentState.opponentCardsPlayed,
+                currentCount: Int32(currentState.peggingCount),
+                peggingPile: currentState.peggingPile,
+                opponentCardsRemaining: Int32(4 - currentState.opponentCardsPlayed.count)
+            )
+
+            NSLog("🎯 OpponentAI result: \(String(describing: result))")
+
+            // Clear barrier BEFORE playing so the play isn't rejected
+            self.viewModel.setOpponentActionInProgress(false)
+
+            if let chosenPair = result,
+               let cardIndexKotlin = chosenPair.first {
+                // Extract index from Kotlin Pair (first is already KotlinInt?)
+                let cardIndex = Int(truncating: cardIndexKotlin)
+                NSLog("🎯 Playing opponent card at index: \(cardIndex)")
+
+                // Play the opponent's card
+                let playResult = self.viewModel.playCard(cardIndex: cardIndex, isPlayer: false)
+                NSLog("🎯 Opponent playCard result: \(playResult)")
+            } else {
+                // Opponent has no legal moves - don't call handleGo (that's for player only)
+                // Just do nothing and turn will automatically go back to player
+                NSLog("🎯 Opponent has no legal moves, turn goes back to player")
+            }
+
+            NSLog("🎯 Opponent turn completed")
         }
     }
 }
@@ -597,16 +719,22 @@ struct PlayerHandCompact: View {
     var onCardTap: ((Int) -> Void)? = nil
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        NSLog("🟢 PlayerHandCompact: isPlayerTurn=\(isPlayerTurn), onCardTap=\(onCardTap != nil ? "set" : "nil")")
+        return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: -45) {
                 ForEach(Array(hand.enumerated()), id: \.offset) { index, card in
+                    let isPlayed = playedIndices.contains(KotlinInt(value: Int32(index)))
+                    let canTap = isPlayerTurn && !isPlayed && onCardTap != nil
+                    let _ = NSLog("🟢 Card \(index): isPlayed=\(isPlayed), canTap=\(canTap)")
+
                     CardView(
                         card: card,
                         isSelected: selectedIndices.contains(KotlinInt(value: Int32(index))),
-                        isPlayed: playedIndices.contains(KotlinInt(value: Int32(index))),
+                        isPlayed: isPlayed,
                         isRevealed: true,
                         size: .large,
-                        onTap: (isPlayerTurn && !playedIndices.contains(KotlinInt(value: Int32(index))) && onCardTap != nil) ? {
+                        onTap: canTap ? {
+                            NSLog("🟢 Card \(index) tapped!")
                             onCardTap?(index)
                         } : nil
                     )
