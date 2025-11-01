@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.brianhenning.cribbage.R
 import com.brianhenning.cribbage.shared.domain.model.Card as CribbageCard
-import com.brianhenning.cribbage.ui.screens.getCardResourceId
+import com.brianhenning.cribbage.ui.utils.CardResourceUtils
 import com.brianhenning.cribbage.ui.theme.CardBackground
 import com.brianhenning.cribbage.ui.theme.SelectedCard
 
@@ -94,7 +94,7 @@ fun GameCard(
         ) {
             if (isRevealed) {
                 Image(
-                    painter = painterResource(id = getCardResourceId(card)),
+                    painter = painterResource(id = CardResourceUtils.getCardResourceId(card)),
                     contentDescription = "${card.rank} of ${card.suit}",
                     colorFilter = colorFilter,
                     modifier = Modifier

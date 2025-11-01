@@ -3,7 +3,7 @@ package com.brianhenning.cribbage
 import com.brianhenning.cribbage.shared.domain.model.Card
 import com.brianhenning.cribbage.shared.domain.model.Rank
 import com.brianhenning.cribbage.shared.domain.model.Suit
-import com.brianhenning.cribbage.ui.screens.getCardResourceId
+import com.brianhenning.cribbage.ui.utils.CardResourceUtils
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -23,7 +23,7 @@ class CardUtilityFunctionsTest {
         for (suit in Suit.entries) {
             for (rank in Rank.entries) {
                 val card = Card(rank, suit)
-                val resourceId = getCardResourceId(card)
+                val resourceId = CardResourceUtils.getCardResourceId(card)
 
                 // Resource IDs should be positive integers
                 assertTrue(
@@ -42,9 +42,9 @@ class CardUtilityFunctionsTest {
         val kingOfSpades = Card(Rank.KING, Suit.SPADES)
 
         // When
-        val id1 = getCardResourceId(aceOfSpades)
-        val id2 = getCardResourceId(aceOfHearts)
-        val id3 = getCardResourceId(kingOfSpades)
+        val id1 = CardResourceUtils.getCardResourceId(aceOfSpades)
+        val id2 = CardResourceUtils.getCardResourceId(aceOfHearts)
+        val id3 = CardResourceUtils.getCardResourceId(kingOfSpades)
 
         // Then - all should be different
         assertNotEquals(id1, id2)
@@ -59,8 +59,8 @@ class CardUtilityFunctionsTest {
         val card2 = Card(Rank.FIVE, Suit.DIAMONDS)
 
         // When
-        val id1 = getCardResourceId(card1)
-        val id2 = getCardResourceId(card2)
+        val id1 = CardResourceUtils.getCardResourceId(card1)
+        val id2 = CardResourceUtils.getCardResourceId(card2)
 
         // Then
         assertEquals(id1, id2)
@@ -70,10 +70,10 @@ class CardUtilityFunctionsTest {
     fun getCardResourceId_handlesAllSuits_correctly() {
         val rank = Rank.QUEEN
 
-        val hearts = getCardResourceId(Card(rank, Suit.HEARTS))
-        val diamonds = getCardResourceId(Card(rank, Suit.DIAMONDS))
-        val clubs = getCardResourceId(Card(rank, Suit.CLUBS))
-        val spades = getCardResourceId(Card(rank, Suit.SPADES))
+        val hearts = CardResourceUtils.getCardResourceId(Card(rank, Suit.HEARTS))
+        val diamonds = CardResourceUtils.getCardResourceId(Card(rank, Suit.DIAMONDS))
+        val clubs = CardResourceUtils.getCardResourceId(Card(rank, Suit.CLUBS))
+        val spades = CardResourceUtils.getCardResourceId(Card(rank, Suit.SPADES))
 
         // All should be different
         val ids = setOf(hearts, diamonds, clubs, spades)
@@ -85,7 +85,7 @@ class CardUtilityFunctionsTest {
         val suit = Suit.CLUBS
 
         val resourceIds = Rank.entries.map { rank ->
-            getCardResourceId(Card(rank, suit))
+            CardResourceUtils.getCardResourceId(Card(rank, suit))
         }
 
         // All should be unique
@@ -94,9 +94,9 @@ class CardUtilityFunctionsTest {
 
     @Test
     fun getCardResourceId_handlesFaceCards_correctly() {
-        val jack = getCardResourceId(Card(Rank.JACK, Suit.HEARTS))
-        val queen = getCardResourceId(Card(Rank.QUEEN, Suit.HEARTS))
-        val king = getCardResourceId(Card(Rank.KING, Suit.HEARTS))
+        val jack = CardResourceUtils.getCardResourceId(Card(Rank.JACK, Suit.HEARTS))
+        val queen = CardResourceUtils.getCardResourceId(Card(Rank.QUEEN, Suit.HEARTS))
+        val king = CardResourceUtils.getCardResourceId(Card(Rank.KING, Suit.HEARTS))
 
         assertTrue(jack > 0)
         assertTrue(queen > 0)
@@ -110,8 +110,8 @@ class CardUtilityFunctionsTest {
 
     @Test
     fun getCardResourceId_handlesAce_correctly() {
-        val aceOfHearts = getCardResourceId(Card(Rank.ACE, Suit.HEARTS))
-        val aceOfSpades = getCardResourceId(Card(Rank.ACE, Suit.SPADES))
+        val aceOfHearts = CardResourceUtils.getCardResourceId(Card(Rank.ACE, Suit.HEARTS))
+        val aceOfSpades = CardResourceUtils.getCardResourceId(Card(Rank.ACE, Suit.SPADES))
 
         assertTrue(aceOfHearts > 0)
         assertTrue(aceOfSpades > 0)
@@ -120,9 +120,9 @@ class CardUtilityFunctionsTest {
 
     @Test
     fun getCardResourceId_handlesNumberCards_correctly() {
-        val two = getCardResourceId(Card(Rank.TWO, Suit.DIAMONDS))
-        val five = getCardResourceId(Card(Rank.FIVE, Suit.DIAMONDS))
-        val ten = getCardResourceId(Card(Rank.TEN, Suit.DIAMONDS))
+        val two = CardResourceUtils.getCardResourceId(Card(Rank.TWO, Suit.DIAMONDS))
+        val five = CardResourceUtils.getCardResourceId(Card(Rank.FIVE, Suit.DIAMONDS))
+        val ten = CardResourceUtils.getCardResourceId(Card(Rank.TEN, Suit.DIAMONDS))
 
         assertTrue(two > 0)
         assertTrue(five > 0)

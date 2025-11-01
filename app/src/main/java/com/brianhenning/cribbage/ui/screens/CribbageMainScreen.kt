@@ -38,6 +38,7 @@ import com.brianhenning.cribbage.shared.domain.model.createDeck
 import com.brianhenning.cribbage.game.logic.GameScoreManager
 import com.brianhenning.cribbage.game.logic.DealerManager
 import com.brianhenning.cribbage.game.repository.PreferencesRepository
+import com.brianhenning.cribbage.ui.utils.BugReportUtils
 
 /**
  * State for pending reset - shown to user before clearing pile
@@ -1300,7 +1301,7 @@ fun CribbageMainScreen() {
             onCountHands = { countHands() },
             onGo = { handlePlayerGo() },
             onReportBug = {
-                val body = buildBugReportBody(
+                val body = BugReportUtils.buildBugReportBody(
                     context = context,
                     playerScore = playerScore,
                     opponentScore = opponentScore,
@@ -1336,7 +1337,7 @@ fun CribbageMainScreen() {
                     consecutiveGoes = consecutiveGoes,
                     lastPlayerWhoPlayed = lastPlayerWhoPlayed
                 )
-                sendBugReportEmail(context, context.getString(R.string.feedback_email), context.getString(R.string.bug_report_subject), body)
+                BugReportUtils.sendBugReportEmail(context, context.getString(R.string.feedback_email), context.getString(R.string.bug_report_subject), body)
             }
         )
 
@@ -1346,87 +1347,6 @@ fun CribbageMainScreen() {
             opponentScore = opponentScore
         )
     }
-}
-
-enum class Suit { HEARTS, DIAMONDS, CLUBS, SPADES }
-enum class Rank { ACE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, TEN, JACK, QUEEN, KING }
-
-data class Card(val rank: Rank, val suit: Suit) {
-    fun getValue(): Int {
-        return when (rank) {
-            Rank.ACE -> 1
-            Rank.TWO -> 2
-            Rank.THREE -> 3
-            Rank.FOUR -> 4
-            Rank.FIVE -> 5
-            Rank.SIX -> 6
-            Rank.SEVEN -> 7
-            Rank.EIGHT -> 8
-            Rank.NINE -> 9
-            Rank.TEN, Rank.JACK, Rank.QUEEN, Rank.KING -> 10
-        }
-    }
-    fun getSymbol(): String {
-        val rankSymbol = when (rank) {
-            Rank.ACE -> "A"
-            Rank.TWO -> "2"
-            Rank.THREE -> "3"
-            Rank.FOUR -> "4"
-            Rank.FIVE -> "5"
-            Rank.SIX -> "6"
-            Rank.SEVEN -> "7"
-            Rank.EIGHT -> "8"
-            Rank.NINE -> "9"
-            Rank.TEN -> "10"
-            Rank.JACK -> "J"
-            Rank.QUEEN -> "Q"
-            Rank.KING -> "K"
-        }
-        val suitSymbol = when (suit) {
-            Suit.SPADES -> "♠"
-            Suit.HEARTS -> "♥"
-            Suit.DIAMONDS -> "♦"
-            Suit.CLUBS -> "♣"
-        }
-        return "$rankSymbol$suitSymbol"
-    }
-}
-
-fun createDeck(): List<Card> {
-    val deck = mutableListOf<Card>()
-    for (suit in Suit.entries) {
-        for (rank in Rank.entries) {
-            deck.add(Card(rank, suit))
-        }
-    }
-    return deck
-}
-
-fun getCardResourceId(card: Card): Int {
-    val suitName = when (card.suit) {
-        Suit.HEARTS -> "hearts"
-        Suit.DIAMONDS -> "diamonds"
-        Suit.CLUBS -> "clubs"
-        Suit.SPADES -> "spades"
-    }
-    val rankName = when (card.rank) {
-        Rank.ACE -> "a"
-        Rank.TWO -> "2"
-        Rank.THREE -> "3"
-        Rank.FOUR -> "4"
-        Rank.FIVE -> "5"
-        Rank.SIX -> "6"
-        Rank.SEVEN -> "7"
-        Rank.EIGHT -> "8"
-        Rank.NINE -> "9"
-        Rank.TEN -> "10"
-        Rank.JACK -> "j"
-        Rank.QUEEN -> "q"
-        Rank.KING -> "k"
-    }
-    val resourceName = "${suitName}_${rankName}"
-    val resourceField = R.drawable::class.java.getField(resourceName)
-    return resourceField.getInt(null)
 }
 
 /**
@@ -1450,140 +1370,6 @@ fun chooseSmartOpponentCard(
         peggingPile = peggingPile,
         opponentCardsRemaining = opponentCardsRemaining
     )
-}
-
-private fun Card.symbol(): String = this.getSymbol()
-
-private fun List<Card>.symbols(): String = this.joinToString(",") { it.getSymbol() }
-
-private fun buildBugReportBody(
-    context: Context,
-    playerScore: Int,
-    opponentScore: Int,
-    isPlayerDealer: Boolean,
-    starterCard: Card?,
-    peggingCount: Int,
-    peggingPile: List<Card>,
-    playerHand: List<Card>,
-    opponentHand: List<Card>,
-    cribHand: List<Card>,
-    matchSummary: String,
-    gameStatus: String,
-    // Additional debug state
-    currentPhase: GamePhase,
-    gameStarted: Boolean,
-    gameOver: Boolean,
-    isPlayerTurn: Boolean,
-    isPeggingPhase: Boolean,
-    isInHandCountingPhase: Boolean,
-    selectedCards: Set<Int>,
-    playerCardsPlayed: Set<Int>,
-    opponentCardsPlayed: Set<Int>,
-    peggingDisplayPile: List<Card>,
-    dealButtonEnabled: Boolean,
-    selectCribButtonEnabled: Boolean,
-    playCardButtonEnabled: Boolean,
-    showHandCountingButton: Boolean,
-    showGoButton: Boolean,
-    peggingManager: PeggingRoundManager?,
-    countingPhase: CountingPhase,
-    handScores: HandScores,
-    waitingForDialogDismissal: Boolean,
-    consecutiveGoes: Int,
-    lastPlayerWhoPlayed: String?,
-): String {
-    val manufacturer = android.os.Build.MANUFACTURER
-    val model = android.os.Build.MODEL
-    val sdk = android.os.Build.VERSION.SDK_INT
-    val appVersion = try {
-        context.packageManager.getPackageInfo(context.packageName, 0).versionName
-    } catch (e: Exception) { "unknown" }
-
-    return buildString {
-        appendLine("Please describe the bug:")
-        appendLine()
-        appendLine("Expected:")
-        appendLine()
-        appendLine("Actual:")
-        appendLine()
-        appendLine("Steps to reproduce:")
-        appendLine("1.")
-        appendLine("2.")
-        appendLine("3.")
-        appendLine()
-        appendLine("— App/Device —")
-        appendLine("App: $appVersion")
-        appendLine("Device: $manufacturer $model (SDK $sdk)")
-        appendLine()
-        appendLine("— Game Snapshot —")
-        appendLine("Scores: You $playerScore, Opponent $opponentScore")
-        appendLine("Dealer: ${if (isPlayerDealer) "You" else "Opponent"}")
-        appendLine("Starter: ${starterCard?.symbol() ?: "(none)"}")
-        appendLine("Pegging count: $peggingCount")
-        appendLine("Pegging pile: ${peggingPile.symbols()}")
-        appendLine("Your hand: ${playerHand.symbols()}")
-        appendLine("Opponent hand: ${opponentHand.symbols()}")
-        appendLine("Crib: ${cribHand.symbols()}")
-        appendLine("Match: $matchSummary")
-        appendLine()
-        appendLine("— Detailed Debug State —")
-        appendLine("Game Phase: $currentPhase")
-        appendLine("Game Started: $gameStarted")
-        appendLine("Game Over: $gameOver")
-        appendLine("Is Player Turn: $isPlayerTurn")
-        appendLine("Is Pegging Phase: $isPeggingPhase")
-        appendLine("Is In Hand Counting Phase: $isInHandCountingPhase")
-        appendLine()
-        appendLine("— Card State —")
-        appendLine("Selected Cards: ${selectedCards.toList().sorted()}")
-        appendLine("Player Cards Played: ${playerCardsPlayed.toList().sorted()}")
-        appendLine("Opponent Cards Played: ${opponentCardsPlayed.toList().sorted()}")
-        appendLine("Pegging Display Pile: ${peggingDisplayPile.symbols()}")
-        appendLine()
-        appendLine("— Button State —")
-        appendLine("Deal Button Enabled: $dealButtonEnabled")
-        appendLine("Select Crib Button Enabled: $selectCribButtonEnabled")
-        appendLine("Play Card Button Enabled: $playCardButtonEnabled")
-        appendLine("Show Hand Counting Button: $showHandCountingButton")
-        appendLine("Show Go Button: $showGoButton")
-        appendLine()
-        appendLine("— Pegging Manager State —")
-        val mgr = peggingManager
-        if (mgr != null) {
-            appendLine("Manager Is Player Turn: ${mgr.isPlayerTurn}")
-            appendLine("Manager Pegging Count: ${mgr.peggingCount}")
-            appendLine("Manager Pegging Pile: ${mgr.peggingPile.symbols()}")
-            appendLine("Manager Consecutive Goes: ${mgr.consecutiveGoes}")
-            appendLine("Manager Last Player Who Played: ${mgr.lastPlayerWhoPlayed}")
-        } else {
-            appendLine("Pegging Manager: null")
-        }
-        appendLine()
-        appendLine("— Counting State —")
-        appendLine("Counting Phase: $countingPhase")
-        appendLine("Hand Scores: NonDealer=${handScores.nonDealerScore}, Dealer=${handScores.dealerScore}, Crib=${handScores.cribScore}")
-        appendLine("Waiting For Dialog Dismissal: $waitingForDialogDismissal")
-        appendLine()
-        appendLine("— Additional Info —")
-        appendLine("Consecutive Goes: $consecutiveGoes")
-        appendLine("Last Player Who Played: $lastPlayerWhoPlayed")
-        appendLine()
-        appendLine("Status log:\n$gameStatus")
-    }
-}
-
-private fun sendBugReportEmail(context: Context, to: String, subject: String, body: String) {
-    val intent = Intent(Intent.ACTION_SENDTO).apply {
-        data = Uri.parse("mailto:")
-        putExtra(Intent.EXTRA_EMAIL, arrayOf(to))
-        putExtra(Intent.EXTRA_SUBJECT, subject)
-        putExtra(Intent.EXTRA_TEXT, body)
-    }
-    try {
-        context.startActivity(Intent.createChooser(intent, subject))
-    } catch (e: ActivityNotFoundException) {
-        // No email client available - silently ignore
-    }
 }
 
 data class WinnerModalData(
