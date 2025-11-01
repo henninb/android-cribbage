@@ -38,17 +38,9 @@ import com.brianhenning.cribbage.shared.domain.model.createDeck
 import com.brianhenning.cribbage.game.logic.GameScoreManager
 import com.brianhenning.cribbage.game.logic.DealerManager
 import com.brianhenning.cribbage.game.repository.PreferencesRepository
+import com.brianhenning.cribbage.game.state.PendingResetState
+import com.brianhenning.cribbage.game.state.WinnerModalData
 import com.brianhenning.cribbage.ui.utils.BugReportUtils
-
-/**
- * State for pending reset - shown to user before clearing pile
- */
-data class PendingResetState(
-    val pile: List<Card>,
-    val finalCount: Int,
-    val scoreAwarded: Int,
-    val resetData: SubRoundReset
-)
 
 @Composable
 fun CribbageMainScreen() {
@@ -1371,16 +1363,3 @@ fun chooseSmartOpponentCard(
         opponentCardsRemaining = opponentCardsRemaining
     )
 }
-
-data class WinnerModalData(
-    val playerWon: Boolean,
-    val playerScore: Int,
-    val opponentScore: Int,
-    val wasSkunk: Boolean,
-    val gamesWon: Int,
-    val gamesLost: Int,
-    val skunksFor: Int,
-    val skunksAgainst: Int,
-    val doubleSkunksFor: Int = 0,
-    val doubleSkunksAgainst: Int = 0
-)

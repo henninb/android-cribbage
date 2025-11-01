@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.brianhenning.cribbage.shared.domain.model.Card as CribbageCard
+import com.brianhenning.cribbage.game.state.PendingResetState
 import com.brianhenning.cribbage.ui.theme.LocalSeasonalTheme
 
 /**
@@ -262,7 +263,7 @@ fun GameAreaContent(
     onCardClick: (Int) -> Unit,
     show31Banner: Boolean = false,
     onBannerComplete: () -> Unit = {},
-    pendingReset: com.brianhenning.cribbage.ui.screens.PendingResetState? = null,
+    pendingReset: PendingResetState? = null,
     onNextRound: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
