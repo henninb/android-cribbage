@@ -642,102 +642,80 @@ fun CribbageMainScreen(
         }
     }
 
-    // New endGame lambda to reset game state
+    // Phase 2: endGame now uses ViewModel
     val endGame = {
-        gameStarted = false
-        playerScore = 0
-        opponentScore = 0
-        playerHand = emptyList()
-        opponentHand = emptyList()
-        cribHand = emptyList()
-        selectedCards = emptySet()
+        viewModel.endGame()
 
-        isPeggingPhase = false
-        peggingCount = 0
-        peggingPile = emptyList()
-        peggingDisplayPile = emptyList()
-        consecutiveGoes = 0
-        lastPlayerWhoPlayed = null
-        starterCard = null
-        peggingManager = null
-
+        // Sync local state from ViewModel (Phase 2: temporary until full migration)
+        gameStarted = vmUiState.gameStarted
+        playerScore = vmUiState.playerScore
+        opponentScore = vmUiState.opponentScore
+        playerHand = vmUiState.playerHand
+        opponentHand = vmUiState.opponentHand
+        cribHand = vmUiState.cribHand
+        selectedCards = vmUiState.selectedCards
+        isPeggingPhase = vmUiState.peggingState?.isPeggingPhase ?: false
+        peggingCount = vmUiState.peggingState?.peggingCount ?: 0
+        peggingPile = vmUiState.peggingState?.peggingPile ?: emptyList()
+        peggingDisplayPile = vmUiState.peggingState?.peggingDisplayPile ?: emptyList()
+        consecutiveGoes = vmUiState.peggingState?.consecutiveGoes ?: 0
+        lastPlayerWhoPlayed = vmUiState.peggingState?.lastPlayerWhoPlayed
+        starterCard = vmUiState.starterCard
+        peggingManager = vmUiState.peggingState?.peggingManager
         dealButtonEnabled = false
         selectCribButtonEnabled = false
         playCardButtonEnabled = false
         showHandCountingButton = false
         showGoButton = false
-        gameOver = false
-
-        // Reset UI state
-        currentPhase = GamePhase.SETUP
-        isInHandCountingPhase = false
-        countingPhase = CountingPhase.NONE
-        handScores = HandScores()
-
-        gameStatus = context.getString(R.string.welcome_to_cribbage)
+        gameOver = vmUiState.gameOver
+        currentPhase = vmUiState.currentPhase
+        isInHandCountingPhase = vmUiState.handCountingState?.isInHandCountingPhase ?: false
+        countingPhase = vmUiState.handCountingState?.countingPhase ?: CountingPhase.NONE
+        handScores = vmUiState.handCountingState?.handScores ?: HandScores()
+        gameStatus = vmUiState.gameStatus
     }
 
+    // Phase 2: startNewGame now uses ViewModel
     val startNewGame = {
-        gameStarted = true
-        playerScore = 0
-        opponentScore = 0
-        playerHand = emptyList()
-        opponentHand = emptyList()
-        cribHand = emptyList()
-        selectedCards = emptySet()
+        viewModel.startNewGame()
 
-        isPeggingPhase = false
-        peggingCount = 0
-        peggingPile = emptyList()
-        peggingDisplayPile = emptyList()
-        consecutiveGoes = 0
-        lastPlayerWhoPlayed = null
-        starterCard = null
-        peggingManager = null
+        // Sync local state from ViewModel (Phase 2: temporary until full migration)
+        gameStarted = vmUiState.gameStarted
+        playerScore = vmUiState.playerScore
+        opponentScore = vmUiState.opponentScore
+        isPlayerDealer = vmUiState.isPlayerDealer
+        playerHand = vmUiState.playerHand
+        opponentHand = vmUiState.opponentHand
+        cribHand = vmUiState.cribHand
+        selectedCards = vmUiState.selectedCards
+        isPeggingPhase = vmUiState.peggingState?.isPeggingPhase ?: false
+        peggingCount = vmUiState.peggingState?.peggingCount ?: 0
+        peggingPile = vmUiState.peggingState?.peggingPile ?: emptyList()
+        peggingDisplayPile = vmUiState.peggingState?.peggingDisplayPile ?: emptyList()
+        consecutiveGoes = vmUiState.peggingState?.consecutiveGoes ?: 0
+        lastPlayerWhoPlayed = vmUiState.peggingState?.lastPlayerWhoPlayed
+        starterCard = vmUiState.starterCard
+        peggingManager = vmUiState.peggingState?.peggingManager
         showGoButton = false
-
-        // Reset UI state
-        currentPhase = GamePhase.SETUP
-        isInHandCountingPhase = false
-        countingPhase = CountingPhase.NONE
-        handScores = HandScores()
-
-        // Dealer selection: if a previous game exists, loser deals first; otherwise perform a cut
-        if (prefsRepository.hasNextDealerPreference()) {
-            isPlayerDealer = prefsRepository.loadNextDealerIsPlayer()
-            cutPlayerCard = null
-            cutOpponentCard = null
-            showCutForDealer = false
-            val dealerMessage = DealerManager.formatPreviousGameDealerMessage(isPlayerDealer)
-            gameStatus = context.getString(R.string.dealer_set_by_previous, dealerMessage)
-        } else {
-            // Cut for dealer per rules: lower card deals first
-            val cutResult = DealerManager.determineDealer()
-            isPlayerDealer = cutResult.isPlayerDealer
-            cutPlayerCard = cutResult.playerCutCard
-            cutOpponentCard = cutResult.opponentCutCard
-            showCutForDealer = true  // Only show cut screen on first round
-
-            // Save cut cards for UI header and persist
-            prefsRepository.saveCutCards(
-                PreferencesRepository.CutCards(
-                    playerCard = cutResult.playerCutCard,
-                    opponentCard = cutResult.opponentCutCard
-                )
-            )
-
-            gameStatus = "Cut for deal: You ${cutResult.playerCutCard.getSymbol()} vs Opponent ${cutResult.opponentCutCard.getSymbol()}\n" +
-                    if (isPlayerDealer) "You are dealer" else "Opponent is dealer"
-        }
-
+        currentPhase = vmUiState.currentPhase
+        isInHandCountingPhase = vmUiState.handCountingState?.isInHandCountingPhase ?: false
+        countingPhase = vmUiState.handCountingState?.countingPhase ?: CountingPhase.NONE
+        handScores = vmUiState.handCountingState?.handScores ?: HandScores()
+        cutPlayerCard = vmUiState.cutPlayerCard
+        cutOpponentCard = vmUiState.cutOpponentCard
+        showCutForDealer = vmUiState.showCutForDealer
         dealButtonEnabled = true
         selectCribButtonEnabled = false
         playCardButtonEnabled = false
         showHandCountingButton = false
-        gameOver = false
-        currentPhase = GamePhase.SETUP
-
-        gameStatus = context.getString(R.string.game_started)
+        gameOver = vmUiState.gameOver
+        gameStatus = vmUiState.gameStatus
+        gamesWon = vmUiState.matchStats.gamesWon
+        gamesLost = vmUiState.matchStats.gamesLost
+        skunksFor = vmUiState.matchStats.skunksFor
+        skunksAgainst = vmUiState.matchStats.skunksAgainst
+        doubleSkunksFor = vmUiState.matchStats.doubleSkunksFor
+        doubleSkunksAgainst = vmUiState.matchStats.doubleSkunksAgainst
     }
 
     val dealCards = {
