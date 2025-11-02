@@ -17,8 +17,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.brianhenning.cribbage.BuildConfig
 import com.brianhenning.cribbage.R
+import com.brianhenning.cribbage.game.viewmodel.CribbageGameViewModel
 import com.brianhenning.cribbage.ui.composables.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -45,9 +47,14 @@ import com.brianhenning.cribbage.game.state.WinnerModalData
 import com.brianhenning.cribbage.ui.utils.BugReportUtils
 
 @Composable
-fun CribbageMainScreen() {
+fun CribbageMainScreen(
+    viewModel: CribbageGameViewModel = viewModel()
+) {
     val context = LocalContext.current
     val prefsRepository = remember { PreferencesRepository(context) }
+
+    // Collect ViewModel state (Phase 1: parallel with existing state)
+    val vmUiState by viewModel.uiState.collectAsState()
 
     // Game state variables
     var gameStarted by remember { mutableStateOf(false) }
