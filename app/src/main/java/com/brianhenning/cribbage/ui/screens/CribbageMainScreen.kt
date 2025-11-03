@@ -149,6 +149,64 @@ fun CribbageMainScreen(
     var show31Banner by remember { mutableStateOf(false) }
     var previousPeggingCount by remember { mutableIntStateOf(0) }
 
+    // Phase 2-4: Auto-sync local state from ViewModel whenever it changes
+    LaunchedEffect(vmUiState) {
+        // This runs whenever vmUiState changes, keeping local state in sync
+        gameStarted = vmUiState.gameStarted
+        playerScore = vmUiState.playerScore
+        opponentScore = vmUiState.opponentScore
+        isPlayerDealer = vmUiState.isPlayerDealer
+        playerHand = vmUiState.playerHand
+        opponentHand = vmUiState.opponentHand
+        cribHand = vmUiState.cribHand
+        selectedCards = vmUiState.selectedCards
+        starterCard = vmUiState.starterCard
+        currentPhase = vmUiState.currentPhase
+        gameStatus = vmUiState.gameStatus
+        gameOver = vmUiState.gameOver
+        cutPlayerCard = vmUiState.cutPlayerCard
+        cutOpponentCard = vmUiState.cutOpponentCard
+        showCutForDealer = vmUiState.showCutForDealer
+        showCutCardDisplay = vmUiState.showCutCardDisplay
+        playerScoreAnimation = vmUiState.playerScoreAnimation
+        opponentScoreAnimation = vmUiState.opponentScoreAnimation
+        gamesWon = vmUiState.matchStats.gamesWon
+        gamesLost = vmUiState.matchStats.gamesLost
+        skunksFor = vmUiState.matchStats.skunksFor
+        skunksAgainst = vmUiState.matchStats.skunksAgainst
+        doubleSkunksFor = vmUiState.matchStats.doubleSkunksFor
+        doubleSkunksAgainst = vmUiState.matchStats.doubleSkunksAgainst
+
+        // Button states
+        dealButtonEnabled = vmUiState.dealButtonEnabled
+        selectCribButtonEnabled = vmUiState.selectCribButtonEnabled
+        playCardButtonEnabled = vmUiState.playCardButtonEnabled
+        showHandCountingButton = vmUiState.showHandCountingButton
+        showGoButton = vmUiState.showGoButton
+
+        // Pegging state
+        vmUiState.peggingState?.let { pegging ->
+            isPeggingPhase = pegging.isPeggingPhase
+            isPlayerTurn = pegging.isPlayerTurn
+            peggingCount = pegging.peggingCount
+            peggingPile = pegging.peggingPile
+            peggingDisplayPile = pegging.peggingDisplayPile
+            playerCardsPlayed = pegging.playerCardsPlayed
+            opponentCardsPlayed = pegging.opponentCardsPlayed
+            consecutiveGoes = pegging.consecutiveGoes
+            lastPlayerWhoPlayed = pegging.lastPlayerWhoPlayed
+            peggingManager = pegging.peggingManager
+            pendingReset = pegging.pendingReset
+        }
+
+        // Hand counting state
+        vmUiState.handCountingState?.let { counting ->
+            isInHandCountingPhase = counting.isInHandCountingPhase
+            countingPhase = counting.countingPhase
+            handScores = counting.handScores
+        }
+    }
+
     // Detect when pegging count reaches exactly 31 and trigger banner
     LaunchedEffect(peggingCount) {
         if (peggingCount == 31 && previousPeggingCount != 31) {
@@ -264,10 +322,9 @@ fun CribbageMainScreen(
     val playSelectedCardRef = remember { mutableStateOf({}) }
     val handleNextRoundRef = remember { mutableStateOf({}) }
 
-    // Handle player manually saying "Go"
+    // Phase 4: Handle player manually saying "Go" (LaunchedEffect auto-syncs state)
     val handlePlayerGo = {
-        showGoButton = false
-        autoHandleGoRef.value()
+        viewModel.handlePlayerGo()
     }
 
     // Award pegging points from a PeggingPoints result
@@ -505,373 +562,58 @@ fun CribbageMainScreen(
         }, 500) // Reduced from 1000ms to 500ms
     }
 
-    // Handle user acknowledgment of round end
+    // Phase 4: Handle user acknowledgment of round end (LaunchedEffect auto-syncs state)
     handleNextRoundRef.value = {
-        val reset = pendingReset?.resetData
-        if (reset != null) {
-            // Clear pending reset and display pile
-            pendingReset = null
-            peggingDisplayPile = emptyList()
-
-            gameStatus += "\nNew sub-round begins. " + if (isPlayerTurn)
-                context.getString(R.string.pegging_your_turn)
-            else
-                context.getString(R.string.pegging_opponent_turn)
-
-            // End of pegging if no legal moves for either side
-            val playerLegal = playerHand.filterIndexed { index, card ->
-                !playerCardsPlayed.contains(index) && (card.getValue() + peggingCount <= 31)
-            }
-            val opponentLegal = opponentHand.filterIndexed { index, card ->
-                !opponentCardsPlayed.contains(index) && (card.getValue() + peggingCount <= 31)
-            }
-            if (playerLegal.isEmpty() && opponentLegal.isEmpty()) {
-                isPeggingPhase = false
-                currentPhase = GamePhase.HAND_COUNTING
-                gameStatus += "\nPegging phase complete. Proceed to hand scoring."
-                showHandCountingButton = true
-            } else if (isPlayerTurn) {
-                if (playerLegal.isEmpty()) {
-                    // Only show Go button if player has cards left; otherwise auto-handle
-                    if (playerCardsPlayed.size < 4) {
-                        showGoButton = true
-                        playCardButtonEnabled = false
-                        gameStatus += "\nNo legal moves. Press 'Go' to continue."
-                    } else {
-                        // Player has no cards left, auto-handle Go
-                        showGoButton = false
-                        playCardButtonEnabled = false
-                        autoHandleGoRef.value()
-                    }
-                } else {
-                    playCardButtonEnabled = true
-                    showGoButton = false
-                }
-            } else {
-                // Set state barrier BEFORE scheduling opponent action
-                isOpponentActionInProgress = true
-                android.util.Log.d("CribbageDebug", ">>> Opponent turn starting after reset, setting barrier")
-
-                Handler(Looper.getMainLooper()).postDelayed({
-                    android.util.Log.d("CribbageDebug", ">>> Opponent postDelayed callback executing after reset")
-                    val chosen = chooseSmartOpponentCard(opponentHand, opponentCardsPlayed, peggingCount, peggingPile)
-                    if (chosen != null) {
-                        val (cardIndex, cardToPlay) = chosen
-                        val mgr = peggingManager!!
-
-                        // CRITICAL: Save pile and count BEFORE calling onPlay!
-                        val pileBeforePlay = mgr.peggingPile.toList() + cardToPlay
-                        val countBeforeReset = mgr.peggingCount + cardToPlay.getValue()
-
-                        android.util.Log.d("CribbageDebug", ">>> Opponent playing: ${cardToPlay.getSymbol()}")
-                        val outcome = mgr.onPlay(cardToPlay)
-
-                        // Immediately sync manager state to UI BEFORE any other operations
-                        applyManagerStateToUi()
-
-                        opponentCardsPlayed = opponentCardsPlayed + cardIndex
-                        peggingDisplayPile = peggingDisplayPile + cardToPlay
-                        gameStatus = context.getString(R.string.played_opponent, cardToPlay.getSymbol())
-
-                        // Score using saved pile/count
-                        val pts = PeggingScorer.pointsForPile(pileBeforePlay, countBeforeReset)
-                        awardPeggingPoints(false, pts, cardToPlay)
-
-                        val resetData = outcome.reset
-                        if (resetData != null) {
-                            applyManagerReset(resetData)
-                        }
-
-                        if (outcome.reset == null) {
-                            val playerPlayable = playerHand.filterIndexed { index, card ->
-                                !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
-                            }
-                            if (playerPlayable.isEmpty()) {
-                                // Only show Go button if player has cards left; otherwise auto-handle
-                                if (playerCardsPlayed.size < 4) {
-                                    showGoButton = true
-                                    playCardButtonEnabled = false
-                                    gameStatus += "\nNo legal moves. Press 'Go' to continue."
-                                } else {
-                                    // Player has no cards left, auto-handle Go
-                                    showGoButton = false
-                                    playCardButtonEnabled = false
-                                    autoHandleGoRef.value()
-                                }
-                            } else {
-                                playCardButtonEnabled = true
-                                showGoButton = false
-                                gameStatus += "\n${context.getString(R.string.pegging_your_turn)}"
-                            }
-                        }
-                    } else {
-                        autoHandleGoRef.value()
-                    }
-
-                    // Clear state barrier AFTER all opponent actions complete
-                    isOpponentActionInProgress = false
-                    android.util.Log.d("CribbageDebug", ">>> Opponent turn complete, clearing barrier")
-                }, 500)
-            }
-        }
+        viewModel.acknowledgeReset()
     }
 
-    // Card selection behavior: single-tap during pegging, multi-select during crib selection
+    // Phase 4: Card selection behavior: single-tap during pegging, multi-select during crib selection
     val toggleCardSelection = { cardIndex: Int ->
         if (isPeggingPhase) {
             // Single tap to immediately play during pegging
             if (isPlayerTurn && !playerCardsPlayed.contains(cardIndex)) {
                 val cardToPlay = playerHand[cardIndex]
                 if (peggingCount + cardToPlay.getValue() <= 31) {
-                    // Immediately play the card on single tap
-                    selectedCards = setOf(cardIndex)
-                    playSelectedCardRef.value()
+                    // Call ViewModel to play the card
+                    viewModel.playCard(cardIndex)
                 } else {
                     gameStatus = context.getString(R.string.illegal_move_exceeds_31, cardToPlay.getSymbol())
                 }
             }
         } else {
             // Multi-select for crib selection (toggle on/off)
-            selectedCards = if (selectedCards.contains(cardIndex)) {
-                selectedCards - cardIndex
-            } else if (selectedCards.size < 2) {
-                selectedCards + cardIndex
-            } else {
-                selectedCards
-            }
+            viewModel.toggleCardSelection(cardIndex)
         }
     }
 
-    // Phase 2: endGame now uses ViewModel
+    // Phase 2: endGame now uses ViewModel (LaunchedEffect auto-syncs state)
     val endGame = {
         viewModel.endGame()
-
-        // Sync local state from ViewModel (Phase 2: temporary until full migration)
-        gameStarted = vmUiState.gameStarted
-        playerScore = vmUiState.playerScore
-        opponentScore = vmUiState.opponentScore
-        playerHand = vmUiState.playerHand
-        opponentHand = vmUiState.opponentHand
-        cribHand = vmUiState.cribHand
-        selectedCards = vmUiState.selectedCards
-        isPeggingPhase = vmUiState.peggingState?.isPeggingPhase ?: false
-        peggingCount = vmUiState.peggingState?.peggingCount ?: 0
-        peggingPile = vmUiState.peggingState?.peggingPile ?: emptyList()
-        peggingDisplayPile = vmUiState.peggingState?.peggingDisplayPile ?: emptyList()
-        consecutiveGoes = vmUiState.peggingState?.consecutiveGoes ?: 0
-        lastPlayerWhoPlayed = vmUiState.peggingState?.lastPlayerWhoPlayed
-        starterCard = vmUiState.starterCard
-        peggingManager = vmUiState.peggingState?.peggingManager
-        dealButtonEnabled = false
-        selectCribButtonEnabled = false
-        playCardButtonEnabled = false
-        showHandCountingButton = false
-        showGoButton = false
-        gameOver = vmUiState.gameOver
-        currentPhase = vmUiState.currentPhase
-        isInHandCountingPhase = vmUiState.handCountingState?.isInHandCountingPhase ?: false
-        countingPhase = vmUiState.handCountingState?.countingPhase ?: CountingPhase.NONE
-        handScores = vmUiState.handCountingState?.handScores ?: HandScores()
-        gameStatus = vmUiState.gameStatus
     }
 
-    // Phase 2: startNewGame now uses ViewModel
+    // Phase 2: startNewGame now uses ViewModel (LaunchedEffect auto-syncs state)
     val startNewGame = {
         viewModel.startNewGame()
-
-        // Sync local state from ViewModel (Phase 2: temporary until full migration)
-        gameStarted = vmUiState.gameStarted
-        playerScore = vmUiState.playerScore
-        opponentScore = vmUiState.opponentScore
-        isPlayerDealer = vmUiState.isPlayerDealer
-        playerHand = vmUiState.playerHand
-        opponentHand = vmUiState.opponentHand
-        cribHand = vmUiState.cribHand
-        selectedCards = vmUiState.selectedCards
-        isPeggingPhase = vmUiState.peggingState?.isPeggingPhase ?: false
-        peggingCount = vmUiState.peggingState?.peggingCount ?: 0
-        peggingPile = vmUiState.peggingState?.peggingPile ?: emptyList()
-        peggingDisplayPile = vmUiState.peggingState?.peggingDisplayPile ?: emptyList()
-        consecutiveGoes = vmUiState.peggingState?.consecutiveGoes ?: 0
-        lastPlayerWhoPlayed = vmUiState.peggingState?.lastPlayerWhoPlayed
-        starterCard = vmUiState.starterCard
-        peggingManager = vmUiState.peggingState?.peggingManager
-        showGoButton = false
-        currentPhase = vmUiState.currentPhase
-        isInHandCountingPhase = vmUiState.handCountingState?.isInHandCountingPhase ?: false
-        countingPhase = vmUiState.handCountingState?.countingPhase ?: CountingPhase.NONE
-        handScores = vmUiState.handCountingState?.handScores ?: HandScores()
-        cutPlayerCard = vmUiState.cutPlayerCard
-        cutOpponentCard = vmUiState.cutOpponentCard
-        showCutForDealer = vmUiState.showCutForDealer
-        dealButtonEnabled = true
-        selectCribButtonEnabled = false
-        playCardButtonEnabled = false
-        showHandCountingButton = false
-        gameOver = vmUiState.gameOver
-        gameStatus = vmUiState.gameStatus
-        gamesWon = vmUiState.matchStats.gamesWon
-        gamesLost = vmUiState.matchStats.gamesLost
-        skunksFor = vmUiState.matchStats.skunksFor
-        skunksAgainst = vmUiState.matchStats.skunksAgainst
-        doubleSkunksFor = vmUiState.matchStats.doubleSkunksFor
-        doubleSkunksAgainst = vmUiState.matchStats.doubleSkunksAgainst
     }
 
+    // Phase 3: dealCards now uses ViewModel (LaunchedEffect auto-syncs state)
     val dealCards = {
-        val deck = createDeck().shuffled().toMutableList()
-        val result = dealSixToEach(deck, playerIsDealer = isPlayerDealer)
-        playerHand = result.playerHand.sortedWith(compareBy({ it.rank.ordinal }, { it.suit.ordinal }))
-        opponentHand = result.opponentHand
-        // Save remaining undealt deck for starter draw
-        drawDeck = result.remainingDeck
-
-        playerCardsPlayed = emptySet()
-        opponentCardsPlayed = emptySet()
-        dealButtonEnabled = false
-        selectCribButtonEnabled = true
-        currentPhase = GamePhase.CRIB_SELECTION
-        gameStatus = if (isPlayerDealer) {
-            context.getString(R.string.select_cards_for_your_crib)
-        } else {
-            context.getString(R.string.select_cards_for_opponent_crib)
-        }
-
-        // Hide cut for dealer screen after first deal
-        showCutForDealer = false
+        viewModel.dealCards()
     }
 
+    // Phase 3: selectCardsForCrib now uses ViewModel (LaunchedEffect auto-syncs state)
     val selectCardsForCrib = {
         if (selectedCards.size != 2) {
             gameStatus = context.getString(R.string.select_exactly_two)
         } else {
-            val selectedIndices = selectedCards.toList().sortedDescending()
-            val selectedPlayerCards = selectedIndices.map { playerHand[it] }
-            // Use smart AI to choose crib cards
-            val opponentCribCards = OpponentAI.chooseCribCards(opponentHand, !isPlayerDealer)
-            // Save the crib hand (combining player’s selections and opponent’s crib cards)
-            cribHand = selectedPlayerCards + opponentCribCards
-
-            playerHand = playerHand.filterIndexed { index, _ -> !selectedCards.contains(index) }
-            playerHand = playerHand.sortedWith(compareBy({ it.rank.ordinal }, { it.suit.ordinal }))
-            opponentHand = opponentHand.filter { !opponentCribCards.contains(it) }
-                .sortedWith(compareBy({ it.rank.ordinal }, { it.suit.ordinal }))
-            selectedCards = emptySet()
-            selectCribButtonEnabled = false
-            gameStatus = context.getString(R.string.crib_cards_selected)
-
-            // Draw starter from the same remaining deck to avoid duplication
-            if (drawDeck.isEmpty()) {
-                // Safety: if deck exhausted (shouldn't happen), reshuffle a fresh deck
-                drawDeck = createDeck().shuffled()
-            }
-            starterCard = drawDeck.first()
-            drawDeck = drawDeck.drop(1)
-            gameStatus = "Cut card: ${starterCard?.getSymbol()}"
-
-            // Show cut card display modal
-            showCutCardDisplay = true
+            viewModel.selectCardsForCrib()
         }
     }
 
-    // Start pegging phase - called after cut card display is dismissed
+    // Phase 3: startPeggingPhase now uses ViewModel (LaunchedEffect auto-syncs state)
     val startPeggingPhase: () -> Unit = {
-        showCutCardDisplay = false
-
-        // Award His Heels points if cut card is Jack
-        if (starterCard?.rank == Rank.JACK) {
-            if (isPlayerDealer) {
-                playerScore += 2
-                gameStatus += "\nDealer gets 2 points for his heels."
-                playerScoreAnimation = ScoreAnimationState(2, true)
-            } else {
-                opponentScore += 2
-                gameStatus += "\nDealer gets 2 points for his heels."
-                opponentScoreAnimation = ScoreAnimationState(2, false)
-            }
-            checkGameOverFunction()
-        }
-
-        Handler(Looper.getMainLooper()).postDelayed({
-                android.util.Log.d("CribbageDebug", ">>> Starting pegging phase")
-                isPeggingPhase = true
-                isPlayerTurn = !isPlayerDealer
-                playCardButtonEnabled = true
-                peggingCount = 0
-                peggingManager = PeggingRoundManager(startingPlayer = if (isPlayerTurn) Player.PLAYER else Player.OPPONENT)
-                selectCribButtonEnabled = false
-                currentPhase = GamePhase.PEGGING
-                gameStatus += "\nPegging phase begins. " + if (isPlayerTurn)
-                    context.getString(R.string.pegging_your_turn)
-                else
-                    context.getString(R.string.pegging_opponent_turn)
-                if (!isPlayerTurn) {
-                    // Set state barrier before opponent's first play
-                    isOpponentActionInProgress = true
-                    android.util.Log.d("CribbageDebug", ">>> Opponent starts pegging, setting barrier")
-
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        android.util.Log.d("CribbageDebug", ">>> Opponent first play callback executing")
-                        val chosen = chooseSmartOpponentCard(opponentHand, opponentCardsPlayed, peggingCount, peggingPile)
-                        if (chosen != null) {
-                            val (cardIndex, cardToPlay) = chosen
-                            val mgr = peggingManager!!
-
-                            // CRITICAL: Save pile and count BEFORE calling onPlay!
-                            // onPlay() will reset these immediately if hitting 31
-                            val pileBeforePlay = mgr.peggingPile.toList() + cardToPlay
-                            val countBeforeReset = mgr.peggingCount + cardToPlay.getValue()
-
-                            android.util.Log.d("CribbageDebug", ">>> Opponent first play: ${cardToPlay.getSymbol()}")
-                            val outcome = mgr.onPlay(cardToPlay)
-
-                            // Immediately sync manager state to UI BEFORE any other operations
-                            applyManagerStateToUi()
-
-                            opponentCardsPlayed = opponentCardsPlayed + cardIndex
-                            peggingDisplayPile = peggingDisplayPile + cardToPlay
-                            gameStatus = context.getString(R.string.played_opponent, cardToPlay.getSymbol())
-
-                            // Score using saved pile/count
-                            val pts = PeggingScorer.pointsForPile(pileBeforePlay, countBeforeReset)
-                            awardPeggingPoints(false, pts, cardToPlay)
-
-                            val resetData3 = outcome.reset
-                            if (resetData3 != null) {
-                                applyManagerReset(resetData3)
-                            }
-
-                            if (outcome.reset == null) {
-                                val playerPlayable = playerHand.filterIndexed { index, card ->
-                                    !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
-                                }
-                                if (playerPlayable.isEmpty()) {
-                                    // Only show Go button if player has cards left; otherwise auto-handle
-                                    if (playerCardsPlayed.size < 4) {
-                                        showGoButton = true
-                                        playCardButtonEnabled = false
-                                        gameStatus += "\nNo legal moves. Press 'Go' to continue."
-                                    } else {
-                                        // Player has no cards left, auto-handle Go
-                                        showGoButton = false
-                                        playCardButtonEnabled = false
-                                        autoHandleGoRef.value()
-                                    }
-                                } else {
-                                    playCardButtonEnabled = true
-                                    showGoButton = false
-                                }
-                            }
-                        } else {
-                            autoHandleGoRef.value()
-                        }
-
-                        // Clear barrier after opponent's first play completes
-                        isOpponentActionInProgress = false
-                        android.util.Log.d("CribbageDebug", ">>> Opponent first play complete, clearing barrier")
-                    }, 500) // Reduced from 1000ms to 500ms
-                }
-            }, 500) // Reduced from 1000ms to 500ms
+        viewModel.startPeggingPhase()
+        // Note: ViewModel handles opponent's first move automatically via coroutine
     }
 
     playSelectedCardRef.value = {

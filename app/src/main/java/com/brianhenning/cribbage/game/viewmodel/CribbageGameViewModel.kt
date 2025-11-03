@@ -67,7 +67,12 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 gameStatus = result.statusMessage,
                 gameOver = false,
                 showWinnerModal = false,
-                winnerModalData = null
+                winnerModalData = null,
+                dealButtonEnabled = true,
+                selectCribButtonEnabled = false,
+                playCardButtonEnabled = false,
+                showHandCountingButton = false,
+                showGoButton = false
             )
         }
     }
@@ -86,7 +91,9 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 opponentHand = result.opponentHand,
                 drawDeck = result.remainingDeck,
                 gameStatus = result.statusMessage,
-                selectedCards = emptySet()
+                selectedCards = emptySet(),
+                dealButtonEnabled = false,
+                selectCribButtonEnabled = true
             )
         }
     }
@@ -132,7 +139,8 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 selectedCards = emptySet(),
                 showCutCardDisplay = true,
                 playerScore = if (hisHeelsToPlayer) state.playerScore + hisHeelsPoints else state.playerScore,
-                opponentScore = if (!hisHeelsToPlayer && hisHeelsPoints > 0) state.opponentScore + hisHeelsPoints else state.opponentScore
+                opponentScore = if (!hisHeelsToPlayer && hisHeelsPoints > 0) state.opponentScore + hisHeelsPoints else state.opponentScore,
+                selectCribButtonEnabled = false
             )
         }
     }
@@ -166,7 +174,9 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 peggingState = result.peggingState,
                 gameStatus = result.statusMessage,
                 playerScore = newPlayerScore,
-                opponentScore = newOpponentScore
+                opponentScore = newOpponentScore,
+                playCardButtonEnabled = result.peggingState.isPlayerTurn,
+                showGoButton = false
             )
         }
 
@@ -235,7 +245,9 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 show31Banner = result.show31Banner,
                 gameOver = winnerData != null,
                 showWinnerModal = winnerData != null,
-                winnerModalData = winnerData
+                winnerModalData = winnerData,
+                playCardButtonEnabled = false,
+                showGoButton = false
             )
         }
 
@@ -288,7 +300,9 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 playerScore = newPlayerScore,
                 opponentScore = newOpponentScore,
                 playerScoreAnimation = if (result.goPointToPlayer == true) result.animation else null,
-                opponentScoreAnimation = if (result.goPointToPlayer == false) result.animation else null
+                opponentScoreAnimation = if (result.goPointToPlayer == false) result.animation else null,
+                playCardButtonEnabled = false,
+                showGoButton = false
             )
         }
 
@@ -314,11 +328,26 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             opponentHand = currentState.opponentHand
         )
 
+        // Check if player has legal moves after reset
+        val playerHasLegalMoves = if (result.updatedPeggingState.isPlayerTurn && !result.isPeggingComplete) {
+            peggingManager.getLegalMoves(
+                hand = currentState.playerHand,
+                cardsPlayed = result.updatedPeggingState.playerCardsPlayed,
+                currentCount = result.updatedPeggingState.peggingCount
+            ).hasLegalMoves
+        } else {
+            false
+        }
+
+        val playerCardsRemaining = 4 - result.updatedPeggingState.playerCardsPlayed.size
+
         _uiState.update { state ->
             state.copy(
                 peggingState = result.updatedPeggingState,
                 gameStatus = result.statusMessage,
-                show31Banner = false
+                show31Banner = false,
+                playCardButtonEnabled = playerHasLegalMoves,
+                showGoButton = !playerHasLegalMoves && playerCardsRemaining > 0 && !result.isPeggingComplete && result.updatedPeggingState.isPlayerTurn
             )
         }
 
@@ -329,6 +358,12 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             viewModelScope.launch {
                 delay(800)
                 performOpponentPeggingMove()
+            }
+        } else if (!playerHasLegalMoves && playerCardsRemaining == 0) {
+            // Player has no cards left, auto-handle Go
+            viewModelScope.launch {
+                delay(500)
+                handlePlayerGo()
             }
         }
     }
@@ -403,6 +438,19 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             }
         }
 
+        // Check if player has legal moves after opponent's play
+        val playerHasLegalMoves = if (result.updatedPeggingState.isPlayerTurn && result.pendingReset == null) {
+            peggingManager.getLegalMoves(
+                hand = currentState.playerHand,
+                cardsPlayed = result.updatedPeggingState.playerCardsPlayed,
+                currentCount = result.updatedPeggingState.peggingCount
+            ).hasLegalMoves
+        } else {
+            false
+        }
+
+        val playerCardsRemaining = 4 - result.updatedPeggingState.playerCardsPlayed.size
+
         _uiState.update { state ->
             state.copy(
                 peggingState = result.updatedPeggingState.copy(
@@ -417,8 +465,18 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 show31Banner = result.show31Banner,
                 gameOver = winnerData != null,
                 showWinnerModal = winnerData != null,
-                winnerModalData = winnerData
+                winnerModalData = winnerData,
+                playCardButtonEnabled = playerHasLegalMoves,
+                showGoButton = !playerHasLegalMoves && playerCardsRemaining > 0 && result.pendingReset == null
             )
+        }
+
+        // If player has no legal moves and no cards left, auto-handle Go
+        if (!playerHasLegalMoves && playerCardsRemaining == 0 && result.pendingReset == null && result.updatedPeggingState.isPlayerTurn) {
+            viewModelScope.launch {
+                delay(500)
+                handlePlayerGo()
+            }
         }
     }
 
@@ -453,6 +511,15 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             }
         }
 
+        // Check if player has legal moves after opponent's Go
+        val playerHasLegalMoves = if (result.updatedPeggingState.isPlayerTurn && result.pendingReset == null) {
+            playerLegal.hasLegalMoves
+        } else {
+            false
+        }
+
+        val playerCardsRemaining = 4 - result.updatedPeggingState.playerCardsPlayed.size
+
         _uiState.update { state ->
             state.copy(
                 peggingState = result.updatedPeggingState.copy(
@@ -463,8 +530,18 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 playerScore = newPlayerScore,
                 opponentScore = newOpponentScore,
                 opponentScoreAnimation = if (result.goPointToPlayer == false) result.animation else null,
-                playerScoreAnimation = if (result.goPointToPlayer == true) result.animation else null
+                playerScoreAnimation = if (result.goPointToPlayer == true) result.animation else null,
+                playCardButtonEnabled = playerHasLegalMoves,
+                showGoButton = !playerHasLegalMoves && playerCardsRemaining > 0 && result.pendingReset == null
             )
+        }
+
+        // If player has no legal moves and no cards left, auto-handle Go
+        if (!playerHasLegalMoves && playerCardsRemaining == 0 && result.pendingReset == null && result.updatedPeggingState.isPlayerTurn) {
+            viewModelScope.launch {
+                delay(500)
+                handlePlayerGo()
+            }
         }
     }
 
@@ -486,7 +563,10 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                     handScores = result.handScores,
                     waitingForDialogDismissal = false
                 ),
-                gameStatus = result.statusMessage
+                gameStatus = result.statusMessage,
+                playCardButtonEnabled = false,
+                showGoButton = false,
+                showHandCountingButton = true
             )
         }
     }
