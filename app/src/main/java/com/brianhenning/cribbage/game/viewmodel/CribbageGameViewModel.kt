@@ -93,7 +93,11 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 gameStatus = result.statusMessage,
                 selectedCards = emptySet(),
                 dealButtonEnabled = false,
-                selectCribButtonEnabled = true
+                selectCribButtonEnabled = true,
+                peggingState = null,
+                handCountingState = null,
+                starterCard = null,
+                cribHand = emptyList()
             )
         }
     }
@@ -343,7 +347,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
 
         _uiState.update { state ->
             state.copy(
-                peggingState = result.updatedPeggingState,
+                peggingState = result.updatedPeggingState.copy(pendingReset = null),
                 gameStatus = result.statusMessage,
                 show31Banner = false,
                 playCardButtonEnabled = playerHasLegalMoves,

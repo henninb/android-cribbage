@@ -197,6 +197,14 @@ fun CribbageMainScreen(
             lastPlayerWhoPlayed = pegging.lastPlayerWhoPlayed
             peggingManager = pegging.peggingManager
             pendingReset = pegging.pendingReset
+        } ?: run {
+            // Clear all pegging state when pegging phase ends
+            isPeggingPhase = false
+            playerCardsPlayed = emptySet()
+            opponentCardsPlayed = emptySet()
+            peggingDisplayPile = emptyList()
+            peggingCount = 0
+            pendingReset = null
         }
 
         // Hand counting state
