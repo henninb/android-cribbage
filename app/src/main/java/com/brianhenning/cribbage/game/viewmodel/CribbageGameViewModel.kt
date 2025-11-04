@@ -68,6 +68,10 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 gameOver = false,
                 showWinnerModal = false,
                 winnerModalData = null,
+                // Reset scores to 0 for new game
+                playerScore = 0,
+                opponentScore = 0,
+                // Reset button states
                 dealButtonEnabled = true,
                 selectCribButtonEnabled = false,
                 playCardButtonEnabled = false,
@@ -94,10 +98,16 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 selectedCards = emptySet(),
                 dealButtonEnabled = false,
                 selectCribButtonEnabled = true,
+                playCardButtonEnabled = false,
+                showGoButton = false,
+                showHandCountingButton = false,
                 peggingState = null,
                 handCountingState = null,
                 starterCard = null,
-                cribHand = emptyList()
+                cribHand = emptyList(),
+                playerScoreAnimation = null,
+                opponentScoreAnimation = null,
+                show31Banner = false
             )
         }
     }
@@ -127,10 +137,6 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             return
         }
 
-        // Check for His Heels (Jack as starter - dealer gets 2 points)
-        val hisHeelsPoints = if (result.starterCard.rank == Rank.JACK) 2 else 0
-        val hisHeelsToPlayer = currentState.isPlayerDealer && hisHeelsPoints > 0
-
         _uiState.update { state ->
             state.copy(
                 currentPhase = GamePhase.PEGGING, // Will show cut card display before pegging starts
@@ -142,9 +148,11 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 gameStatus = result.statusMessage,
                 selectedCards = emptySet(),
                 showCutCardDisplay = true,
-                playerScore = if (hisHeelsToPlayer) state.playerScore + hisHeelsPoints else state.playerScore,
-                opponentScore = if (!hisHeelsToPlayer && hisHeelsPoints > 0) state.opponentScore + hisHeelsPoints else state.opponentScore,
-                selectCribButtonEnabled = false
+                selectCribButtonEnabled = false,
+                showHandCountingButton = false,
+                playCardButtonEnabled = false,
+                showGoButton = false
+                // Note: His Heels (2 points for Jack as starter) is awarded in startPeggingPhase()
             )
         }
     }
@@ -355,9 +363,20 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             )
         }
 
-        // If pegging is complete, move to hand counting
+        // If pegging is complete, enable hand counting button
+        // Note: Don't call startHandCounting() yet - that will be used in Phase 5
+        // For now, the old UI code handles hand counting when button is pressed
         if (result.isPeggingComplete) {
-            startHandCounting()
+            _uiState.update { state ->
+                state.copy(
+                    currentPhase = GamePhase.HAND_COUNTING,
+                    peggingState = null,
+                    showHandCountingButton = true,
+                    playCardButtonEnabled = false,
+                    showGoButton = false,
+                    gameStatus = "Pegging complete. Press 'Count Hands' to continue."
+                )
+            }
         } else if (!result.updatedPeggingState.isPlayerTurn) {
             viewModelScope.launch {
                 delay(800)
@@ -576,20 +595,67 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
     }
 
     /**
+     * Updates scores during hand counting (temporary fix until Phase 5 migration).
+     */
+    fun updateScores(newPlayerScore: Int, newOpponentScore: Int) {
+        _uiState.update { state ->
+            state.copy(
+                playerScore = newPlayerScore,
+                opponentScore = newOpponentScore
+            )
+        }
+    }
+
+    /**
+     * Hides the hand counting button (called when user clicks the button).
+     */
+    fun hideHandCountingButton() {
+        _uiState.update { state ->
+            state.copy(
+                showHandCountingButton = false
+            )
+        }
+    }
+
+    /**
+     * Prepares for the next round after hand counting completes.
+     * Toggles dealer and enables deal button.
+     */
+    fun prepareNextRound() {
+        _uiState.update { state ->
+            state.copy(
+                currentPhase = GamePhase.DEALING,
+                isPlayerDealer = !state.isPlayerDealer,
+                handCountingState = null,
+                dealButtonEnabled = true,
+                showHandCountingButton = false,
+                selectCribButtonEnabled = false,
+                playCardButtonEnabled = false,
+                showGoButton = false
+            )
+        }
+    }
+
+    /**
      * Counts hands (called by UI when user dismisses counting dialog).
+     * Note: Currently unused - will be used in Phase 5 migration.
      */
     fun countHands() {
         val currentState = _uiState.value
         val countingState = currentState.handCountingState ?: return
         val starterCard = currentState.starterCard ?: return
 
-        // Implementation would depend on which phase we're in
-        // This is a simplified version - full implementation would be more complex
         // Move to next round (dealer toggles)
         _uiState.update { state ->
             state.copy(
                 currentPhase = GamePhase.DEALING,
-                isPlayerDealer = !state.isPlayerDealer
+                isPlayerDealer = !state.isPlayerDealer,
+                handCountingState = null,
+                dealButtonEnabled = true,
+                showHandCountingButton = false,
+                selectCribButtonEnabled = false,
+                playCardButtonEnabled = false,
+                showGoButton = false
             )
         }
     }

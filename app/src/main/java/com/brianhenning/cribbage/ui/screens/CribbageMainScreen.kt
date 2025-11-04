@@ -207,12 +207,13 @@ fun CribbageMainScreen(
             pendingReset = null
         }
 
-        // Hand counting state
-        vmUiState.handCountingState?.let { counting ->
-            isInHandCountingPhase = counting.isInHandCountingPhase
-            countingPhase = counting.countingPhase
-            handScores = counting.handScores
-        }
+        // Hand counting state - Skip syncing for now, managed locally by old UI code
+        // This will be migrated in Phase 5
+        // vmUiState.handCountingState?.let { counting ->
+        //     isInHandCountingPhase = counting.isInHandCountingPhase
+        //     countingPhase = counting.countingPhase
+        //     handScores = counting.handScores
+        // }
     }
 
     // Detect when pegging count reaches exactly 31 and trigger banner
@@ -585,7 +586,20 @@ fun CribbageMainScreen(
                     // Call ViewModel to play the card
                     viewModel.playCard(cardIndex)
                 } else {
+                    // Card would exceed 31 - show error and check if Go button should appear
                     gameStatus = context.getString(R.string.illegal_move_exceeds_31, cardToPlay.getSymbol())
+
+                    // Check if player has ANY legal moves
+                    val hasLegalMove = playerHand.filterIndexed { index, card ->
+                        !playerCardsPlayed.contains(index) && (peggingCount + card.getValue() <= 31)
+                    }.isNotEmpty()
+
+                    // If no legal moves and player has cards remaining, show Go button
+                    if (!hasLegalMove && playerCardsPlayed.size < 4) {
+                        showGoButton = true
+                        playCardButtonEnabled = false
+                        gameStatus += "\nNo legal moves. Press 'Go' to continue."
+                    }
                 }
             }
         } else {
@@ -774,6 +788,9 @@ fun CribbageMainScreen(
 
     // Enhanced hand counting process with opponent card reveals
     val countHands = {
+        // Hide button in ViewModel immediately
+        viewModel.hideHandCountingButton()
+
         scope.launch {
             // Enter hand counting mode
             isPeggingPhase = false
@@ -812,6 +829,8 @@ fun CribbageMainScreen(
             } else {
                 playerScore += nonDealerBreakdown.totalScore
             }
+            // Sync scores to ViewModel
+            viewModel.updateScores(playerScore, opponentScore)
             checkGameOverFunction()
             if (gameOver) return@launch
 
@@ -834,6 +853,8 @@ fun CribbageMainScreen(
             } else {
                 opponentScore += dealerBreakdown.totalScore
             }
+            // Sync scores to ViewModel
+            viewModel.updateScores(playerScore, opponentScore)
             checkGameOverFunction()
             if (gameOver) return@launch
 
@@ -856,6 +877,8 @@ fun CribbageMainScreen(
             } else {
                 opponentScore += cribBreakdown.totalScore
             }
+            // Sync scores to ViewModel
+            viewModel.updateScores(playerScore, opponentScore)
             checkGameOverFunction()
             if (gameOver) return@launch
 
@@ -870,17 +893,8 @@ fun CribbageMainScreen(
             gameStatus = "Hand counting complete. Preparing next round..."
             delay(2000)
 
-            // Reset for next round
-            isInHandCountingPhase = false
-            countingPhase = CountingPhase.NONE
-            handScores = HandScores()
-            starterCard = null
-
-            // Toggle dealer for next round
-            isPlayerDealer = !isPlayerDealer
-            currentPhase = GamePhase.SETUP
-            gameStatus = "New round: " + if (isPlayerDealer) "You are now the dealer." else "Opponent is now the dealer."
-            dealButtonEnabled = true
+            // Call ViewModel to toggle dealer and prepare next round
+            viewModel.prepareNextRound()
         }
     }
 
