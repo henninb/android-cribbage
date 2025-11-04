@@ -667,7 +667,10 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
         lifecycleManager.endGame()
 
         _uiState.update {
-            GameUiState(matchStats = it.matchStats)
+            GameUiState(
+                matchStats = it.matchStats,
+                gameOver = true
+            )
         }
     }
 

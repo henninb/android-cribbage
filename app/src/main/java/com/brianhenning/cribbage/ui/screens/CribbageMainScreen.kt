@@ -234,6 +234,8 @@ fun CribbageMainScreen(
 
         if (gameResult.isGameOver) {
             gameOver = true
+            // Update ViewModel so gameOver persists through LaunchedEffect updates
+            viewModel.endGame()
             val winner = GameScoreManager.formatWinner(gameResult.playerWins)
 
             // Update match statistics
@@ -1001,8 +1003,9 @@ fun CribbageMainScreen(
                     doubleSkunksFor = winnerModalData!!.doubleSkunksFor,
                     doubleSkunksAgainst = winnerModalData!!.doubleSkunksAgainst,
                     onDismiss = {
+                        // Just hide the modal - don't auto-start new game
+                        // User will see "Start New Game" button and can press it when ready
                         showWinnerModal = false
-                        startNewGame()
                     }
                 )
             }
@@ -1015,10 +1018,14 @@ fun CribbageMainScreen(
                     onAdjustPlayerScore = { adjustment ->
                         val newScore = (playerScore + adjustment).coerceAtLeast(0)
                         playerScore = newScore
+                        // Sync to ViewModel to persist the change
+                        viewModel.updateScores(newScore, opponentScore)
                     },
                     onAdjustOpponentScore = { adjustment ->
                         val newScore = (opponentScore + adjustment).coerceAtLeast(0)
                         opponentScore = newScore
+                        // Sync to ViewModel to persist the change
+                        viewModel.updateScores(playerScore, newScore)
                     },
                     onDismiss = {
                         showDebugScoreDialog = false
