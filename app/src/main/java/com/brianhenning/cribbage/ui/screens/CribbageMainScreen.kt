@@ -1012,9 +1012,9 @@ fun CribbageMainScreen(
                     doubleSkunksFor = winnerModalData!!.doubleSkunksFor,
                     doubleSkunksAgainst = winnerModalData!!.doubleSkunksAgainst,
                     onDismiss = {
-                        // Just hide the modal - don't auto-start new game
-                        // User will see "Start New Game" button and can press it when ready
-                        showWinnerModal = false
+                        android.util.Log.i("CribbageMainScreen", "Winner modal dismissed - calling ViewModel to clear state")
+                        // Clear all game state in ViewModel - user will see "Start New Game" button
+                        viewModel.dismissWinnerModal()
                     }
                 )
             }
