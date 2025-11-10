@@ -904,21 +904,22 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
 
     /**
      * Dismisses the winner modal after game over.
-     * Clears all game state to prepare for a new game.
+     * Keeps gameStarted=true to prevent welcome screen from showing behind modal.
+     * User must explicitly start a new game after dismissing.
      */
     fun dismissWinnerModal() {
-        Log.i(TAG, "dismissWinnerModal() called - Clearing game state")
+        Log.i(TAG, "dismissWinnerModal() called - Hiding modal, keeping game state")
         _uiState.update {
             GameUiState(
                 matchStats = it.matchStats,
-                gameOver = false,
+                gameOver = true, // Keep true to show blank background
                 showWinnerModal = false,
                 winnerModalData = null,
-                gameStarted = false,
+                gameStarted = true, // Keep true to prevent welcome screen showing
                 currentPhase = GamePhase.SETUP
             )
         }
-        Log.i(TAG, "dismissWinnerModal() complete - Ready for new game")
+        Log.i(TAG, "dismissWinnerModal() complete - Modal hidden, awaiting new game start")
     }
 
     // ========== UI Helper Actions ==========

@@ -907,13 +907,15 @@ fun CribbageMainScreen(
         }
     }
 
-    // New zone-based layout (NO scrolling!)
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .navigationBarsPadding()
-    ) {
+    // Main container with modal overlay at root level
+    Box(modifier = Modifier.fillMaxSize()) {
+        // New zone-based layout (NO scrolling!)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+        ) {
         // Zone 1: Compact Score Header (only visible after game starts)
         if (gameStarted) {
             CompactScoreHeader(
@@ -969,7 +971,8 @@ fun CribbageMainScreen(
                 show31Banner = show31Banner,
                 onBannerComplete = { show31Banner = false },
                 pendingReset = pendingReset,
-                onNextRound = handleNextRoundRef.value
+                onNextRound = handleNextRoundRef.value,
+                showWinnerModal = showWinnerModal
             )
 
             // Show hand counting dialogs on top when in counting phase
@@ -995,27 +998,6 @@ fun CribbageMainScreen(
                     isJack = starterCard!!.rank == Rank.JACK,
                     dealerGetsPoints = isPlayerDealer,
                     onContinue = startPeggingPhase
-                )
-            }
-
-            // Show winner modal on top when game is over
-            if (showWinnerModal && winnerModalData != null) {
-                WinnerModal(
-                    playerWon = winnerModalData!!.playerWon,
-                    playerScore = winnerModalData!!.playerScore,
-                    opponentScore = winnerModalData!!.opponentScore,
-                    wasSkunk = winnerModalData!!.wasSkunk,
-                    gamesWon = winnerModalData!!.gamesWon,
-                    gamesLost = winnerModalData!!.gamesLost,
-                    skunksFor = winnerModalData!!.skunksFor,
-                    skunksAgainst = winnerModalData!!.skunksAgainst,
-                    doubleSkunksFor = winnerModalData!!.doubleSkunksFor,
-                    doubleSkunksAgainst = winnerModalData!!.doubleSkunksAgainst,
-                    onDismiss = {
-                        android.util.Log.i("CribbageMainScreen", "Winner modal dismissed - calling ViewModel to clear state")
-                        // Clear all game state in ViewModel - user will see "Start New Game" button
-                        viewModel.dismissWinnerModal()
-                    }
                 )
             }
 
@@ -1106,6 +1088,27 @@ fun CribbageMainScreen(
             playerScore = playerScore,
             opponentScore = opponentScore
         )
+        }
+
+        // Winner modal at root level to cover entire screen including action bar
+        if (showWinnerModal && winnerModalData != null) {
+            WinnerModal(
+                playerWon = winnerModalData!!.playerWon,
+                playerScore = winnerModalData!!.playerScore,
+                opponentScore = winnerModalData!!.opponentScore,
+                wasSkunk = winnerModalData!!.wasSkunk,
+                gamesWon = winnerModalData!!.gamesWon,
+                gamesLost = winnerModalData!!.gamesLost,
+                skunksFor = winnerModalData!!.skunksFor,
+                skunksAgainst = winnerModalData!!.skunksAgainst,
+                doubleSkunksFor = winnerModalData!!.doubleSkunksFor,
+                doubleSkunksAgainst = winnerModalData!!.doubleSkunksAgainst,
+                onDismiss = {
+                    android.util.Log.i("CribbageMainScreen", "Winner modal dismissed - calling ViewModel to clear state")
+                    viewModel.dismissWinnerModal()
+                }
+            )
+        }
     }
 }
 

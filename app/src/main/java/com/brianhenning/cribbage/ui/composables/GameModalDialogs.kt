@@ -206,10 +206,11 @@ fun WinnerModal(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    android.util.Log.d("WinnerModal", "Rendering winner modal - playerWon=$playerWon, playerScore=$playerScore, opponentScore=$opponentScore")
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.5f))
+            .background(Color.Black) // Fully opaque to hide background content
             .pointerInput(Unit) {
                 // Consume all touch events to prevent background interaction
                 detectTapGestures { /* Do nothing - just consume the tap */ }

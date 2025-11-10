@@ -248,12 +248,22 @@ fun GameAreaContent(
     onBannerComplete: () -> Unit = {},
     pendingReset: PendingResetState? = null,
     onNextRound: () -> Unit = {},
+    showWinnerModal: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
+        android.util.Log.d("GameAreaContent", "Render - showWinnerModal=$showWinnerModal, currentPhase=$currentPhase, showWelcomeScreen=$showWelcomeScreen")
+
+        // If winner modal is showing, display blank background
+        if (showWinnerModal) {
+            android.util.Log.d("GameAreaContent", "Winner modal showing - rendering blank background")
+            // Empty - show nothing behind the modal
+            return@Box
+        }
+
         // Show pending reset UI if it exists (takes priority over other displays)
         if (pendingReset != null) {
             PeggingRoundAcknowledgment(
