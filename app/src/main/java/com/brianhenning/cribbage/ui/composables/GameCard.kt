@@ -27,7 +27,11 @@ import com.brianhenning.cribbage.R
 import com.brianhenning.cribbage.shared.domain.model.Card as CribbageCard
 import com.brianhenning.cribbage.ui.utils.CardResourceUtils
 import com.brianhenning.cribbage.ui.theme.CardBackground
+import com.brianhenning.cribbage.ui.theme.LocalSeasonalTheme
 import com.brianhenning.cribbage.ui.theme.SelectedCard
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun GameCard(
@@ -40,6 +44,8 @@ fun GameCard(
     modifier: Modifier = Modifier,
     cardSize: CardSize = CardSize.Medium
 ) {
+    val currentTheme = LocalSeasonalTheme.current
+
     val scale by animateFloatAsState(
         targetValue = if (isSelected) 1.1f else 1.0f,
         animationSpec = tween(200),
@@ -102,14 +108,29 @@ fun GameCard(
                         .padding(4.dp)
                 )
             } else {
-                Image(
-                    painter = painterResource(id = R.drawable.back_dark),
-                    contentDescription = "Hidden card",
-                    colorFilter = colorFilter,
+                // Card back using theme color
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(4.dp)
-                )
+                        .background(
+                            color = currentTheme.colors.cardBack,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .border(
+                            width = 2.dp,
+                            color = currentTheme.colors.primary,
+                            shape = RoundedCornerShape(8.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Optional: Add theme icon or pattern
+                    Text(
+                        text = currentTheme.icon,
+                        fontSize = (cardSize.height.value / 3).sp,
+                        color = currentTheme.colors.primary.copy(alpha = 0.3f)
+                    )
+                }
             }
         }
     }
