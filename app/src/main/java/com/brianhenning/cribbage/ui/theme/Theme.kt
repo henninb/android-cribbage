@@ -80,10 +80,11 @@ fun CribbageTheme(
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = false,  // Disabled to use seasonal themes
     useSeasonalThemes: Boolean = true,  // Enable seasonal theming
+    overrideTheme: CribbageTheme? = null,  // Optional theme override for manual selection
     content: @Composable () -> Unit
 ) {
-    // Get the current seasonal theme
-    val seasonalTheme = ThemeCalculator.getCurrentTheme()
+    // Get the current seasonal theme (use override if provided)
+    val seasonalTheme = overrideTheme ?: ThemeCalculator.getCurrentTheme()
 
     // Determine if this is a dark theme (Fall/Winter have dark backgrounds)
     val isDarkSeasonalTheme = seasonalTheme.type == ThemeType.FALL ||

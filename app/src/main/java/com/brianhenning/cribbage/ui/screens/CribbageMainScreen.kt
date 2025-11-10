@@ -22,6 +22,7 @@ import com.brianhenning.cribbage.BuildConfig
 import com.brianhenning.cribbage.R
 import com.brianhenning.cribbage.game.viewmodel.CribbageGameViewModel
 import com.brianhenning.cribbage.ui.composables.*
+import com.brianhenning.cribbage.ui.theme.LocalSeasonalTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
@@ -48,7 +49,8 @@ import com.brianhenning.cribbage.ui.utils.BugReportUtils
 
 @Composable
 fun CribbageMainScreen(
-    viewModel: CribbageGameViewModel = viewModel()
+    viewModel: CribbageGameViewModel = viewModel(),
+    onThemeChange: (com.brianhenning.cribbage.ui.theme.CribbageTheme) -> Unit = {}
 ) {
     val context = LocalContext.current
     val prefsRepository = remember { PreferencesRepository(context) }
@@ -907,6 +909,9 @@ fun CribbageMainScreen(
         }
     }
 
+    // Get current theme
+    val currentTheme = LocalSeasonalTheme.current
+
     // Main container with modal overlay at root level
     Box(modifier = Modifier.fillMaxSize()) {
         // New zone-based layout (NO scrolling!)
@@ -916,6 +921,14 @@ fun CribbageMainScreen(
                 .statusBarsPadding()
                 .navigationBarsPadding()
         ) {
+        // Zone 0: Theme Selector Bar (always visible)
+        ThemeSelectorBar(
+            currentTheme = currentTheme,
+            onThemeSelected = { theme ->
+                onThemeChange(theme)
+            }
+        )
+
         // Zone 1: Compact Score Header (only visible after game starts)
         if (gameStarted) {
             CompactScoreHeader(

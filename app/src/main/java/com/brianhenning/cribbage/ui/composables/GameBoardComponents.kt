@@ -3,6 +3,7 @@ package com.brianhenning.cribbage.ui.composables
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,20 +14,28 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -37,15 +46,173 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.brianhenning.cribbage.shared.domain.model.Card as CribbageCard
+import com.brianhenning.cribbage.ui.theme.CribbageTheme
 import com.brianhenning.cribbage.ui.theme.LocalSeasonalTheme
+import com.brianhenning.cribbage.ui.theme.ThemeDefinitions
 import kotlinx.coroutines.delay
+
+/**
+ * Thin theme selector bar at the very top of the screen
+ * Displays current theme and allows user to select a different theme
+ */
+@Composable
+fun ThemeSelectorBar(
+    currentTheme: CribbageTheme,
+    onThemeSelected: (CribbageTheme) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var showThemeDialog by remember { mutableStateOf(false) }
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { showThemeDialog = true },
+        color = currentTheme.colors.primary,
+        tonalElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${currentTheme.icon} ${currentTheme.name}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onPrimary,
+                fontSize = 12.sp
+            )
+        }
+    }
+
+    if (showThemeDialog) {
+        ThemeSelectorDialog(
+            currentTheme = currentTheme,
+            onThemeSelected = { theme ->
+                onThemeSelected(theme)
+                showThemeDialog = false
+            },
+            onDismiss = { showThemeDialog = false }
+        )
+    }
+}
+
+/**
+ * Dialog for selecting a theme from all available themes
+ */
+@Composable
+private fun ThemeSelectorDialog(
+    currentTheme: CribbageTheme,
+    onThemeSelected: (CribbageTheme) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val allThemes = listOf(
+        ThemeDefinitions.SPRING,
+        ThemeDefinitions.SUMMER,
+        ThemeDefinitions.FALL,
+        ThemeDefinitions.WINTER,
+        ThemeDefinitions.NEW_YEAR,
+        ThemeDefinitions.MLK_DAY,
+        ThemeDefinitions.VALENTINES_DAY,
+        ThemeDefinitions.PRESIDENTS_DAY,
+        ThemeDefinitions.ST_PATRICKS_DAY,
+        ThemeDefinitions.MEMORIAL_DAY,
+        ThemeDefinitions.INDEPENDENCE_DAY,
+        ThemeDefinitions.LABOR_DAY,
+        ThemeDefinitions.HALLOWEEN,
+        ThemeDefinitions.THANKSGIVING
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        title = {
+            Text(
+                text = "Select Theme",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(allThemes) { theme ->
+                    ThemeOptionItem(
+                        theme = theme,
+                        isSelected = theme.type == currentTheme.type,
+                        onClick = { onThemeSelected(theme) }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+/**
+ * Individual theme option in the selector
+ */
+@Composable
+private fun ThemeOptionItem(
+    theme: CribbageTheme,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        color = if (isSelected)
+            MaterialTheme.colorScheme.primaryContainer
+        else
+            MaterialTheme.colorScheme.surface,
+        tonalElevation = if (isSelected) 4.dp else 0.dp,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = theme.icon,
+                    style = MaterialTheme.typography.headlineMedium
+                )
+                Text(
+                    text = theme.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                )
+            }
+
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Selected",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
+}
 
 /**
  * Zone 1: Compact Score Header
  * Always visible at the top of the screen
  * Shows player/opponent scores with progress bars and dealer indicator
  * Shows starter card in top-right corner when available
- * Shows current seasonal theme
  */
 @Composable
 fun CompactScoreHeader(
@@ -169,20 +336,6 @@ fun CompactScoreHeader(
                         }
                     }
                 }
-            }
-
-            // Theme indicator in top-left corner
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 4.dp, top = 4.dp)
-            ) {
-                Text(
-                    text = "${currentTheme.icon} ${currentTheme.name}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-                    fontSize = 10.sp
-                )
             }
         }
     }
