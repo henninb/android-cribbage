@@ -950,8 +950,8 @@ fun CribbageMainScreen(
             // Always show the game area
             GameAreaContent(
                 currentPhase = currentPhase,
-                cutPlayerCard = if (showCutForDealer && gameStarted && dealButtonEnabled) cutPlayerCard else null,
-                cutOpponentCard = if (showCutForDealer && gameStarted && dealButtonEnabled) cutOpponentCard else null,
+                cutPlayerCard = if (showCutForDealer) cutPlayerCard else null,
+                cutOpponentCard = if (showCutForDealer) cutOpponentCard else null,
                 opponentHand = opponentHand,
                 opponentCardsPlayed = opponentCardsPlayed,
                 starterCard = starterCard,

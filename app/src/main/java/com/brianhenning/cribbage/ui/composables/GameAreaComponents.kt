@@ -432,12 +432,32 @@ fun GameAreaContent(
             }
 
             GamePhase.DEALING -> {
-                // Show a simple dealing message
-                Text(
-                    text = "Dealing cards...",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                // Show who won the cut for dealer
+                android.util.Log.d("GameAreaContent", "DEALING phase - Displaying cut cards and dealer message: $gameStatus")
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Show cut cards if available
+                    if (cutPlayerCard != null && cutOpponentCard != null) {
+                        android.util.Log.d("GameAreaContent", "Showing cut cards: Player=$cutPlayerCard, Opponent=$cutOpponentCard")
+                        CutForDealerDisplay(
+                            playerCard = cutPlayerCard,
+                            opponentCard = cutOpponentCard
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    // Show the dealer determination message
+                    Text(
+                        text = gameStatus,
+                        style = MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
 
             GamePhase.GAME_OVER -> {

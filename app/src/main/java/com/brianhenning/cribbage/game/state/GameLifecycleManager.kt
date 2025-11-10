@@ -88,8 +88,9 @@ class GameLifecycleManager(
             cutPlayerCard = cutResult.playerCutCard,
             cutOpponentCard = cutResult.opponentCutCard,
             showCutForDealer = true,
-            statusMessage = "Cut for deal: You ${cutResult.playerCutCard.getSymbol()} vs Opponent ${cutResult.opponentCutCard.getSymbol()}\n" +
-                    if (cutResult.isPlayerDealer) "You are dealer" else "Opponent is dealer"
+            statusMessage = "${if (cutResult.isPlayerDealer) "You" else "Opponent"} won the cut!\n" +
+                    "${if (cutResult.isPlayerDealer) "You are" else "Opponent is"} the dealer.\n" +
+                    "Press 'Deal Cards' to start."
         )
     }
 

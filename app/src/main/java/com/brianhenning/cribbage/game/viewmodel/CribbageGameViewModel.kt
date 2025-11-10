@@ -793,8 +793,10 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
      */
     fun prepareNextRound() {
         val currentState = _uiState.value
-        Log.i(TAG, "prepareNextRound() called - Toggling dealer: " +
+        Log.i(TAG, "========== PREPARE NEXT ROUND ==========")
+        Log.i(TAG, "prepareNextRound() - Toggling dealer: " +
                 "isPlayerDealer: ${currentState.isPlayerDealer} -> ${!currentState.isPlayerDealer}")
+        Log.i(TAG, "prepareNextRound() - NOT showing cut cards (dealer alternates between rounds)")
         _uiState.update { state ->
             state.copy(
                 currentPhase = GamePhase.DEALING,
@@ -804,7 +806,10 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 showHandCountingButton = false,
                 selectCribButtonEnabled = false,
                 playCardButtonEnabled = false,
-                showGoButton = false
+                showGoButton = false,
+                // Don't show cut for dealer between rounds - dealer just alternates
+                showCutForDealer = false,
+                gameStatus = "${if (!state.isPlayerDealer) "You are" else "Opponent is"} the dealer.\nPress 'Deal Cards' to continue."
             )
         }
         Log.i(TAG, "prepareNextRound() complete - Phase: DEALING, ready for next round")
