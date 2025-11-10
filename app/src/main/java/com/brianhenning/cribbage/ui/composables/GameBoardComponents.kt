@@ -63,26 +63,33 @@ fun ThemeSelectorBar(
 ) {
     var showThemeDialog by remember { mutableStateOf(false) }
 
-    Surface(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { showThemeDialog = true },
-        color = currentTheme.colors.primary,
-        tonalElevation = 2.dp
+            .padding(start = 8.dp, top = 2.dp, end = 8.dp, bottom = 2.dp)
     ) {
-        Row(
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+                .clickable { showThemeDialog = true },
+            color = currentTheme.colors.primary,
+            tonalElevation = 2.dp,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
         ) {
-            Text(
-                text = "${currentTheme.icon} ${currentTheme.name}",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onPrimary,
-                fontSize = 12.sp
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${currentTheme.icon} ${currentTheme.name}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    fontSize = 11.sp
+                )
+            }
         }
     }
 
