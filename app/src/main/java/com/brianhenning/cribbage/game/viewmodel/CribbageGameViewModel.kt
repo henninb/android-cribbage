@@ -214,18 +214,18 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             null
         }
 
-        val (newPlayerScore, newOpponentScore, newMatchStats, winnerData) = when (scoreResult) {
+        val (newPlayerScore, newOpponentScore, newMatchStats, winnerData, hisHeelsAnimation) = when (scoreResult) {
             is ScoreManager.ScoreResult.ScoreUpdated -> {
                 Log.d(TAG, "startPeggingPhase() - Scores updated: player=${scoreResult.newPlayerScore}, opponent=${scoreResult.newOpponentScore}")
-                Tuple4(scoreResult.newPlayerScore, scoreResult.newOpponentScore, scoreResult.matchStats, null)
+                Tuple5(scoreResult.newPlayerScore, scoreResult.newOpponentScore, scoreResult.matchStats, null, scoreResult.animation)
             }
             is ScoreManager.ScoreResult.GameOver -> {
                 Log.i(TAG, "startPeggingPhase() - GAME OVER from His Heels! playerWon=${scoreResult.winnerModalData.playerWon}")
                 Log.i(TAG, "startPeggingPhase() - Setting showWinnerModal=true, gameOver=true")
-                Tuple4(scoreResult.newPlayerScore, scoreResult.newOpponentScore, scoreResult.matchStats, scoreResult.winnerModalData)
+                Tuple5(scoreResult.newPlayerScore, scoreResult.newOpponentScore, scoreResult.matchStats, scoreResult.winnerModalData, null)
             }
             null -> {
-                Tuple4(currentState.playerScore, currentState.opponentScore, currentState.matchStats, null)
+                Tuple5(currentState.playerScore, currentState.opponentScore, currentState.matchStats, null, null)
             }
         }
 
@@ -242,7 +242,10 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 showWinnerModal = winnerData != null,
                 winnerModalData = winnerData,
                 playCardButtonEnabled = result.peggingState.isPlayerTurn && winnerData == null,
-                showGoButton = false
+                showGoButton = false,
+                // Apply His Heels animation if awarded
+                playerScoreAnimation = if (hisHeelsAnimation?.isPlayer == true) hisHeelsAnimation else null,
+                opponentScoreAnimation = if (hisHeelsAnimation?.isPlayer == false) hisHeelsAnimation else null
             )
         }
         Log.i(TAG, "startPeggingPhase() complete - isPlayerTurn=${result.peggingState.isPlayerTurn}, " +
@@ -338,6 +341,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 opponentScore = newOpponentScore,
                 matchStats = newMatchStats,
                 playerScoreAnimation = result.animation,
+                opponentScoreAnimation = null, // Clear opponent animation when player scores
                 show31Banner = result.show31Banner,
                 gameOver = winnerData != null,
                 showWinnerModal = winnerData != null,
@@ -425,6 +429,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 gameOver = winnerData != null,
                 showWinnerModal = winnerData != null,
                 winnerModalData = winnerData,
+                // Clear both animations first, then set only the appropriate one
                 playerScoreAnimation = if (result.goPointToPlayer == true) result.animation else null,
                 opponentScoreAnimation = if (result.goPointToPlayer == false) result.animation else null,
                 playCardButtonEnabled = false,
@@ -629,6 +634,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 opponentScore = newOpponentScore,
                 matchStats = newMatchStats,
                 opponentScoreAnimation = result.animation,
+                playerScoreAnimation = null, // Clear player animation when opponent scores
                 show31Banner = result.show31Banner,
                 gameOver = winnerData != null,
                 showWinnerModal = winnerData != null,
@@ -717,8 +723,9 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 gameOver = winnerData != null,
                 showWinnerModal = winnerData != null,
                 winnerModalData = winnerData,
-                opponentScoreAnimation = if (result.goPointToPlayer == false) result.animation else null,
+                // Clear both animations first, then set only the appropriate one
                 playerScoreAnimation = if (result.goPointToPlayer == true) result.animation else null,
+                opponentScoreAnimation = if (result.goPointToPlayer == false) result.animation else null,
                 playCardButtonEnabled = playerHasLegalMoves,
                 showGoButton = !playerHasLegalMoves && playerCardsRemaining > 0 && result.pendingReset == null && winnerData == null
             )
@@ -761,16 +768,51 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
 
     /**
      * Updates scores during hand counting (temporary fix until Phase 5 migration).
+     * Now creates animations for score changes.
+     * Only one player should score at a time during hand counting.
      */
     fun updateScores(newPlayerScore: Int, newOpponentScore: Int) {
         val currentState = _uiState.value
         Log.d(TAG, "updateScores() called - Updating scores: " +
                 "player: ${currentState.playerScore} -> $newPlayerScore, " +
                 "opponent: ${currentState.opponentScore} -> $newOpponentScore")
+
+        // Calculate score deltas to create animations
+        val playerDelta = newPlayerScore - currentState.playerScore
+        val opponentDelta = newOpponentScore - currentState.opponentScore
+
+        // Only one player should score at a time during hand counting
+        // If both somehow changed, prioritize the larger delta
+        val (playerAnimation, opponentAnimation) = when {
+            playerDelta > 0 && opponentDelta <= 0 -> {
+                Pair(scoreManager.createScoreAnimation(playerDelta, isPlayer = true), null)
+            }
+            opponentDelta > 0 && playerDelta <= 0 -> {
+                Pair(null, scoreManager.createScoreAnimation(opponentDelta, isPlayer = false))
+            }
+            playerDelta > 0 && opponentDelta > 0 -> {
+                // Both scored (shouldn't happen in normal gameplay)
+                Log.w(TAG, "updateScores() - WARNING: Both players scored simultaneously! " +
+                        "playerDelta=$playerDelta, opponentDelta=$opponentDelta")
+                // Show only the larger score
+                if (playerDelta >= opponentDelta) {
+                    Pair(scoreManager.createScoreAnimation(playerDelta, isPlayer = true), null)
+                } else {
+                    Pair(null, scoreManager.createScoreAnimation(opponentDelta, isPlayer = false))
+                }
+            }
+            else -> {
+                // No score change
+                Pair(null, null)
+            }
+        }
+
         _uiState.update { state ->
             state.copy(
                 playerScore = newPlayerScore,
-                opponentScore = newOpponentScore
+                opponentScore = newOpponentScore,
+                playerScoreAnimation = playerAnimation,
+                opponentScoreAnimation = opponentAnimation
             )
         }
     }
@@ -938,6 +980,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    // Helper data class for tuple returns
+    // Helper data classes for tuple returns
     private data class Tuple4<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
+    private data class Tuple5<A, B, C, D, E>(val a: A, val b: B, val c: C, val d: D, val e: E)
 }
