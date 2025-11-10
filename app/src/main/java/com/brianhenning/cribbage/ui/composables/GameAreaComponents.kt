@@ -74,14 +74,14 @@ internal fun calculateCardOverlapAndScale(
 
 /**
  * Pegging Round Acknowledgment UI
- * Shows pile, count, score when 31 or Go occurs
- * Requires user to tap "Next Round" button to continue
+ * Shows pile and count when 31 or Go occurs
+ * Requires user to tap "OK" button to continue
  */
 @Composable
 fun PeggingRoundAcknowledgment(
     pile: List<CribbageCard>,
     finalCount: Int,
-    scoreAwarded: Int,
+    @Suppress("UNUSED_PARAMETER") scoreAwarded: Int, // Kept for compatibility but not displayed
     onNextRound: () -> Unit,
     modifier: Modifier = Modifier,
     playerCardsRemaining: Int = 0,
@@ -119,23 +119,6 @@ fun PeggingRoundAcknowledgment(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
-
-            // Score awarded
-            if (scoreAwarded > 0) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = currentTheme.colors.primary.copy(alpha = 0.2f)
-                    )
-                ) {
-                    Text(
-                        text = "+$scoreAwarded",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = currentTheme.colors.primary
-                    )
-                }
-            }
 
             // Cards remaining
             Row(

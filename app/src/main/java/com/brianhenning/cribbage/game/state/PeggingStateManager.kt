@@ -220,6 +220,9 @@ class PeggingStateManager {
 
         val currentPlayerIsPlayer = manager.isPlayerTurn == Player.PLAYER
 
+        // Capture count BEFORE calling onGo (which may reset it to 0)
+        val countBeforeGo = manager.peggingCount
+
         // Call manager's onGo
         val resetData = manager.onGo(opponentHasLegalMove = opponentHasLegalMove)
 
@@ -251,7 +254,7 @@ class PeggingStateManager {
         }
 
         val pendingReset = if (resetData != null) {
-            createPendingReset(currentState, resetData, manager.peggingCount)
+            createPendingReset(currentState, resetData, countBeforeGo)
         } else {
             null
         }
