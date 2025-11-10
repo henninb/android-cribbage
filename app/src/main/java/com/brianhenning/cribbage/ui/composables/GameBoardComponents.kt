@@ -106,8 +106,7 @@ fun CompactScoreHeader(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                    .padding(end = if (starterCard != null) 60.dp else 0.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -184,22 +183,6 @@ fun CompactScoreHeader(
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
                     fontSize = 10.sp
                 )
-            }
-
-            // Starter card in top-right corner (no label)
-            if (starterCard != null) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 4.dp, end = 4.dp)
-                ) {
-                    GameCard(
-                        card = starterCard,
-                        isRevealed = true,
-                        isClickable = false,
-                        cardSize = CardSize.Small
-                    )
-                }
             }
         }
     }

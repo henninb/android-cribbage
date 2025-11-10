@@ -348,20 +348,35 @@ fun GameAreaContent(
                         label = "Opponent"
                     )
 
-                    // Pegging count (large and prominent)
+                    // Pegging count (large and prominent) with starter card
                     val currentTheme = LocalSeasonalTheme.current
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = currentTheme.colors.boardPrimary
-                        )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Count: $peggingCount",
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = currentTheme.colors.accentLight
-                        )
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = currentTheme.colors.boardPrimary
+                            )
+                        ) {
+                            Text(
+                                text = "Count: $peggingCount",
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = currentTheme.colors.accentLight
+                            )
+                        }
+
+                        // Starter card displayed next to count
+                        if (starterCard != null) {
+                            GameCard(
+                                card = starterCard,
+                                isRevealed = true,
+                                isClickable = false,
+                                cardSize = CardSize.Small
+                            )
+                        }
                     }
 
                     // Pegging pile (compact inline with dynamic overlap)
