@@ -173,7 +173,7 @@ class PeggingStateManager {
         // Handle reset if triggered
         val resetData = outcome.reset
         val pendingReset = if (resetData != null) {
-            createPendingReset(currentState, resetData, countBeforeReset)
+            createPendingReset(currentState, resetData, countBeforeReset, updatedDisplayPile)
         } else {
             null
         }
@@ -377,7 +377,8 @@ class PeggingStateManager {
     private fun createPendingReset(
         currentState: PeggingState,
         reset: SubRoundReset,
-        finalCount: Int
+        finalCount: Int,
+        updatedDisplayPile: List<Card>? = null
     ): PendingResetState {
         val scoreAwarded = if (!reset.resetFor31) {
             when (reset.goPointTo) {
@@ -389,7 +390,7 @@ class PeggingStateManager {
         }
 
         return PendingResetState(
-            pile = currentState.peggingDisplayPile.toList(),
+            pile = (updatedDisplayPile ?: currentState.peggingDisplayPile).toList(),
             finalCount = if (reset.resetFor31) 31 else finalCount,
             scoreAwarded = scoreAwarded,
             resetData = reset
