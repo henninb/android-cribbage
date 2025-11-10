@@ -483,7 +483,10 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 gameStatus = result.statusMessage,
                 show31Banner = false,
                 playCardButtonEnabled = playerHasLegalMoves,
-                showGoButton = !playerHasLegalMoves && playerCardsRemaining > 0 && !result.isPeggingComplete && result.updatedPeggingState.isPlayerTurn
+                showGoButton = !playerHasLegalMoves && playerCardsRemaining > 0 && !result.isPeggingComplete && result.updatedPeggingState.isPlayerTurn,
+                // Clear any lingering score animations from previous pegging actions
+                playerScoreAnimation = null,
+                opponentScoreAnimation = null
             )
         }
 
