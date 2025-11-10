@@ -163,41 +163,54 @@ fun ScoreBreakdownDialog(
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        text = "Hand",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy((-35).dp),  // Overlap cards
-                        contentPadding = PaddingValues(horizontal = 12.dp)
+                    // Hand cards
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(hand) { card ->
-                            GameCard(
-                                card = card,
-                                isRevealed = true,
-                                isClickable = false,
-                                cardSize = CardSize.Medium
-                            )
-                        }
+                        Text(
+                            text = "Hand",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
 
-                        // Starter card with visual separator
-                        starterCard?.let { starter ->
-                            item {
-                                Spacer(modifier = Modifier.width(4.dp))  // Small gap before starter
-                            }
-                            item {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy((-35).dp),  // Overlap cards
+                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        ) {
+                            items(hand) { card ->
                                 GameCard(
-                                    card = starter,
+                                    card = card,
                                     isRevealed = true,
                                     isClickable = false,
                                     cardSize = CardSize.Medium
                                 )
                             }
+                        }
+                    }
+
+                    // Starter card (cut card) - clearly separated
+                    starterCard?.let { starter ->
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Cut Card",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
+
+                            GameCard(
+                                card = starter,
+                                isRevealed = true,
+                                isClickable = false,
+                                cardSize = CardSize.Medium
+                            )
                         }
                     }
                 }
