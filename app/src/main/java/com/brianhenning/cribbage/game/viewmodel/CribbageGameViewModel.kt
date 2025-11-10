@@ -1,6 +1,7 @@
 package com.brianhenning.cribbage.game.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.brianhenning.cribbage.game.repository.PreferencesRepository
@@ -29,6 +30,10 @@ import kotlinx.coroutines.launch
  */
 class CribbageGameViewModel(application: Application) : AndroidViewModel(application) {
 
+    companion object {
+        private const val TAG = "CribbageGameViewModel"
+    }
+
     // State managers (business logic)
     private val preferencesRepository = PreferencesRepository(application)
     private val scoreManager = ScoreManager(preferencesRepository)
@@ -43,6 +48,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
 
     init {
+        Log.i(TAG, "ViewModel initialized")
         // Load persisted data on initialization
         loadPersistedData()
     }
@@ -54,7 +60,19 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
      * Determines dealer and initializes game state.
      */
     fun startNewGame() {
+        Log.i(TAG, "========== START NEW GAME ==========")
         val result = lifecycleManager.startNewGame()
+
+        if (result.cutPlayerCard != null && result.cutOpponentCard != null) {
+            Log.i(TAG, "Cut for dealer: Player cut ${result.cutPlayerCard.rank} (ordinal ${result.cutPlayerCard.rank.ordinal}), " +
+                    "Opponent cut ${result.cutOpponentCard.rank} (ordinal ${result.cutOpponentCard.rank.ordinal})")
+            Log.i(TAG, "Lower card wins and becomes dealer")
+            Log.i(TAG, "RESULT: ${if (result.isPlayerDealer) "PLAYER" else "OPPONENT"} is the dealer")
+        } else {
+            Log.i(TAG, "Dealer set from previous game: ${if (result.isPlayerDealer) "PLAYER" else "OPPONENT"}")
+        }
+
+        Log.d(TAG, "startNewGame() - isPlayerDealer=${result.isPlayerDealer}")
 
         _uiState.update { currentState ->
             currentState.copy(
@@ -79,6 +97,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 showGoButton = false
             )
         }
+        Log.i(TAG, "startNewGame() complete - Phase: DEALING, Scores reset to 0")
     }
 
     /**
@@ -86,7 +105,10 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
      */
     fun dealCards() {
         val currentState = _uiState.value
+        Log.i(TAG, "dealCards() called - isPlayerDealer=${currentState.isPlayerDealer}")
         val result = lifecycleManager.dealCards(currentState.isPlayerDealer)
+        Log.d(TAG, "dealCards() - Dealt ${result.playerHand.size} cards to player, " +
+                "${result.opponentHand.size} to opponent, ${result.remainingDeck.size} remaining in deck")
 
         _uiState.update { state ->
             state.copy(
@@ -110,6 +132,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 show31Banner = false
             )
         }
+        Log.i(TAG, "dealCards() complete - Phase: CRIB_SELECTION")
     }
 
     /**
@@ -117,9 +140,11 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
      */
     fun selectCardsForCrib() {
         val currentState = _uiState.value
+        Log.d(TAG, "selectCardsForCrib() called - selectedCards=${currentState.selectedCards}")
 
         if (currentState.selectedCards.size != 2) {
             // Invalid selection - update status message
+            Log.w(TAG, "selectCardsForCrib() - Invalid selection: ${currentState.selectedCards.size} cards selected, need exactly 2")
             _uiState.update { it.copy(gameStatus = "You must select exactly 2 cards for the crib") }
             return
         }
@@ -133,9 +158,13 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
         )
 
         if (result == null) {
+            Log.e(TAG, "selectCardsForCrib() - Failed to create crib (null result)")
             _uiState.update { it.copy(gameStatus = "Invalid crib selection") }
             return
         }
+
+        Log.d(TAG, "selectCardsForCrib() - Crib created with ${result.cribHand.size} cards, " +
+                "starterCard=${result.starterCard}, playerHand now has ${result.updatedPlayerHand.size} cards")
 
         _uiState.update { state ->
             state.copy(
@@ -155,6 +184,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 // Note: His Heels (2 points for Jack as starter) is awarded in startPeggingPhase()
             )
         }
+        Log.i(TAG, "selectCardsForCrib() complete - Phase: PEGGING (showing cut card)")
     }
 
     /**
@@ -162,20 +192,39 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
      */
     fun startPeggingPhase() {
         val currentState = _uiState.value
+        Log.i(TAG, "startPeggingPhase() called - starterCard=${currentState.starterCard}, " +
+                "isPlayerDealer=${currentState.isPlayerDealer}")
         val result = peggingManager.startPegging(
             isPlayerDealer = currentState.isPlayerDealer,
             starterCard = currentState.starterCard
         )
 
-        // Apply His Heels if applicable (already handled in selectCardsForCrib, but kept for clarity)
-        var newPlayerScore = currentState.playerScore
-        var newOpponentScore = currentState.opponentScore
+        // Apply His Heels if applicable (2 points for Jack as starter card)
+        val scoreResult = if (result.hisHeelsPoints > 0) {
+            Log.i(TAG, "startPeggingPhase() - His Heels: Jack turned as starter, " +
+                    "${result.hisHeelsPoints} points to ${if (result.hisHeelsToPlayer) "PLAYER" else "OPPONENT"} (dealer)")
+            scoreManager.addScore(
+                currentPlayerScore = currentState.playerScore,
+                currentOpponentScore = currentState.opponentScore,
+                pointsToAdd = result.hisHeelsPoints,
+                isForPlayer = result.hisHeelsToPlayer,
+                currentMatchStats = currentState.matchStats
+            )
+        } else {
+            null
+        }
 
-        if (result.hisHeelsPoints > 0) {
-            if (result.hisHeelsToPlayer) {
-                newPlayerScore += result.hisHeelsPoints
-            } else {
-                newOpponentScore += result.hisHeelsPoints
+        val (newPlayerScore, newOpponentScore, newMatchStats, winnerData) = when (scoreResult) {
+            is ScoreManager.ScoreResult.ScoreUpdated -> {
+                Log.d(TAG, "startPeggingPhase() - Scores updated: player=${scoreResult.newPlayerScore}, opponent=${scoreResult.newOpponentScore}")
+                Tuple4(scoreResult.newPlayerScore, scoreResult.newOpponentScore, scoreResult.matchStats, null)
+            }
+            is ScoreManager.ScoreResult.GameOver -> {
+                Log.i(TAG, "startPeggingPhase() - GAME OVER from His Heels! playerWon=${scoreResult.winnerModalData.playerWon}")
+                Tuple4(scoreResult.newPlayerScore, scoreResult.newOpponentScore, scoreResult.matchStats, scoreResult.winnerModalData)
+            }
+            null -> {
+                Tuple4(currentState.playerScore, currentState.opponentScore, currentState.matchStats, null)
             }
         }
 
@@ -187,13 +236,23 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 gameStatus = result.statusMessage,
                 playerScore = newPlayerScore,
                 opponentScore = newOpponentScore,
-                playCardButtonEnabled = result.peggingState.isPlayerTurn,
+                matchStats = newMatchStats,
+                gameOver = winnerData != null,
+                showWinnerModal = winnerData != null,
+                winnerModalData = winnerData,
+                playCardButtonEnabled = result.peggingState.isPlayerTurn && winnerData == null,
                 showGoButton = false
             )
         }
+        Log.i(TAG, "startPeggingPhase() complete - isPlayerTurn=${result.peggingState.isPlayerTurn}, " +
+                "scores: player=$newPlayerScore, opponent=$newOpponentScore")
+        Log.i(TAG, "Cribbage Rule: Non-dealer leads first in pegging. " +
+                "Dealer=${if (currentState.isPlayerDealer) "PLAYER" else "OPPONENT"}, " +
+                "so ${if (result.peggingState.isPlayerTurn) "PLAYER" else "OPPONENT"} plays first")
 
-        // If opponent starts, trigger opponent's first move
-        if (!result.peggingState.isPlayerTurn) {
+        // If opponent starts and game isn't over, trigger opponent's first move
+        if (!result.peggingState.isPlayerTurn && winnerData == null) {
+            Log.d(TAG, "startPeggingPhase() - Opponent starts, triggering opponent move")
             viewModelScope.launch {
                 delay(500) // Brief delay for UX
                 performOpponentPeggingMove()
@@ -208,11 +267,23 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
      */
     fun playCard(cardIndex: Int) {
         val currentState = _uiState.value
-        val peggingState = currentState.peggingState ?: return
+        val peggingState = currentState.peggingState ?: run {
+            Log.w(TAG, "playCard() - No pegging state available")
+            return
+        }
 
-        if (!peggingState.isPlayerTurn) return
+        if (!peggingState.isPlayerTurn) {
+            Log.w(TAG, "playCard() - Not player's turn")
+            return
+        }
 
-        val card = currentState.playerHand.getOrNull(cardIndex) ?: return
+        val card = currentState.playerHand.getOrNull(cardIndex) ?: run {
+            Log.w(TAG, "playCard() - Invalid card index: $cardIndex")
+            return
+        }
+
+        Log.d(TAG, "playCard() called - cardIndex=$cardIndex, card=$card, " +
+                "currentCount=${peggingState.peggingCount}")
 
         val result = peggingManager.playCard(
             currentState = peggingState,
@@ -246,6 +317,17 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             }
         }
 
+        if (result.pointsAwarded > 0) {
+            Log.d(TAG, "playCard() - Points awarded: ${result.pointsAwarded}, " +
+                    "newCount=${result.updatedPeggingState.peggingCount}, " +
+                    "scores: player=$newPlayerScore, opponent=$newOpponentScore")
+        }
+
+        if (winnerData != null) {
+            Log.i(TAG, "playCard() - GAME OVER: playerWon=${winnerData.playerWon}, " +
+                    "finalScore: player=${winnerData.playerScore}, opponent=${winnerData.opponentScore}")
+        }
+
         _uiState.update { state ->
             state.copy(
                 peggingState = result.updatedPeggingState,
@@ -265,8 +347,10 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
 
         // Handle pending reset or opponent's turn
         if (result.pendingReset != null) {
+            Log.d(TAG, "playCard() - Pending reset after reaching ${result.pendingReset.finalCount}")
             _uiState.update { it.copy(peggingState = it.peggingState?.copy(pendingReset = result.pendingReset)) }
         } else if (!result.updatedPeggingState.isPlayerTurn && winnerData == null) {
+            Log.d(TAG, "playCard() - Triggering opponent move")
             viewModelScope.launch {
                 delay(800) // Delay for opponent move
                 performOpponentPeggingMove()
@@ -279,7 +363,12 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
      */
     fun handlePlayerGo() {
         val currentState = _uiState.value
-        val peggingState = currentState.peggingState ?: return
+        val peggingState = currentState.peggingState ?: run {
+            Log.w(TAG, "handlePlayerGo() - No pegging state available")
+            return
+        }
+
+        Log.d(TAG, "handlePlayerGo() called - currentCount=${peggingState.peggingCount}")
 
         // Check if opponent has legal moves
         val opponentLegal = peggingManager.getLegalMoves(
@@ -294,14 +383,30 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
         )
 
         // Apply go point if awarded
-        var newPlayerScore = currentState.playerScore
-        var newOpponentScore = currentState.opponentScore
+        val scoreResult = if (result.goPointAwarded > 0 && result.goPointToPlayer != null) {
+            Log.i(TAG, "handlePlayerGo() - Go point: ${result.goPointAwarded} point to ${if (result.goPointToPlayer) "PLAYER" else "OPPONENT"}")
+            scoreManager.addScore(
+                currentPlayerScore = currentState.playerScore,
+                currentOpponentScore = currentState.opponentScore,
+                pointsToAdd = result.goPointAwarded,
+                isForPlayer = result.goPointToPlayer,
+                currentMatchStats = currentState.matchStats
+            )
+        } else {
+            null
+        }
 
-        if (result.goPointAwarded > 0 && result.goPointToPlayer != null) {
-            if (result.goPointToPlayer) {
-                newPlayerScore += result.goPointAwarded
-            } else {
-                newOpponentScore += result.goPointAwarded
+        val (newPlayerScore, newOpponentScore, newMatchStats, winnerData) = when (scoreResult) {
+            is ScoreManager.ScoreResult.ScoreUpdated -> {
+                Log.d(TAG, "handlePlayerGo() - Scores updated: player=${scoreResult.newPlayerScore}, opponent=${scoreResult.newOpponentScore}")
+                Tuple4(scoreResult.newPlayerScore, scoreResult.newOpponentScore, scoreResult.matchStats, null)
+            }
+            is ScoreManager.ScoreResult.GameOver -> {
+                Log.i(TAG, "handlePlayerGo() - GAME OVER from Go point! playerWon=${scoreResult.winnerModalData.playerWon}")
+                Tuple4(scoreResult.newPlayerScore, scoreResult.newOpponentScore, scoreResult.matchStats, scoreResult.winnerModalData)
+            }
+            null -> {
+                Tuple4(currentState.playerScore, currentState.opponentScore, currentState.matchStats, null)
             }
         }
 
@@ -311,6 +416,10 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 gameStatus = result.statusMessage,
                 playerScore = newPlayerScore,
                 opponentScore = newOpponentScore,
+                matchStats = newMatchStats,
+                gameOver = winnerData != null,
+                showWinnerModal = winnerData != null,
+                winnerModalData = winnerData,
                 playerScoreAnimation = if (result.goPointToPlayer == true) result.animation else null,
                 opponentScoreAnimation = if (result.goPointToPlayer == false) result.animation else null,
                 playCardButtonEnabled = false,
@@ -318,8 +427,8 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             )
         }
 
-        // If opponent has a move, trigger it
-        if (opponentLegal.hasLegalMoves && result.pendingReset == null) {
+        // If opponent has a move and game isn't over, trigger it
+        if (opponentLegal.hasLegalMoves && result.pendingReset == null && winnerData == null) {
             viewModelScope.launch {
                 delay(800)
                 performOpponentPeggingMove()
@@ -332,7 +441,12 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
      */
     fun acknowledgeReset() {
         val currentState = _uiState.value
-        val peggingState = currentState.peggingState ?: return
+        val peggingState = currentState.peggingState ?: run {
+            Log.w(TAG, "acknowledgeReset() - No pegging state available")
+            return
+        }
+
+        Log.d(TAG, "acknowledgeReset() called - pendingReset=${peggingState.pendingReset}")
 
         val result = peggingManager.acknowledgeReset(
             currentState = peggingState,
@@ -367,6 +481,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
         // Note: Don't call startHandCounting() yet - that will be used in Phase 5
         // For now, the old UI code handles hand counting when button is pressed
         if (result.isPeggingComplete) {
+            Log.i(TAG, "acknowledgeReset() - Pegging complete, moving to HAND_COUNTING phase")
             _uiState.update { state ->
                 state.copy(
                     currentPhase = GamePhase.HAND_COUNTING,
@@ -378,12 +493,14 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 )
             }
         } else if (!result.updatedPeggingState.isPlayerTurn) {
+            Log.d(TAG, "acknowledgeReset() - Triggering opponent move")
             viewModelScope.launch {
                 delay(800)
                 performOpponentPeggingMove()
             }
         } else if (!playerHasLegalMoves && playerCardsRemaining == 0) {
             // Player has no cards left, auto-handle Go
+            Log.d(TAG, "acknowledgeReset() - Player has no cards left, auto-handling Go")
             viewModelScope.launch {
                 delay(500)
                 handlePlayerGo()
@@ -396,9 +513,17 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
      */
     private fun performOpponentPeggingMove() {
         val currentState = _uiState.value
-        val peggingState = currentState.peggingState ?: return
+        val peggingState = currentState.peggingState ?: run {
+            Log.w(TAG, "performOpponentPeggingMove() - No pegging state available")
+            return
+        }
 
-        if (peggingState.isPlayerTurn) return
+        if (peggingState.isPlayerTurn) {
+            Log.w(TAG, "performOpponentPeggingMove() - Called on player's turn")
+            return
+        }
+
+        Log.d(TAG, "performOpponentPeggingMove() - currentCount=${peggingState.peggingCount}")
 
         // Get opponent's legal moves
         val legalMoves = peggingManager.getLegalMoves(
@@ -409,6 +534,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
 
         if (!legalMoves.hasLegalMoves) {
             // Opponent says Go
+            Log.d(TAG, "performOpponentPeggingMove() - No legal moves, saying Go")
             performOpponentGo()
             return
         }
@@ -422,11 +548,13 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
         )
 
         if (choice == null) {
+            Log.w(TAG, "performOpponentPeggingMove() - AI failed to choose card, saying Go")
             performOpponentGo()
             return
         }
 
         val (cardIndex, card) = choice
+        Log.d(TAG, "performOpponentPeggingMove() - Playing card: $card (index $cardIndex)")
 
         // Play the card
         val result = peggingManager.playCard(
@@ -459,6 +587,17 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             null -> {
                 Tuple4(currentState.playerScore, currentState.opponentScore, currentState.matchStats, null)
             }
+        }
+
+        if (result.pointsAwarded > 0) {
+            Log.d(TAG, "performOpponentPeggingMove() - Opponent scored ${result.pointsAwarded} points, " +
+                    "newCount=${result.updatedPeggingState.peggingCount}, " +
+                    "scores: player=$newPlayerScore, opponent=$newOpponentScore")
+        }
+
+        if (winnerData != null) {
+            Log.i(TAG, "performOpponentPeggingMove() - GAME OVER: playerWon=${winnerData.playerWon}, " +
+                    "finalScore: player=${winnerData.playerScore}, opponent=${winnerData.opponentScore}")
         }
 
         // Check if player has legal moves after opponent's play
@@ -523,19 +662,35 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
         )
 
         // Apply go point if awarded
-        var newPlayerScore = currentState.playerScore
-        var newOpponentScore = currentState.opponentScore
+        val scoreResult = if (result.goPointAwarded > 0 && result.goPointToPlayer != null) {
+            Log.i(TAG, "performOpponentGo() - Go point: ${result.goPointAwarded} point to ${if (result.goPointToPlayer) "PLAYER" else "OPPONENT"}")
+            scoreManager.addScore(
+                currentPlayerScore = currentState.playerScore,
+                currentOpponentScore = currentState.opponentScore,
+                pointsToAdd = result.goPointAwarded,
+                isForPlayer = result.goPointToPlayer,
+                currentMatchStats = currentState.matchStats
+            )
+        } else {
+            null
+        }
 
-        if (result.goPointAwarded > 0 && result.goPointToPlayer != null) {
-            if (result.goPointToPlayer) {
-                newPlayerScore += result.goPointAwarded
-            } else {
-                newOpponentScore += result.goPointAwarded
+        val (newPlayerScore, newOpponentScore, newMatchStats, winnerData) = when (scoreResult) {
+            is ScoreManager.ScoreResult.ScoreUpdated -> {
+                Log.d(TAG, "performOpponentGo() - Scores updated: player=${scoreResult.newPlayerScore}, opponent=${scoreResult.newOpponentScore}")
+                Tuple4(scoreResult.newPlayerScore, scoreResult.newOpponentScore, scoreResult.matchStats, null)
+            }
+            is ScoreManager.ScoreResult.GameOver -> {
+                Log.i(TAG, "performOpponentGo() - GAME OVER from Go point! playerWon=${scoreResult.winnerModalData.playerWon}")
+                Tuple4(scoreResult.newPlayerScore, scoreResult.newOpponentScore, scoreResult.matchStats, scoreResult.winnerModalData)
+            }
+            null -> {
+                Tuple4(currentState.playerScore, currentState.opponentScore, currentState.matchStats, null)
             }
         }
 
         // Check if player has legal moves after opponent's Go
-        val playerHasLegalMoves = if (result.updatedPeggingState.isPlayerTurn && result.pendingReset == null) {
+        val playerHasLegalMoves = if (result.updatedPeggingState.isPlayerTurn && result.pendingReset == null && winnerData == null) {
             playerLegal.hasLegalMoves
         } else {
             false
@@ -552,15 +707,19 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 gameStatus = result.statusMessage,
                 playerScore = newPlayerScore,
                 opponentScore = newOpponentScore,
+                matchStats = newMatchStats,
+                gameOver = winnerData != null,
+                showWinnerModal = winnerData != null,
+                winnerModalData = winnerData,
                 opponentScoreAnimation = if (result.goPointToPlayer == false) result.animation else null,
                 playerScoreAnimation = if (result.goPointToPlayer == true) result.animation else null,
                 playCardButtonEnabled = playerHasLegalMoves,
-                showGoButton = !playerHasLegalMoves && playerCardsRemaining > 0 && result.pendingReset == null
+                showGoButton = !playerHasLegalMoves && playerCardsRemaining > 0 && result.pendingReset == null && winnerData == null
             )
         }
 
-        // If player has no legal moves and no cards left, auto-handle Go
-        if (!playerHasLegalMoves && playerCardsRemaining == 0 && result.pendingReset == null && result.updatedPeggingState.isPlayerTurn) {
+        // If player has no legal moves and no cards left and game isn't over, auto-handle Go
+        if (!playerHasLegalMoves && playerCardsRemaining == 0 && result.pendingReset == null && result.updatedPeggingState.isPlayerTurn && winnerData == null) {
             viewModelScope.launch {
                 delay(500)
                 handlePlayerGo()
@@ -598,6 +757,10 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
      * Updates scores during hand counting (temporary fix until Phase 5 migration).
      */
     fun updateScores(newPlayerScore: Int, newOpponentScore: Int) {
+        val currentState = _uiState.value
+        Log.d(TAG, "updateScores() called - Updating scores: " +
+                "player: ${currentState.playerScore} -> $newPlayerScore, " +
+                "opponent: ${currentState.opponentScore} -> $newOpponentScore")
         _uiState.update { state ->
             state.copy(
                 playerScore = newPlayerScore,
@@ -610,6 +773,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
      * Hides the hand counting button (called when user clicks the button).
      */
     fun hideHandCountingButton() {
+        Log.d(TAG, "hideHandCountingButton() called")
         _uiState.update { state ->
             state.copy(
                 showHandCountingButton = false
@@ -622,6 +786,9 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
      * Toggles dealer and enables deal button.
      */
     fun prepareNextRound() {
+        val currentState = _uiState.value
+        Log.i(TAG, "prepareNextRound() called - Toggling dealer: " +
+                "isPlayerDealer: ${currentState.isPlayerDealer} -> ${!currentState.isPlayerDealer}")
         _uiState.update { state ->
             state.copy(
                 currentPhase = GamePhase.DEALING,
@@ -634,6 +801,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 showGoButton = false
             )
         }
+        Log.i(TAG, "prepareNextRound() complete - Phase: DEALING, ready for next round")
     }
 
     /**
@@ -664,6 +832,9 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
      * Ends the current game.
      */
     fun endGame() {
+        val currentState = _uiState.value
+        Log.i(TAG, "endGame() called - Final scores: player=${currentState.playerScore}, " +
+                "opponent=${currentState.opponentScore}")
         lifecycleManager.endGame()
 
         _uiState.update {
@@ -672,6 +843,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 gameOver = true
             )
         }
+        Log.i(TAG, "endGame() complete - Game ended")
     }
 
     // ========== UI Helper Actions ==========
@@ -680,6 +852,11 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
      * Toggles card selection (for crib selection).
      */
     fun toggleCardSelection(index: Int) {
+        val currentState = _uiState.value
+        val wasSelected = currentState.selectedCards.contains(index)
+        Log.d(TAG, "toggleCardSelection() called - index=$index, " +
+                "wasSelected=$wasSelected, currentSelection=${currentState.selectedCards}")
+
         _uiState.update { state ->
             val newSelection = if (state.selectedCards.contains(index)) {
                 state.selectedCards - index
@@ -692,12 +869,16 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             }
             state.copy(selectedCards = newSelection)
         }
+
+        val updatedState = _uiState.value
+        Log.d(TAG, "toggleCardSelection() complete - newSelection=${updatedState.selectedCards}")
     }
 
     /**
      * Clears score animations.
      */
     fun clearScoreAnimation(isPlayer: Boolean) {
+        Log.d(TAG, "clearScoreAnimation() called - isPlayer=$isPlayer")
         _uiState.update { state ->
             if (isPlayer) {
                 state.copy(playerScoreAnimation = null)
@@ -710,8 +891,13 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
     // ========== Private Helper Methods ==========
 
     private fun loadPersistedData() {
+        Log.d(TAG, "loadPersistedData() - Loading persisted match data")
         val matchStats = lifecycleManager.loadMatchStats()
         val (cutPlayerCard, cutOpponentCard) = lifecycleManager.loadCutCards()
+
+        Log.d(TAG, "loadPersistedData() - Loaded: matchStats=${matchStats.gamesWon + matchStats.gamesLost} games, " +
+                "record: ${matchStats.gamesWon}-${matchStats.gamesLost}, " +
+                "cutCards: player=$cutPlayerCard, opponent=$cutOpponentCard")
 
         _uiState.update { state ->
             state.copy(

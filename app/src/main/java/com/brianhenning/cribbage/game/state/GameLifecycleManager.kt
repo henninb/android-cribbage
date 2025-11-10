@@ -62,42 +62,35 @@ class GameLifecycleManager(
 
     /**
      * Starts a new game with dealer determination.
-     * Returns immutable result with dealer info and cut cards if applicable.
+     * Always cuts for dealer per cribbage rules - clears any saved dealer preference.
+     * Returns immutable result with dealer info and cut cards.
      *
      * @return NewGameResult with dealer determination
      */
     fun startNewGame(): NewGameResult {
-        // Check if there's a preference from a previous game (loser deals)
-        return if (preferencesRepository.hasNextDealerPreference()) {
-            val isPlayerDealer = preferencesRepository.loadNextDealerIsPlayer()
-            NewGameResult(
-                isPlayerDealer = isPlayerDealer,
-                cutPlayerCard = null,
-                cutOpponentCard = null,
-                showCutForDealer = false,
-                statusMessage = "Dealer set by previous game: ${if (isPlayerDealer) "You are dealer" else "Opponent is dealer"}"
-            )
-        } else {
-            // Cut for dealer per rules: lower card deals first
-            val cutResult = DealerManager.determineDealer()
+        // Clear any saved dealer preference from previous games
+        // A "New Game" always starts fresh with a cut for dealer
+        preferencesRepository.clearNextDealerPreference()
 
-            // Save cut cards for UI header
-            preferencesRepository.saveCutCards(
-                PreferencesRepository.CutCards(
-                    playerCard = cutResult.playerCutCard,
-                    opponentCard = cutResult.opponentCutCard
-                )
-            )
+        // Cut for dealer per rules: lower card deals first
+        val cutResult = DealerManager.determineDealer()
 
-            NewGameResult(
-                isPlayerDealer = cutResult.isPlayerDealer,
-                cutPlayerCard = cutResult.playerCutCard,
-                cutOpponentCard = cutResult.opponentCutCard,
-                showCutForDealer = true,
-                statusMessage = "Cut for deal: You ${cutResult.playerCutCard.getSymbol()} vs Opponent ${cutResult.opponentCutCard.getSymbol()}\n" +
-                        if (cutResult.isPlayerDealer) "You are dealer" else "Opponent is dealer"
+        // Save cut cards for UI header display
+        preferencesRepository.saveCutCards(
+            PreferencesRepository.CutCards(
+                playerCard = cutResult.playerCutCard,
+                opponentCard = cutResult.opponentCutCard
             )
-        }
+        )
+
+        return NewGameResult(
+            isPlayerDealer = cutResult.isPlayerDealer,
+            cutPlayerCard = cutResult.playerCutCard,
+            cutOpponentCard = cutResult.opponentCutCard,
+            showCutForDealer = true,
+            statusMessage = "Cut for deal: You ${cutResult.playerCutCard.getSymbol()} vs Opponent ${cutResult.opponentCutCard.getSymbol()}\n" +
+                    if (cutResult.isPlayerDealer) "You are dealer" else "Opponent is dealer"
+        )
     }
 
     /**

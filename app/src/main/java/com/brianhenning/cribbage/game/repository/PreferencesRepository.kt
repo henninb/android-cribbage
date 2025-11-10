@@ -118,6 +118,15 @@ class PreferencesRepository(context: Context) {
             .apply()
     }
 
+    /**
+     * Clear next dealer preference (forces cut for dealer on next game)
+     */
+    fun clearNextDealerPreference() {
+        prefs.edit()
+            .remove(KEY_NEXT_DEALER_IS_PLAYER)
+            .apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "cribbage_prefs"
 

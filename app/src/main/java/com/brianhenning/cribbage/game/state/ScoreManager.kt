@@ -1,5 +1,6 @@
 package com.brianhenning.cribbage.game.state
 
+import android.util.Log
 import com.brianhenning.cribbage.game.logic.GameScoreManager
 import com.brianhenning.cribbage.game.repository.PreferencesRepository
 import com.brianhenning.cribbage.ui.composables.ScoreAnimationState
@@ -14,6 +15,10 @@ import com.brianhenning.cribbage.ui.composables.ScoreAnimationState
 class ScoreManager(
     private val preferencesRepository: PreferencesRepository
 ) {
+
+    companion object {
+        private const val TAG = "ScoreManager"
+    }
 
     /**
      * Result of adding score - contains updated state
@@ -52,7 +57,12 @@ class ScoreManager(
         isForPlayer: Boolean,
         currentMatchStats: MatchStats
     ): ScoreResult {
+        Log.i(TAG, "=== SCORE UPDATE ===")
+        Log.i(TAG, "Adding $pointsToAdd points to ${if (isForPlayer) "PLAYER" else "OPPONENT"}")
+        Log.i(TAG, "Current scores - Player: $currentPlayerScore, Opponent: $currentOpponentScore")
+
         if (pointsToAdd <= 0) {
+            Log.w(TAG, "No points to add (pointsToAdd=$pointsToAdd)")
             // No points to add, return current state
             return ScoreResult.ScoreUpdated(
                 newPlayerScore = currentPlayerScore,
@@ -66,13 +76,21 @@ class ScoreManager(
         val newPlayerScore = if (isForPlayer) currentPlayerScore + pointsToAdd else currentPlayerScore
         val newOpponentScore = if (isForPlayer) currentOpponentScore else currentOpponentScore + pointsToAdd
 
+        Log.i(TAG, "New scores - Player: $newPlayerScore, Opponent: $newOpponentScore")
+
         // Create score animation
         val animation = createScoreAnimation(pointsToAdd, isForPlayer)
 
         // Check for game over
         val gameOverResult = GameScoreManager.checkGameOver(newPlayerScore, newOpponentScore)
+        Log.d(TAG, "Game over check: isGameOver=${gameOverResult.isGameOver}, " +
+                "playerWins=${gameOverResult.playerWins}, isSkunked=${gameOverResult.isSkunked}")
 
         return if (gameOverResult.isGameOver) {
+            Log.i(TAG, "*** GAME OVER DETECTED ***")
+            Log.i(TAG, "Winner: ${if (gameOverResult.playerWins) "PLAYER" else "OPPONENT"}")
+            Log.i(TAG, "Final score: Player=$newPlayerScore, Opponent=$newOpponentScore")
+            Log.i(TAG, "Skunk: ${if (gameOverResult.isDoubleSkunk) "DOUBLE" else if (gameOverResult.isSingleSkunk) "SINGLE" else "NONE"}")
             // Game over - update match stats and return game over result
             val updatedStats = updateMatchStats(currentMatchStats, gameOverResult)
 
@@ -107,6 +125,7 @@ class ScoreManager(
                 matchStats = updatedStats
             )
         } else {
+            Log.d(TAG, "Game continues (neither player reached 121)")
             // Game continues - return updated scores
             ScoreResult.ScoreUpdated(
                 newPlayerScore = newPlayerScore,
