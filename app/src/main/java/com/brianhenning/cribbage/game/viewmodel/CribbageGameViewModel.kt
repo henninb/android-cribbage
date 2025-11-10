@@ -221,6 +221,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             }
             is ScoreManager.ScoreResult.GameOver -> {
                 Log.i(TAG, "startPeggingPhase() - GAME OVER from His Heels! playerWon=${scoreResult.winnerModalData.playerWon}")
+                Log.i(TAG, "startPeggingPhase() - Setting showWinnerModal=true, gameOver=true")
                 Tuple4(scoreResult.newPlayerScore, scoreResult.newOpponentScore, scoreResult.matchStats, scoreResult.winnerModalData)
             }
             null -> {
@@ -231,7 +232,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
         _uiState.update { state ->
             state.copy(
                 currentPhase = GamePhase.PEGGING,
-                showCutCardDisplay = false,
+                showCutCardDisplay = false, // Always hide cut card when entering pegging
                 peggingState = result.peggingState,
                 gameStatus = result.statusMessage,
                 playerScore = newPlayerScore,
@@ -326,6 +327,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
         if (winnerData != null) {
             Log.i(TAG, "playCard() - GAME OVER: playerWon=${winnerData.playerWon}, " +
                     "finalScore: player=${winnerData.playerScore}, opponent=${winnerData.opponentScore}")
+            Log.i(TAG, "playCard() - Setting showWinnerModal=true, gameOver=true")
         }
 
         _uiState.update { state ->
@@ -341,7 +343,9 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 showWinnerModal = winnerData != null,
                 winnerModalData = winnerData,
                 playCardButtonEnabled = false,
-                showGoButton = false
+                showGoButton = false,
+                // Clear UI elements when game ends
+                showCutCardDisplay = if (winnerData != null) false else state.showCutCardDisplay
             )
         }
 
@@ -403,6 +407,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             }
             is ScoreManager.ScoreResult.GameOver -> {
                 Log.i(TAG, "handlePlayerGo() - GAME OVER from Go point! playerWon=${scoreResult.winnerModalData.playerWon}")
+                Log.i(TAG, "handlePlayerGo() - Setting showWinnerModal=true, gameOver=true")
                 Tuple4(scoreResult.newPlayerScore, scoreResult.newOpponentScore, scoreResult.matchStats, scoreResult.winnerModalData)
             }
             null -> {
@@ -682,6 +687,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             }
             is ScoreManager.ScoreResult.GameOver -> {
                 Log.i(TAG, "performOpponentGo() - GAME OVER from Go point! playerWon=${scoreResult.winnerModalData.playerWon}")
+                Log.i(TAG, "performOpponentGo() - Setting showWinnerModal=true, gameOver=true")
                 Tuple4(scoreResult.newPlayerScore, scoreResult.newOpponentScore, scoreResult.matchStats, scoreResult.winnerModalData)
             }
             null -> {

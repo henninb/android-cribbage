@@ -184,6 +184,13 @@ fun CribbageMainScreen(
         showHandCountingButton = vmUiState.showHandCountingButton
         showGoButton = vmUiState.showGoButton
 
+        // Winner modal state
+        showWinnerModal = vmUiState.showWinnerModal
+        winnerModalData = vmUiState.winnerModalData
+        if (vmUiState.showWinnerModal) {
+            android.util.Log.i("CribbageMainScreen", "UI synced: showWinnerModal=true, winnerModalData=$winnerModalData")
+        }
+
         // Pegging state
         vmUiState.peggingState?.let { pegging ->
             isPeggingPhase = pegging.isPeggingPhase
@@ -907,27 +914,29 @@ fun CribbageMainScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        // Zone 1: Compact Score Header (always visible, includes starter card)
-        CompactScoreHeader(
-            playerScore = playerScore,
-            opponentScore = opponentScore,
-            isPlayerDealer = isPlayerDealer,
-            starterCard = starterCard,
-            playerScoreAnimation = playerScoreAnimation,
-            opponentScoreAnimation = opponentScoreAnimation,
-            onAnimationComplete = { isPlayer ->
-                if (isPlayer) {
-                    playerScoreAnimation = null
+        // Zone 1: Compact Score Header (only visible after game starts)
+        if (gameStarted) {
+            CompactScoreHeader(
+                playerScore = playerScore,
+                opponentScore = opponentScore,
+                isPlayerDealer = isPlayerDealer,
+                starterCard = starterCard,
+                playerScoreAnimation = playerScoreAnimation,
+                opponentScoreAnimation = opponentScoreAnimation,
+                onAnimationComplete = { isPlayer ->
+                    if (isPlayer) {
+                        playerScoreAnimation = null
+                    } else {
+                        opponentScoreAnimation = null
+                    }
+                },
+                onTripleTap = if (BuildConfig.ENABLE_DEBUG_SCORE_CHEAT) {
+                    { showDebugScoreDialog = true }
                 } else {
-                    opponentScoreAnimation = null
+                    null
                 }
-            },
-            onTripleTap = if (BuildConfig.ENABLE_DEBUG_SCORE_CHEAT) {
-                { showDebugScoreDialog = true }
-            } else {
-                null
-            }
-        )
+            )
+        }
 
         // Zone 2: Dynamic Game Area (flexible height)
         Box(
