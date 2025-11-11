@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.brianhenning.cribbage.ui.theme.LocalSeasonalTheme
 import kotlinx.coroutines.delay
 
 /**
@@ -111,11 +112,14 @@ fun PeggingScoreAnimation(
     onAnimationComplete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Animation color: green for player, orange for opponent
+    // Get current seasonal theme
+    val currentTheme = LocalSeasonalTheme.current
+
+    // Animation color: primary for player, secondary for opponent (matches theme)
     val animationColor = if (isPlayer) {
-        Color(0xFF4CAF50) // Green
+        currentTheme.colors.primary
     } else {
-        Color(0xFFFF9800) // Orange
+        currentTheme.colors.secondary
     }
 
     var animationStarted by remember { mutableStateOf(false) }
