@@ -21,12 +21,15 @@ enum class ThemeType {
     MLK_DAY,            // 3rd Monday in January
     VALENTINES_DAY,     // Feb 14
     PRESIDENTS_DAY,     // 3rd Monday in February
+    PI_DAY,             // Mar 14
+    IDES_OF_MARCH,      // Mar 15
     ST_PATRICKS_DAY,    // Mar 17
     MEMORIAL_DAY,       // Last Monday in May
     INDEPENDENCE_DAY,   // Jul 4
     LABOR_DAY,          // 1st Monday in September
     HALLOWEEN,          // Oct 31
-    THANKSGIVING        // 4th Thursday in November
+    THANKSGIVING,       // 4th Thursday in November
+    CHRISTMAS           // Dec 25
 }
 
 /**
@@ -93,8 +96,18 @@ object ThemeCalculator {
             return ThemeDefinitions.PRESIDENTS_DAY
         }
 
-        // St. Patrick's Day (Mar 17) - extended to Mar 15-18
-        if (month == Month.MARCH && dayOfMonth in 15..18) {
+        // Pi Day (Mar 14)
+        if (month == Month.MARCH && dayOfMonth == 14) {
+            return ThemeDefinitions.PI_DAY
+        }
+
+        // Ides of March (Mar 15)
+        if (month == Month.MARCH && dayOfMonth == 15) {
+            return ThemeDefinitions.IDES_OF_MARCH
+        }
+
+        // St. Patrick's Day (Mar 17) - extended to Mar 16-18
+        if (month == Month.MARCH && dayOfMonth in 16..18) {
             return ThemeDefinitions.ST_PATRICKS_DAY
         }
 
@@ -121,6 +134,11 @@ object ThemeCalculator {
         // Thanksgiving (4th Thursday in November)
         if (month == Month.NOVEMBER && isNthWeekdayOfMonth(date, DayOfWeek.THURSDAY, 4)) {
             return ThemeDefinitions.THANKSGIVING
+        }
+
+        // Christmas (Dec 25) - extended to Dec 22-26
+        if (month == Month.DECEMBER && dayOfMonth in 22..26) {
+            return ThemeDefinitions.CHRISTMAS
         }
 
         return null
@@ -440,5 +458,62 @@ object ThemeDefinitions {
             accentDark = Color(0xFF6D4C41)         // Deep brown
         ),
         icon = "🦃"  // Turkey
+    )
+
+    val CHRISTMAS = CribbageTheme(
+        type = ThemeType.CHRISTMAS,
+        name = "Christmas Cheer",
+        colors = ThemeColors(
+            primary = Color(0xFFC62828),           // Christmas red
+            primaryVariant = Color(0xFFB71C1C),    // Dark red
+            secondary = Color(0xFF2E7D32),         // Christmas green
+            secondaryVariant = Color(0xFF1B5E20),  // Dark green
+            background = Color(0xFFFAFAFA),        // Snow white
+            surface = Color(0xFFFFFFFF),           // White
+            cardBack = Color(0xFFEF9A9A),          // Light red
+            boardPrimary = Color(0xFFE53935),      // Red
+            boardSecondary = Color(0xFF43A047),    // Green
+            accentLight = Color(0xFFFFFFFF),       // White (snow)
+            accentDark = Color(0xFFFFD700)         // Gold
+        ),
+        icon = "🎄"  // Christmas tree
+    )
+
+    val PI_DAY = CribbageTheme(
+        type = ThemeType.PI_DAY,
+        name = "Pi Day 3.14159...",
+        colors = ThemeColors(
+            primary = Color(0xFF1976D2),           // Math blue
+            primaryVariant = Color(0xFF0D47A1),    // Dark blue
+            secondary = Color(0xFFFF6F00),         // Orange (circle)
+            secondaryVariant = Color(0xFFE65100),  // Dark orange
+            background = Color(0xFFE3F2FD),        // Light blue
+            surface = Color(0xFFFFFFFF),           // White
+            cardBack = Color(0xFF90CAF9),          // Light blue
+            boardPrimary = Color(0xFF42A5F5),      // Blue
+            boardSecondary = Color(0xFFFFB74D),    // Light orange
+            accentLight = Color(0xFFFFFFFF),       // White
+            accentDark = Color(0xFF01579B)         // Navy blue
+        ),
+        icon = "🥧"  // Pie
+    )
+
+    val IDES_OF_MARCH = CribbageTheme(
+        type = ThemeType.IDES_OF_MARCH,
+        name = "Ides of March - Beware!",
+        colors = ThemeColors(
+            primary = Color(0xFF8E24AA),           // Imperial purple
+            primaryVariant = Color(0xFF6A1B9A),    // Dark purple
+            secondary = Color(0xFFD32F2F),         // Roman red (blood)
+            secondaryVariant = Color(0xFFB71C1C),  // Dark red
+            background = Color(0xFFF3E5F5),        // Light purple
+            surface = Color(0xFFFFFFFF),           // White (marble)
+            cardBack = Color(0xFFCE93D8),          // Light purple
+            boardPrimary = Color(0xFFAB47BC),      // Purple
+            boardSecondary = Color(0xFFEF5350),    // Light red
+            accentLight = Color(0xFFFFD700),       // Gold (Roman)
+            accentDark = Color(0xFF4A148C)         // Deep purple
+        ),
+        icon = "🗡️"  // Dagger
     )
 }

@@ -1006,10 +1006,6 @@ fun CribbageMainScreen(
             if (showCutCardDisplay && starterCard != null) {
                 CutCardDisplay(
                     cutCard = starterCard!!,
-                    playerScore = playerScore,
-                    opponentScore = opponentScore,
-                    isJack = starterCard!!.rank == Rank.JACK,
-                    dealerGetsPoints = isPlayerDealer,
                     onContinue = startPeggingPhase
                 )
             }
