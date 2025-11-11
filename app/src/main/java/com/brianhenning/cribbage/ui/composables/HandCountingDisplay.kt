@@ -126,7 +126,7 @@ fun ScoreBreakdownDialog(
         Card(
             modifier = modifier
                 .fillMaxWidth(0.95f)
-                .wrapContentHeight(),
+                .fillMaxHeight(0.90f),
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
@@ -136,10 +136,10 @@ fun ScoreBreakdownDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                    .fillMaxHeight()
+                    .padding(24.dp)
             ) {
-                // Header with title
+                // FIXED HEADER: Title
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,
@@ -154,189 +154,203 @@ fun ScoreBreakdownDialog(
                     )
                 }
 
+                Spacer(modifier = Modifier.height(12.dp))
+
                 HorizontalDivider(
                     thickness = 2.dp,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
                 )
 
-                // Cards display
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                // SCROLLABLE MIDDLE SECTION: Cards and score breakdown
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Hand cards
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Hand",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy((-35).dp),  // Overlap cards
-                            contentPadding = PaddingValues(horizontal = 12.dp)
-                        ) {
-                            items(hand) { card ->
-                                GameCard(
-                                    card = card,
-                                    isRevealed = true,
-                                    isClickable = false,
-                                    cardSize = CardSize.Medium
-                                )
-                            }
-                        }
-                    }
-
-                    // Starter card (cut card) - clearly separated
-                    starterCard?.let { starter ->
+                    // Cards display
+                    item {
                         Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "Cut Card",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.tertiary
-                            )
-
-                            GameCard(
-                                card = starter,
-                                isRevealed = true,
-                                isClickable = false,
-                                cardSize = CardSize.Medium
-                            )
-                        }
-                    }
-                }
-
-                // Score breakdown
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Table header
-                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(
-                                text = "Cards",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.weight(1.3f)
-                            )
-                            Text(
-                                text = "Type",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                text = "Points",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                textAlign = TextAlign.End,
-                                modifier = Modifier.weight(0.7f)
-                            )
-                        }
+                            // Hand cards
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "Hand",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
 
-                        HorizontalDivider(
-                            thickness = 1.dp,
-                            color = MaterialTheme.colorScheme.outline
-                        )
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy((-35).dp),  // Overlap cards
+                                    contentPadding = PaddingValues(horizontal = 12.dp)
+                                ) {
+                                    items(hand) { card ->
+                                        GameCard(
+                                            card = card,
+                                            isRevealed = true,
+                                            isClickable = false,
+                                            cardSize = CardSize.Medium
+                                        )
+                                    }
+                                }
+                            }
 
-                        // Score entries (scrollable)
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 300.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            items(breakdown.entries) { entry ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                            // Starter card (cut card) - clearly separated
+                            starterCard?.let { starter ->
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Text(
-                                        text = entry.cards.joinToString(" ") { it.getSymbol() },
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Medium,
-                                        modifier = Modifier.weight(1.3f)
+                                        text = "Cut Card",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.tertiary
                                     )
-                                    Text(
-                                        text = entry.type,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    Text(
-                                        text = entry.points.toString(),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.secondary,
-                                        textAlign = TextAlign.End,
-                                        modifier = Modifier.weight(0.7f)
+
+                                    GameCard(
+                                        card = starter,
+                                        isRevealed = true,
+                                        isClickable = false,
+                                        cardSize = CardSize.Medium
                                     )
                                 }
                             }
                         }
+                    }
 
-                        HorizontalDivider(
-                            thickness = 2.dp,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-
-                        // Total
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    MaterialTheme.colorScheme.primaryContainer,
-                                    RoundedCornerShape(12.dp)
-                                )
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                    // Score breakdown
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            ),
+                            shape = RoundedCornerShape(16.dp)
                         ) {
-                            Text(
-                                text = "Total Points",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Text(
-                                text = breakdown.totalScore.toString(),
-                                style = MaterialTheme.typography.displaySmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                // Table header
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Cards",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.weight(1.3f)
+                                    )
+                                    Text(
+                                        text = "Type",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(
+                                        text = "Points",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        textAlign = TextAlign.End,
+                                        modifier = Modifier.weight(0.7f)
+                                    )
+                                }
+
+                                HorizontalDivider(
+                                    thickness = 1.dp,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
+
+                                // Score entries
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    breakdown.entries.forEach { entry ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = entry.cards.joinToString(" ") { it.getSymbol() },
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                fontWeight = FontWeight.Medium,
+                                                modifier = Modifier.weight(1.3f)
+                                            )
+                                            Text(
+                                                text = entry.type,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                textAlign = TextAlign.Center,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Text(
+                                                text = entry.points.toString(),
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.secondary,
+                                                textAlign = TextAlign.End,
+                                                modifier = Modifier.weight(0.7f)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                HorizontalDivider(
+                                    thickness = 2.dp,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
+
+                                // Total
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            MaterialTheme.colorScheme.primaryContainer,
+                                            RoundedCornerShape(12.dp)
+                                        )
+                                        .padding(16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Total Points",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Text(
+                                        text = breakdown.totalScore.toString(),
+                                        style = MaterialTheme.typography.displaySmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
                         }
                     }
                 }
 
-                // Accept button
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // FIXED BOTTOM: Accept button
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier
