@@ -308,7 +308,8 @@ fun GameAreaContent(
                         hand = opponentHand,
                         playedCards = emptySet(),
                         showCards = false,
-                        label = "Opponent"
+                        label = "Opponent",
+                        cardSize = CardSize.Medium
                     )
 
                     Spacer(modifier = Modifier.height(4.dp))
@@ -329,7 +330,8 @@ fun GameAreaContent(
                         selectedCards = selectedCards,
                         playedCards = playerCardsPlayed,
                         onCardClick = onCardClick,
-                        isPlayerTurn = true  // Always clickable during crib selection
+                        isPlayerTurn = true,  // Always clickable during crib selection
+                        cardSize = CardSize.Medium
                     )
                 }
             }
@@ -345,7 +347,8 @@ fun GameAreaContent(
                         hand = opponentHand,
                         playedCards = opponentCardsPlayed,
                         showCards = false,
-                        label = "Opponent"
+                        label = "Opponent",
+                        cardSize = CardSize.Medium
                     )
 
                     // Pegging count (large and prominent) with starter card
@@ -429,7 +432,8 @@ fun GameAreaContent(
                         selectedCards = selectedCards,
                         playedCards = playerCardsPlayed,
                         onCardClick = onCardClick,
-                        isPlayerTurn = isPlayerTurn  // Only clickable when it's player's turn
+                        isPlayerTurn = isPlayerTurn,  // Only clickable when it's player's turn
+                        cardSize = CardSize.Medium
                     )
                 }
             }
@@ -567,7 +571,8 @@ private fun CompactHandDisplay(
     playedCards: Set<Int>,
     showCards: Boolean,
     label: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    cardSize: CardSize = CardSize.Small
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -598,7 +603,7 @@ private fun CompactHandDisplay(
 
         // Cards row with increased overlap to fit all cards on screen
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy((-45).dp),  // Increased from -30
+            horizontalArrangement = Arrangement.spacedBy((-35).dp),  // Adjusted for smaller cards
             contentPadding = PaddingValues(horizontal = 12.dp)  // Reduced from 16
         ) {
             itemsIndexed(hand) { index, card ->
@@ -607,7 +612,7 @@ private fun CompactHandDisplay(
                     isRevealed = showCards,
                     isPlayed = playedCards.contains(index),
                     isClickable = false,
-                    cardSize = CardSize.Large
+                    cardSize = cardSize
                 )
             }
         }
@@ -621,7 +626,8 @@ private fun PlayerHandCompact(
     playedCards: Set<Int>,
     onCardClick: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    isPlayerTurn: Boolean = true
+    isPlayerTurn: Boolean = true,
+    cardSize: CardSize = CardSize.Large
 ) {
     LazyRow(
         modifier = modifier,
@@ -636,7 +642,7 @@ private fun PlayerHandCompact(
                 isRevealed = true,
                 isClickable = isPlayerTurn && !playedCards.contains(index),
                 onClick = { onCardClick(index) },
-                cardSize = CardSize.Large
+                cardSize = cardSize
             )
         }
     }

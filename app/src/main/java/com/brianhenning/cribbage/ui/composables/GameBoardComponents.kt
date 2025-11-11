@@ -283,7 +283,7 @@ fun CompactScoreHeader(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -389,7 +389,7 @@ private fun ScoreSection(
                     imageVector = Icons.Default.Casino,
                     contentDescription = "Dealer",
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.tertiary
+                    tint = currentTheme.colors.accentLight
                 )
             }
         }
@@ -441,7 +441,7 @@ fun CribbageBoard(
                 opponentScore = opponentScore,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(80.dp)
+                    .height(60.dp)
             )
 
             Spacer(modifier = Modifier.height(4.dp))

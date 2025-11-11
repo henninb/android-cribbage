@@ -55,7 +55,7 @@ fun OpponentHandDisplay(
         isEnabled = false,
         showCards = showCards,
         title = title,
-        cardSize = CardSize.Medium,
+        cardSize = CardSize.Small,
         modifier = modifier
     )
 }
