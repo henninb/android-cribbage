@@ -4,15 +4,20 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.brianhenning.cribbage.game.logic.GameScoreManager
 import com.brianhenning.cribbage.game.repository.PreferencesRepository
 import com.brianhenning.cribbage.game.state.GameLifecycleManager
 import com.brianhenning.cribbage.game.state.GameUiState
+import com.brianhenning.cribbage.game.state.HandCountingState
 import com.brianhenning.cribbage.game.state.HandCountingStateManager
+import com.brianhenning.cribbage.game.state.MatchStats
 import com.brianhenning.cribbage.game.state.PeggingState
 import com.brianhenning.cribbage.game.state.PeggingStateManager
 import com.brianhenning.cribbage.game.state.ScoreManager
+import com.brianhenning.cribbage.game.state.WinnerModalData
 import com.brianhenning.cribbage.shared.domain.model.Card
 import com.brianhenning.cribbage.shared.domain.model.Rank
+import com.brianhenning.cribbage.ui.composables.CountingPhase
 import com.brianhenning.cribbage.ui.composables.GamePhase
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -833,6 +838,110 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
     }
 
     /**
+     * Dismisses the hand counting dialog (called when user clicks OK on dialog).
+     * Clears the waitingForDialogDismissal flag so the counting coroutine can proceed.
+     */
+    fun dismissHandCountingDialog() {
+        Log.d(TAG, "dismissHandCountingDialog() called - current phase: ${_uiState.value.handCountingState?.countingPhase}")
+        _uiState.update { state ->
+            state.copy(
+                handCountingState = state.handCountingState?.copy(
+                    waitingForDialogDismissal = false
+                )
+            )
+        }
+    }
+
+    /**
+     * Checks if game is over (score > 120) and handles game over state.
+     * Returns true if game is over, false otherwise.
+     */
+    private fun checkAndHandleGameOver(): Boolean {
+        val currentState = _uiState.value
+
+        // Check if either player has won
+        if (currentState.playerScore <= 120 && currentState.opponentScore <= 120) {
+            return false // Game continues
+        }
+
+        // Game is over - determine winner and update stats
+        val gameOverResult = GameScoreManager.checkGameOver(
+            currentState.playerScore,
+            currentState.opponentScore
+        )
+
+        Log.i(TAG, "Game Over detected: player=${currentState.playerScore}, opponent=${currentState.opponentScore}, playerWins=${gameOverResult.playerWins}")
+
+        // Update match stats
+        val updatedStats = GameScoreManager.updateMatchStats(
+            GameScoreManager.UpdatedMatchStats(
+                gamesWon = currentState.matchStats.gamesWon,
+                gamesLost = currentState.matchStats.gamesLost,
+                skunksFor = currentState.matchStats.skunksFor,
+                skunksAgainst = currentState.matchStats.skunksAgainst,
+                doubleSkunksFor = currentState.matchStats.doubleSkunksFor,
+                doubleSkunksAgainst = currentState.matchStats.doubleSkunksAgainst
+            ),
+            gameOverResult
+        )
+
+        // Save updated stats to preferences
+        preferencesRepository.saveMatchStats(
+            PreferencesRepository.MatchStats(
+                gamesWon = updatedStats.gamesWon,
+                gamesLost = updatedStats.gamesLost,
+                skunksFor = updatedStats.skunksFor,
+                skunksAgainst = updatedStats.skunksAgainst,
+                doubleSkunksFor = updatedStats.doubleSkunksFor,
+                doubleSkunksAgainst = updatedStats.doubleSkunksAgainst
+            )
+        )
+
+        // Save next dealer (loser deals next)
+        preferencesRepository.saveNextDealerIsPlayer(!gameOverResult.playerWins)
+
+        // Create winner modal data
+        val winnerModalData = WinnerModalData(
+            playerWon = gameOverResult.playerWins,
+            playerScore = currentState.playerScore,
+            opponentScore = currentState.opponentScore,
+            wasSkunk = gameOverResult.isSkunked,
+            gamesWon = updatedStats.gamesWon,
+            gamesLost = updatedStats.gamesLost,
+            skunksFor = updatedStats.skunksFor,
+            skunksAgainst = updatedStats.skunksAgainst,
+            doubleSkunksFor = updatedStats.doubleSkunksFor,
+            doubleSkunksAgainst = updatedStats.doubleSkunksAgainst
+        )
+
+        // Update state to game over
+        _uiState.update { state ->
+            state.copy(
+                gameOver = true,
+                showWinnerModal = true,
+                winnerModalData = winnerModalData,
+                matchStats = MatchStats(
+                    gamesWon = updatedStats.gamesWon,
+                    gamesLost = updatedStats.gamesLost,
+                    skunksFor = updatedStats.skunksFor,
+                    skunksAgainst = updatedStats.skunksAgainst,
+                    doubleSkunksFor = updatedStats.doubleSkunksFor,
+                    doubleSkunksAgainst = updatedStats.doubleSkunksAgainst
+                ),
+                dealButtonEnabled = false,
+                selectCribButtonEnabled = false,
+                playCardButtonEnabled = false,
+                showHandCountingButton = false,
+                showGoButton = false,
+                starterCard = null,
+                handCountingState = null
+            )
+        }
+
+        return true
+    }
+
+    /**
      * Prepares for the next round after hand counting completes.
      * Toggles dealer and enables deal button.
      */
@@ -861,26 +970,216 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
     }
 
     /**
-     * Counts hands (called by UI when user dismisses counting dialog).
-     * Note: Currently unused - will be used in Phase 5 migration.
+     * Counts hands sequentially: Non-Dealer → Dealer → Crib.
+     * Runs as a coroutine and updates state after each hand is counted.
+     * User must dismiss each dialog before progressing to next phase.
      */
     fun countHands() {
         val currentState = _uiState.value
-        val countingState = currentState.handCountingState ?: return
-        val starterCard = currentState.starterCard ?: return
+        val starterCard = currentState.starterCard
 
-        // Move to next round (dealer toggles)
-        _uiState.update { state ->
-            state.copy(
-                currentPhase = GamePhase.DEALING,
-                isPlayerDealer = !state.isPlayerDealer,
-                handCountingState = null,
-                dealButtonEnabled = true,
-                showHandCountingButton = false,
-                selectCribButtonEnabled = false,
-                playCardButtonEnabled = false,
-                showGoButton = false
+        if (starterCard == null) {
+            Log.w(TAG, "countHands() called but starterCard is null")
+            return
+        }
+
+        // Hide the button immediately
+        hideHandCountingButton()
+
+        // Launch coroutine to handle sequential counting with delays
+        viewModelScope.launch {
+            Log.i(TAG, "========== HAND COUNTING START ==========")
+
+            // Determine hand order
+            val (nonDealerHand, dealerHand) = handCountingManager.determineHandOrder(
+                currentState.playerHand,
+                currentState.opponentHand,
+                currentState.isPlayerDealer
             )
+
+            // Start hand counting phase
+            val startResult = handCountingManager.startHandCounting()
+
+            // Initialize hand counting state
+            _uiState.update { state ->
+                state.copy(
+                    currentPhase = GamePhase.HAND_COUNTING,
+                    handCountingState = HandCountingState(
+                        isInHandCountingPhase = true,
+                        countingPhase = startResult.countingPhase,
+                        handScores = startResult.handScores,
+                        waitingForDialogDismissal = true
+                    ),
+                    gameStatus = startResult.statusMessage,
+                    peggingState = null // Clear pegging state
+                )
+            }
+
+            // Count non-dealer hand
+            val nonDealerResult = handCountingManager.countNonDealerHand(
+                nonDealerHand,
+                starterCard,
+                currentState.isPlayerDealer,
+                startResult.handScores
+            )
+
+            // Update scores and state
+            val newPlayerScore = if (nonDealerResult.isForPlayer) {
+                currentState.playerScore + nonDealerResult.pointsAwarded
+            } else {
+                currentState.playerScore
+            }
+            val newOpponentScore = if (!nonDealerResult.isForPlayer) {
+                currentState.opponentScore + nonDealerResult.pointsAwarded
+            } else {
+                currentState.opponentScore
+            }
+
+            _uiState.update { state ->
+                state.copy(
+                    playerScore = newPlayerScore,
+                    opponentScore = newOpponentScore,
+                    handCountingState = state.handCountingState?.copy(
+                        handScores = nonDealerResult.updatedHandScores,
+                        waitingForDialogDismissal = true
+                    ),
+                    playerScoreAnimation = if (nonDealerResult.isForPlayer) nonDealerResult.animation else null,
+                    opponentScoreAnimation = if (!nonDealerResult.isForPlayer) nonDealerResult.animation else null
+                )
+            }
+
+            // Check for game over
+            if (checkAndHandleGameOver()) return@launch
+
+            // Wait for user to dismiss non-dealer dialog
+            while (_uiState.value.handCountingState?.waitingForDialogDismissal == true &&
+                   _uiState.value.handCountingState?.countingPhase == CountingPhase.NON_DEALER) {
+                delay(100)
+            }
+
+            // Progress to dealer phase
+            val dealerPhaseResult = handCountingManager.progressToNextPhase(CountingPhase.NON_DEALER)
+            _uiState.update { state ->
+                state.copy(
+                    handCountingState = state.handCountingState?.copy(
+                        countingPhase = dealerPhaseResult.newPhase,
+                        waitingForDialogDismissal = true
+                    ),
+                    gameStatus = dealerPhaseResult.statusMessage
+                )
+            }
+
+            // Count dealer hand
+            val dealerResult = handCountingManager.countDealerHand(
+                dealerHand,
+                starterCard,
+                currentState.isPlayerDealer,
+                nonDealerResult.updatedHandScores
+            )
+
+            val newPlayerScore2 = if (dealerResult.isForPlayer) {
+                _uiState.value.playerScore + dealerResult.pointsAwarded
+            } else {
+                _uiState.value.playerScore
+            }
+            val newOpponentScore2 = if (!dealerResult.isForPlayer) {
+                _uiState.value.opponentScore + dealerResult.pointsAwarded
+            } else {
+                _uiState.value.opponentScore
+            }
+
+            _uiState.update { state ->
+                state.copy(
+                    playerScore = newPlayerScore2,
+                    opponentScore = newOpponentScore2,
+                    handCountingState = state.handCountingState?.copy(
+                        handScores = dealerResult.updatedHandScores,
+                        waitingForDialogDismissal = true
+                    ),
+                    playerScoreAnimation = if (dealerResult.isForPlayer) dealerResult.animation else null,
+                    opponentScoreAnimation = if (!dealerResult.isForPlayer) dealerResult.animation else null
+                )
+            }
+
+            // Check for game over
+            if (checkAndHandleGameOver()) return@launch
+
+            // Wait for user to dismiss dealer dialog
+            while (_uiState.value.handCountingState?.waitingForDialogDismissal == true &&
+                   _uiState.value.handCountingState?.countingPhase == CountingPhase.DEALER) {
+                delay(100)
+            }
+
+            // Progress to crib phase
+            val cribPhaseResult = handCountingManager.progressToNextPhase(CountingPhase.DEALER)
+            _uiState.update { state ->
+                state.copy(
+                    handCountingState = state.handCountingState?.copy(
+                        countingPhase = cribPhaseResult.newPhase,
+                        waitingForDialogDismissal = true
+                    ),
+                    gameStatus = cribPhaseResult.statusMessage
+                )
+            }
+
+            // Count crib
+            val cribResult = handCountingManager.countCrib(
+                currentState.cribHand,
+                starterCard,
+                currentState.isPlayerDealer,
+                dealerResult.updatedHandScores
+            )
+
+            val newPlayerScore3 = if (cribResult.isForPlayer) {
+                _uiState.value.playerScore + cribResult.pointsAwarded
+            } else {
+                _uiState.value.playerScore
+            }
+            val newOpponentScore3 = if (!cribResult.isForPlayer) {
+                _uiState.value.opponentScore + cribResult.pointsAwarded
+            } else {
+                _uiState.value.opponentScore
+            }
+
+            _uiState.update { state ->
+                state.copy(
+                    playerScore = newPlayerScore3,
+                    opponentScore = newOpponentScore3,
+                    handCountingState = state.handCountingState?.copy(
+                        handScores = cribResult.updatedHandScores,
+                        waitingForDialogDismissal = true
+                    ),
+                    playerScoreAnimation = if (cribResult.isForPlayer) cribResult.animation else null,
+                    opponentScoreAnimation = if (!cribResult.isForPlayer) cribResult.animation else null
+                )
+            }
+
+            // Check for game over
+            if (checkAndHandleGameOver()) return@launch
+
+            // Wait for user to dismiss crib dialog
+            while (_uiState.value.handCountingState?.waitingForDialogDismissal == true &&
+                   _uiState.value.handCountingState?.countingPhase == CountingPhase.CRIB) {
+                delay(100)
+            }
+
+            // Complete hand counting
+            val completePhaseResult = handCountingManager.progressToNextPhase(CountingPhase.CRIB)
+            _uiState.update { state ->
+                state.copy(
+                    handCountingState = state.handCountingState?.copy(
+                        countingPhase = completePhaseResult.newPhase
+                    ),
+                    gameStatus = completePhaseResult.statusMessage
+                )
+            }
+
+            delay(2000)
+
+            // Prepare for next round
+            prepareNextRound()
+
+            Log.i(TAG, "========== HAND COUNTING COMPLETE ==========")
         }
     }
 
