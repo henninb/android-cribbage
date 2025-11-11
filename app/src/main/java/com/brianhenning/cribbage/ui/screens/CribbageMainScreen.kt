@@ -27,7 +27,8 @@ import com.brianhenning.cribbage.ui.utils.BugReportUtils
 @Composable
 fun CribbageMainScreen(
     viewModel: CribbageGameViewModel = viewModel(),
-    onThemeChange: (com.brianhenning.cribbage.ui.theme.CribbageTheme) -> Unit = {}
+    onThemeChange: (com.brianhenning.cribbage.ui.theme.CribbageTheme) -> Unit = {},
+    onSettingsClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -49,12 +50,13 @@ fun CribbageMainScreen(
                 .statusBarsPadding()
                 .navigationBarsPadding()
         ) {
-            // Zone 0: Theme Selector Bar (always visible)
+            // Zone 0: Theme Selector Bar with Settings Button (always visible)
             ThemeSelectorBar(
                 currentTheme = currentTheme,
                 onThemeSelected = { theme ->
                     onThemeChange(theme)
-                }
+                },
+                onSettingsClick = onSettingsClick
             )
 
             // Zone 1: Compact Score Header (only visible after game starts)

@@ -13,7 +13,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.brianhenning.cribbage.model.GameSettings
 import com.brianhenning.cribbage.ui.screens.CribbageMainScreen
+import com.brianhenning.cribbage.ui.screens.SettingsScreen
 import com.brianhenning.cribbage.ui.theme.CribbageTheme
 import com.brianhenning.cribbage.ui.theme.ThemeCalculator
 
@@ -21,8 +23,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // Manage theme state at the root level
+            // Manage theme and settings state at the root level
             var currentTheme by remember { mutableStateOf(ThemeCalculator.getCurrentTheme()) }
+            var currentSettings by remember { mutableStateOf(GameSettings()) }
+            var showSettings by remember { mutableStateOf(false) }
 
             CribbageTheme(overrideTheme = currentTheme) {
                 Surface(
@@ -30,11 +34,26 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background,
                     shape = RoundedCornerShape(0.dp)  // No rounding on root surface
                 ) {
-                    CribbageMainScreen(
-                        onThemeChange = { newTheme ->
-                            currentTheme = newTheme
-                        }
-                    )
+                    if (showSettings) {
+                        SettingsScreen(
+                            currentSettings = currentSettings,
+                            onSettingsChange = { newSettings ->
+                                currentSettings = newSettings
+                            },
+                            onBackPressed = {
+                                showSettings = false
+                            }
+                        )
+                    } else {
+                        CribbageMainScreen(
+                            onThemeChange = { newTheme ->
+                                currentTheme = newTheme
+                            },
+                            onSettingsClick = {
+                                showSettings = true
+                            }
+                        )
+                    }
                 }
             }
         }

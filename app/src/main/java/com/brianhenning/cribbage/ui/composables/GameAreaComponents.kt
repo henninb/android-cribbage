@@ -631,7 +631,7 @@ private fun PlayerHandCompact(
 ) {
     LazyRow(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy((-45).dp),  // Increased from -30
+        horizontalArrangement = Arrangement.spacedBy((-35).dp),  // Match opponent's spacing
         contentPadding = PaddingValues(horizontal = 12.dp)  // Reduced from 16
     ) {
         itemsIndexed(hand) { index, card ->

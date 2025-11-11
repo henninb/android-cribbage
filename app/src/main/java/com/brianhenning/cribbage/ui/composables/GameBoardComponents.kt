@@ -20,10 +20,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -59,7 +61,8 @@ import kotlinx.coroutines.delay
 fun ThemeSelectorBar(
     currentTheme: CribbageTheme,
     onThemeSelected: (CribbageTheme) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSettingsClick: () -> Unit = {}
 ) {
     var showThemeDialog by remember { mutableStateOf(false) }
 
@@ -70,8 +73,7 @@ fun ThemeSelectorBar(
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth()
-                .clickable { showThemeDialog = true },
+                .fillMaxWidth(),
             color = currentTheme.colors.primary,
             tonalElevation = 2.dp,
             shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
@@ -79,16 +81,41 @@ fun ThemeSelectorBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.Center,
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "${currentTheme.icon} ${currentTheme.name}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    fontSize = 11.sp
-                )
+                // Settings button on the left
+                IconButton(
+                    onClick = onSettingsClick,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Filled.Settings,
+                        contentDescription = "Settings",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                // Theme selector in the center (clickable)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { showThemeDialog = true }
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "${currentTheme.icon} ${currentTheme.name}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontSize = 11.sp
+                    )
+                }
+
+                // Spacer on the right to balance the layout
+                Spacer(modifier = Modifier.size(28.dp))
             }
         }
     }
