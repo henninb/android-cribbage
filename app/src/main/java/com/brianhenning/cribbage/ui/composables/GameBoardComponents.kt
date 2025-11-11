@@ -123,12 +123,15 @@ private fun ThemeSelectorDialog(
         ThemeDefinitions.MLK_DAY,
         ThemeDefinitions.VALENTINES_DAY,
         ThemeDefinitions.PRESIDENTS_DAY,
+        ThemeDefinitions.PI_DAY,
+        ThemeDefinitions.IDES_OF_MARCH,
         ThemeDefinitions.ST_PATRICKS_DAY,
         ThemeDefinitions.MEMORIAL_DAY,
         ThemeDefinitions.INDEPENDENCE_DAY,
         ThemeDefinitions.LABOR_DAY,
         ThemeDefinitions.HALLOWEEN,
-        ThemeDefinitions.THANKSGIVING
+        ThemeDefinitions.THANKSGIVING,
+        ThemeDefinitions.CHRISTMAS
     )
 
     AlertDialog(
