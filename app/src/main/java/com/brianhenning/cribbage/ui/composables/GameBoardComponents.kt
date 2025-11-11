@@ -370,43 +370,44 @@ private fun ScoreSection(
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
+        // Single horizontal line with dealer indicator, label, and score
         Row(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = scoreColor,
-                fontWeight = FontWeight.Bold
-            )
-
-            // Dealer indicator
+            // Dealer indicator (shows before label)
             if (isDealer) {
                 Icon(
                     imageVector = Icons.Default.Casino,
                     contentDescription = "Dealer",
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(14.dp),
                     tint = currentTheme.colors.accentLight
                 )
             }
-        }
 
-        Text(
-            text = score.toString(),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = scoreColor
-        )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = scoreColor,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = score.toString(),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = scoreColor
+            )
+        }
 
         // Progress bar (score out of 121)
         LinearProgressIndicator(
             progress = { (score / 121f).coerceIn(0f, 1f) },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(6.dp),
+                .height(4.dp),
             color = scoreColor,
             trackColor = MaterialTheme.colorScheme.surfaceVariant,
         )
