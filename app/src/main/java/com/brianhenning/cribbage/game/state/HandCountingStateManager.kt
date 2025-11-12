@@ -95,6 +95,42 @@ class HandCountingStateManager {
     }
 
     /**
+     * Counts the non-dealer hand manually (user provides points).
+     * Returns result without score breakdown (since user counted).
+     *
+     * @param manualPoints Points entered by user
+     * @param isPlayerDealer Whether player is the dealer (determines who is non-dealer)
+     * @param currentHandScores Current hand scores state
+     * @return CountHandResult with manual points
+     */
+    fun countNonDealerHandManually(
+        manualPoints: Int,
+        isPlayerDealer: Boolean,
+        currentHandScores: HandScores
+    ): CountHandResult {
+        // Create empty breakdown for manual counting
+        val emptyBreakdown = DetailedScoreBreakdown(
+            totalScore = manualPoints,
+            entries = emptyList()
+        )
+
+        return CountHandResult(
+            scoreBreakdown = emptyBreakdown,
+            pointsAwarded = manualPoints,
+            isForPlayer = !isPlayerDealer,
+            updatedHandScores = currentHandScores.copy(
+                nonDealerScore = manualPoints,
+                nonDealerBreakdown = emptyBreakdown
+            ),
+            animation = if (manualPoints > 0) {
+                ScoreAnimationState(manualPoints, !isPlayerDealer)
+            } else {
+                null
+            }
+        )
+    }
+
+    /**
      * Counts the dealer hand.
      * Returns immutable result with score breakdown and points.
      *
@@ -129,6 +165,41 @@ class HandCountingStateManager {
     }
 
     /**
+     * Counts the dealer hand manually (user provides points).
+     * Returns result without score breakdown (since user counted).
+     *
+     * @param manualPoints Points entered by user
+     * @param isPlayerDealer Whether player is the dealer
+     * @param currentHandScores Current hand scores state
+     * @return CountHandResult with manual points
+     */
+    fun countDealerHandManually(
+        manualPoints: Int,
+        isPlayerDealer: Boolean,
+        currentHandScores: HandScores
+    ): CountHandResult {
+        val emptyBreakdown = DetailedScoreBreakdown(
+            totalScore = manualPoints,
+            entries = emptyList()
+        )
+
+        return CountHandResult(
+            scoreBreakdown = emptyBreakdown,
+            pointsAwarded = manualPoints,
+            isForPlayer = isPlayerDealer,
+            updatedHandScores = currentHandScores.copy(
+                dealerScore = manualPoints,
+                dealerBreakdown = emptyBreakdown
+            ),
+            animation = if (manualPoints > 0) {
+                ScoreAnimationState(manualPoints, isPlayerDealer)
+            } else {
+                null
+            }
+        )
+    }
+
+    /**
      * Counts the crib.
      * Returns immutable result with score breakdown and points.
      *
@@ -156,6 +227,41 @@ class HandCountingStateManager {
             ),
             animation = if (breakdown.totalScore > 0) {
                 ScoreAnimationState(breakdown.totalScore, isPlayerDealer)
+            } else {
+                null
+            }
+        )
+    }
+
+    /**
+     * Counts the crib manually (user provides points).
+     * Returns result without score breakdown (since user counted).
+     *
+     * @param manualPoints Points entered by user
+     * @param isPlayerDealer Whether player is the dealer (crib belongs to dealer)
+     * @param currentHandScores Current hand scores state
+     * @return CountHandResult with manual points
+     */
+    fun countCribManually(
+        manualPoints: Int,
+        isPlayerDealer: Boolean,
+        currentHandScores: HandScores
+    ): CountHandResult {
+        val emptyBreakdown = DetailedScoreBreakdown(
+            totalScore = manualPoints,
+            entries = emptyList()
+        )
+
+        return CountHandResult(
+            scoreBreakdown = emptyBreakdown,
+            pointsAwarded = manualPoints,
+            isForPlayer = isPlayerDealer,
+            updatedHandScores = currentHandScores.copy(
+                cribScore = manualPoints,
+                cribBreakdown = emptyBreakdown
+            ),
+            animation = if (manualPoints > 0) {
+                ScoreAnimationState(manualPoints, isPlayerDealer)
             } else {
                 null
             }

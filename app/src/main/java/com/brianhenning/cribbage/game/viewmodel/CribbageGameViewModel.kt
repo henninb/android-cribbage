@@ -972,7 +972,7 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
     /**
      * Counts hands sequentially: Non-Dealer → Dealer → Crib.
      * Runs as a coroutine and updates state after each hand is counted.
-     * User must dismiss each dialog before progressing to next phase.
+     * User must dismiss each dialog (automatic mode) or enter points (manual mode).
      */
     fun countHands() {
         val currentState = _uiState.value
@@ -990,6 +990,12 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
         viewModelScope.launch {
             Log.i(TAG, "========== HAND COUNTING START ==========")
 
+            // Get the game settings to determine counting mode
+            val gameSettings = preferencesRepository.loadGameSettings()
+            val isManualCountingMode = gameSettings.countingMode == com.brianhenning.cribbage.model.CountingMode.MANUAL
+
+            Log.i(TAG, "Counting mode: ${gameSettings.countingMode}")
+
             // Determine hand order
             val (nonDealerHand, dealerHand) = handCountingManager.determineHandOrder(
                 currentState.playerHand,
@@ -1000,6 +1006,9 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             // Start hand counting phase
             val startResult = handCountingManager.startHandCounting()
 
+            // Determine if non-dealer is player
+            val nonDealerIsPlayer = !currentState.isPlayerDealer
+
             // Initialize hand counting state
             _uiState.update { state ->
                 state.copy(
@@ -1008,14 +1017,22 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                         isInHandCountingPhase = true,
                         countingPhase = startResult.countingPhase,
                         handScores = startResult.handScores,
-                        waitingForDialogDismissal = true
+                        waitingForDialogDismissal = if (!isManualCountingMode || !nonDealerIsPlayer) true else false,
+                        waitingForManualInput = if (isManualCountingMode && nonDealerIsPlayer) true else false
                     ),
                     gameStatus = startResult.statusMessage,
                     peggingState = null // Clear pegging state
                 )
             }
 
-            // Count non-dealer hand
+            // Count non-dealer hand based on mode
+            if (isManualCountingMode && nonDealerIsPlayer) {
+                // Manual mode for player's non-dealer hand - wait for user to enter points
+                // The submitManualCount() function will handle the rest
+                return@launch
+            }
+
+            // Automatic counting for opponent or when in automatic mode
             val nonDealerResult = handCountingManager.countNonDealerHand(
                 nonDealerHand,
                 starterCard,
@@ -1041,7 +1058,8 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                     opponentScore = newOpponentScore,
                     handCountingState = state.handCountingState?.copy(
                         handScores = nonDealerResult.updatedHandScores,
-                        waitingForDialogDismissal = true
+                        waitingForDialogDismissal = true,
+                        waitingForManualInput = false
                     ),
                     playerScoreAnimation = if (nonDealerResult.isForPlayer) nonDealerResult.animation else null,
                     opponentScoreAnimation = if (!nonDealerResult.isForPlayer) nonDealerResult.animation else null
@@ -1057,129 +1075,372 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 delay(100)
             }
 
-            // Progress to dealer phase
-            val dealerPhaseResult = handCountingManager.progressToNextPhase(CountingPhase.NON_DEALER)
+            // Progress to next phase (dealer hand)
+            progressToNextCountingPhase()
+        }
+    }
+
+    /**
+     * Submits manually counted points for the current counting phase.
+     * Called when user enters points in manual counting mode.
+     * Validates the count against the actual score and returns validation result.
+     *
+     * @param points Points entered by user
+     * @return Validation result (null if correct, error message if incorrect)
+     */
+    fun submitManualCount(points: Int): ManualCountValidationResult {
+        val currentState = _uiState.value
+        val handCountingState = currentState.handCountingState ?: return ManualCountValidationResult.Error("Invalid state")
+        val starterCard = currentState.starterCard ?: return ManualCountValidationResult.Error("No starter card")
+
+        if (!handCountingState.waitingForManualInput) {
+            Log.w(TAG, "submitManualCount() called but not waiting for manual input")
+            return ManualCountValidationResult.Error("Not waiting for input")
+        }
+
+        Log.i(TAG, "submitManualCount() - phase=${handCountingState.countingPhase}, points=$points")
+
+        // Get the hand to validate and calculate actual score
+        val (hand, isCrib) = when (handCountingState.countingPhase) {
+            CountingPhase.NON_DEALER -> {
+                val (nonDealerHand, _) = handCountingManager.determineHandOrder(
+                    currentState.playerHand,
+                    currentState.opponentHand,
+                    currentState.isPlayerDealer
+                )
+                Pair(nonDealerHand, false)
+            }
+            CountingPhase.DEALER -> {
+                val (_, dealerHand) = handCountingManager.determineHandOrder(
+                    currentState.playerHand,
+                    currentState.opponentHand,
+                    currentState.isPlayerDealer
+                )
+                Pair(dealerHand, false)
+            }
+            CountingPhase.CRIB -> {
+                Pair(currentState.cribHand, true)
+            }
+            else -> {
+                Log.w(TAG, "submitManualCount() called for invalid phase: ${handCountingState.countingPhase}")
+                return ManualCountValidationResult.Error("Invalid phase")
+            }
+        }
+
+        // Calculate actual score
+        val actualScore = com.brianhenning.cribbage.shared.domain.logic.CribbageScorer
+            .scoreHandWithBreakdown(hand, starterCard, isCrib = isCrib)
+
+        // Validate user's count
+        if (points != actualScore.totalScore) {
+            Log.w(TAG, "Manual count incorrect: user=$points, actual=${actualScore.totalScore}")
+            return ManualCountValidationResult.Incorrect(
+                userPoints = points,
+                correctPoints = actualScore.totalScore,
+                breakdown = actualScore
+            )
+        }
+
+        Log.i(TAG, "Manual count correct: $points")
+
+        // Process manual count with validated points
+        val result = when (handCountingState.countingPhase) {
+            CountingPhase.NON_DEALER -> {
+                handCountingManager.countNonDealerHandManually(
+                    manualPoints = points,
+                    isPlayerDealer = currentState.isPlayerDealer,
+                    currentHandScores = handCountingState.handScores
+                )
+            }
+            CountingPhase.DEALER -> {
+                handCountingManager.countDealerHandManually(
+                    manualPoints = points,
+                    isPlayerDealer = currentState.isPlayerDealer,
+                    currentHandScores = handCountingState.handScores
+                )
+            }
+            CountingPhase.CRIB -> {
+                handCountingManager.countCribManually(
+                    manualPoints = points,
+                    isPlayerDealer = currentState.isPlayerDealer,
+                    currentHandScores = handCountingState.handScores
+                )
+            }
+            else -> return ManualCountValidationResult.Error("Invalid phase")
+        }
+
+        // Update scores
+        val newPlayerScore = if (result.isForPlayer) {
+            currentState.playerScore + result.pointsAwarded
+        } else {
+            currentState.playerScore
+        }
+
+        val newOpponentScore = if (!result.isForPlayer) {
+            currentState.opponentScore + result.pointsAwarded
+        } else {
+            currentState.opponentScore
+        }
+
+        // Update state - no longer waiting for manual input
+        _uiState.update { state ->
+            state.copy(
+                playerScore = newPlayerScore,
+                opponentScore = newOpponentScore,
+                handCountingState = state.handCountingState?.copy(
+                    handScores = result.updatedHandScores,
+                    waitingForManualInput = false,
+                    waitingForDialogDismissal = false
+                ),
+                playerScoreAnimation = if (result.isForPlayer) result.animation else null,
+                opponentScoreAnimation = if (!result.isForPlayer) result.animation else null
+            )
+        }
+
+        // Check for game over and progress to next phase
+        viewModelScope.launch {
+            if (checkAndHandleGameOver()) return@launch
+
+            delay(500)
+            progressToNextCountingPhase()
+        }
+
+        return ManualCountValidationResult.Correct(points)
+    }
+
+    /**
+     * Result of manual count validation
+     */
+    sealed class ManualCountValidationResult {
+        data class Correct(val points: Int) : ManualCountValidationResult()
+        data class Incorrect(
+            val userPoints: Int,
+            val correctPoints: Int,
+            val breakdown: com.brianhenning.cribbage.shared.domain.logic.DetailedScoreBreakdown
+        ) : ManualCountValidationResult()
+        data class Error(val message: String) : ManualCountValidationResult()
+    }
+
+    /**
+     * Progresses to the next hand counting phase.
+     * Shared logic for both automatic and manual counting modes.
+     */
+    private suspend fun progressToNextCountingPhase() {
+        val currentState = _uiState.value
+        val handCountingState = currentState.handCountingState ?: return
+        val currentPhase = handCountingState.countingPhase
+
+        Log.i(TAG, "progressToNextCountingPhase() - from $currentPhase")
+
+        // Get the game settings to determine counting mode
+        val gameSettings = preferencesRepository.loadGameSettings()
+        val isManualCountingMode = gameSettings.countingMode == com.brianhenning.cribbage.model.CountingMode.MANUAL
+
+        when (currentPhase) {
+            CountingPhase.NON_DEALER -> {
+                // Progress to dealer phase
+                val phaseResult = handCountingManager.progressToNextPhase(currentPhase)
+                _uiState.update { state ->
+                    state.copy(
+                        handCountingState = state.handCountingState?.copy(
+                            countingPhase = phaseResult.newPhase,
+                            waitingForDialogDismissal = false,
+                            waitingForManualInput = false
+                        ),
+                        gameStatus = phaseResult.statusMessage
+                    )
+                }
+
+                delay(300)
+
+                // Count dealer hand (automatic or manual based on whose hand it is)
+                countDealerHand(currentState, handCountingState, isManualCountingMode)
+            }
+            CountingPhase.DEALER -> {
+                // Progress to crib phase
+                val phaseResult = handCountingManager.progressToNextPhase(currentPhase)
+                _uiState.update { state ->
+                    state.copy(
+                        handCountingState = state.handCountingState?.copy(
+                            countingPhase = phaseResult.newPhase,
+                            waitingForDialogDismissal = false,
+                            waitingForManualInput = false
+                        ),
+                        gameStatus = phaseResult.statusMessage
+                    )
+                }
+
+                delay(300)
+
+                // Count crib (automatic or manual based on whose crib it is)
+                countCribHand(currentState, handCountingState, isManualCountingMode)
+            }
+            CountingPhase.CRIB -> {
+                // Complete hand counting
+                val phaseResult = handCountingManager.progressToNextPhase(currentPhase)
+                _uiState.update { state ->
+                    state.copy(
+                        handCountingState = state.handCountingState?.copy(
+                            countingPhase = phaseResult.newPhase,
+                            waitingForDialogDismissal = false,
+                            waitingForManualInput = false
+                        ),
+                        gameStatus = phaseResult.statusMessage
+                    )
+                }
+
+                delay(2000)
+                prepareNextRound()
+                Log.i(TAG, "========== HAND COUNTING COMPLETE ==========")
+            }
+            else -> {
+                Log.w(TAG, "progressToNextCountingPhase() called for invalid phase: $currentPhase")
+            }
+        }
+    }
+
+    /**
+     * Counts dealer hand - automatically or prompts for manual input
+     */
+    private suspend fun countDealerHand(
+        currentState: GameUiState,
+        handCountingState: HandCountingState,
+        isManualCountingMode: Boolean
+    ) {
+        val starterCard = currentState.starterCard ?: return
+        val (nonDealerHand, dealerHand) = handCountingManager.determineHandOrder(
+            currentState.playerHand,
+            currentState.opponentHand,
+            currentState.isPlayerDealer
+        )
+
+        // Determine if this is player's hand
+        val isPlayerHand = currentState.isPlayerDealer
+
+        if (isManualCountingMode && isPlayerHand) {
+            // Manual mode for player's dealer hand
             _uiState.update { state ->
                 state.copy(
                     handCountingState = state.handCountingState?.copy(
-                        countingPhase = dealerPhaseResult.newPhase,
-                        waitingForDialogDismissal = true
-                    ),
-                    gameStatus = dealerPhaseResult.statusMessage
+                        waitingForManualInput = true,
+                        waitingForDialogDismissal = false
+                    )
                 )
             }
-
-            // Count dealer hand
-            val dealerResult = handCountingManager.countDealerHand(
+        } else {
+            // Automatic counting for opponent or when in automatic mode
+            val result = handCountingManager.countDealerHand(
                 dealerHand,
                 starterCard,
                 currentState.isPlayerDealer,
-                nonDealerResult.updatedHandScores
+                handCountingState.handScores
             )
 
-            val newPlayerScore2 = if (dealerResult.isForPlayer) {
-                _uiState.value.playerScore + dealerResult.pointsAwarded
+            val newPlayerScore = if (result.isForPlayer) {
+                _uiState.value.playerScore + result.pointsAwarded
             } else {
                 _uiState.value.playerScore
             }
-            val newOpponentScore2 = if (!dealerResult.isForPlayer) {
-                _uiState.value.opponentScore + dealerResult.pointsAwarded
+
+            val newOpponentScore = if (!result.isForPlayer) {
+                _uiState.value.opponentScore + result.pointsAwarded
             } else {
                 _uiState.value.opponentScore
             }
 
             _uiState.update { state ->
                 state.copy(
-                    playerScore = newPlayerScore2,
-                    opponentScore = newOpponentScore2,
+                    playerScore = newPlayerScore,
+                    opponentScore = newOpponentScore,
                     handCountingState = state.handCountingState?.copy(
-                        handScores = dealerResult.updatedHandScores,
-                        waitingForDialogDismissal = true
+                        handScores = result.updatedHandScores,
+                        waitingForDialogDismissal = true,
+                        waitingForManualInput = false
                     ),
-                    playerScoreAnimation = if (dealerResult.isForPlayer) dealerResult.animation else null,
-                    opponentScoreAnimation = if (!dealerResult.isForPlayer) dealerResult.animation else null
+                    playerScoreAnimation = if (result.isForPlayer) result.animation else null,
+                    opponentScoreAnimation = if (!result.isForPlayer) result.animation else null
                 )
             }
 
-            // Check for game over
-            if (checkAndHandleGameOver()) return@launch
+            if (checkAndHandleGameOver()) return
 
-            // Wait for user to dismiss dealer dialog
+            // Wait for user to dismiss dialog
             while (_uiState.value.handCountingState?.waitingForDialogDismissal == true &&
-                   _uiState.value.handCountingState?.countingPhase == CountingPhase.DEALER) {
+                _uiState.value.handCountingState?.countingPhase == CountingPhase.DEALER) {
                 delay(100)
             }
 
-            // Progress to crib phase
-            val cribPhaseResult = handCountingManager.progressToNextPhase(CountingPhase.DEALER)
+            progressToNextCountingPhase()
+        }
+    }
+
+    /**
+     * Counts crib - automatically or prompts for manual input
+     */
+    private suspend fun countCribHand(
+        currentState: GameUiState,
+        handCountingState: HandCountingState,
+        isManualCountingMode: Boolean
+    ) {
+        val starterCard = currentState.starterCard ?: return
+
+        // Determine if this is player's crib (crib belongs to dealer)
+        val isPlayerCrib = currentState.isPlayerDealer
+
+        if (isManualCountingMode && isPlayerCrib) {
+            // Manual mode for player's crib
             _uiState.update { state ->
                 state.copy(
                     handCountingState = state.handCountingState?.copy(
-                        countingPhase = cribPhaseResult.newPhase,
-                        waitingForDialogDismissal = true
-                    ),
-                    gameStatus = cribPhaseResult.statusMessage
+                        waitingForManualInput = true,
+                        waitingForDialogDismissal = false
+                    )
                 )
             }
-
-            // Count crib
-            val cribResult = handCountingManager.countCrib(
+        } else {
+            // Automatic counting for opponent crib or when in automatic mode
+            val result = handCountingManager.countCrib(
                 currentState.cribHand,
                 starterCard,
                 currentState.isPlayerDealer,
-                dealerResult.updatedHandScores
+                handCountingState.handScores
             )
 
-            val newPlayerScore3 = if (cribResult.isForPlayer) {
-                _uiState.value.playerScore + cribResult.pointsAwarded
+            val newPlayerScore = if (result.isForPlayer) {
+                _uiState.value.playerScore + result.pointsAwarded
             } else {
                 _uiState.value.playerScore
             }
-            val newOpponentScore3 = if (!cribResult.isForPlayer) {
-                _uiState.value.opponentScore + cribResult.pointsAwarded
+
+            val newOpponentScore = if (!result.isForPlayer) {
+                _uiState.value.opponentScore + result.pointsAwarded
             } else {
                 _uiState.value.opponentScore
             }
 
             _uiState.update { state ->
                 state.copy(
-                    playerScore = newPlayerScore3,
-                    opponentScore = newOpponentScore3,
+                    playerScore = newPlayerScore,
+                    opponentScore = newOpponentScore,
                     handCountingState = state.handCountingState?.copy(
-                        handScores = cribResult.updatedHandScores,
-                        waitingForDialogDismissal = true
+                        handScores = result.updatedHandScores,
+                        waitingForDialogDismissal = true,
+                        waitingForManualInput = false
                     ),
-                    playerScoreAnimation = if (cribResult.isForPlayer) cribResult.animation else null,
-                    opponentScoreAnimation = if (!cribResult.isForPlayer) cribResult.animation else null
+                    playerScoreAnimation = if (result.isForPlayer) result.animation else null,
+                    opponentScoreAnimation = if (!result.isForPlayer) result.animation else null
                 )
             }
 
-            // Check for game over
-            if (checkAndHandleGameOver()) return@launch
+            if (checkAndHandleGameOver()) return
 
-            // Wait for user to dismiss crib dialog
+            // Wait for user to dismiss dialog
             while (_uiState.value.handCountingState?.waitingForDialogDismissal == true &&
-                   _uiState.value.handCountingState?.countingPhase == CountingPhase.CRIB) {
+                _uiState.value.handCountingState?.countingPhase == CountingPhase.CRIB) {
                 delay(100)
             }
 
-            // Complete hand counting
-            val completePhaseResult = handCountingManager.progressToNextPhase(CountingPhase.CRIB)
-            _uiState.update { state ->
-                state.copy(
-                    handCountingState = state.handCountingState?.copy(
-                        countingPhase = completePhaseResult.newPhase
-                    ),
-                    gameStatus = completePhaseResult.statusMessage
-                )
-            }
-
-            delay(2000)
-
-            // Prepare for next round
-            prepareNextRound()
-
-            Log.i(TAG, "========== HAND COUNTING COMPLETE ==========")
+            progressToNextCountingPhase()
         }
     }
 

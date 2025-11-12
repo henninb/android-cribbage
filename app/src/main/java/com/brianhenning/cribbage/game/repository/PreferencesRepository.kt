@@ -2,6 +2,9 @@ package com.brianhenning.cribbage.game.repository
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.brianhenning.cribbage.model.CardSelectionMode
+import com.brianhenning.cribbage.model.CountingMode
+import com.brianhenning.cribbage.model.GameSettings
 import com.brianhenning.cribbage.shared.domain.model.Card
 import com.brianhenning.cribbage.shared.domain.model.Rank
 import com.brianhenning.cribbage.shared.domain.model.Suit
@@ -127,6 +130,34 @@ class PreferencesRepository(context: Context) {
             .apply()
     }
 
+    /**
+     * Load game settings from preferences
+     */
+    fun loadGameSettings(): GameSettings {
+        val cardSelectionMode = prefs.getString(KEY_CARD_SELECTION_MODE, null)
+            ?.let { CardSelectionMode.valueOf(it) }
+            ?: CardSelectionMode.TAP
+
+        val countingMode = prefs.getString(KEY_COUNTING_MODE, null)
+            ?.let { CountingMode.valueOf(it) }
+            ?: CountingMode.AUTOMATIC
+
+        return GameSettings(
+            cardSelectionMode = cardSelectionMode,
+            countingMode = countingMode
+        )
+    }
+
+    /**
+     * Save game settings to preferences
+     */
+    fun saveGameSettings(settings: GameSettings) {
+        prefs.edit()
+            .putString(KEY_CARD_SELECTION_MODE, settings.cardSelectionMode.name)
+            .putString(KEY_COUNTING_MODE, settings.countingMode.name)
+            .apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "cribbage_prefs"
 
@@ -146,5 +177,9 @@ class PreferencesRepository(context: Context) {
 
         // Next dealer key
         private const val KEY_NEXT_DEALER_IS_PLAYER = "nextDealerIsPlayer"
+
+        // Game settings keys
+        private const val KEY_CARD_SELECTION_MODE = "cardSelectionMode"
+        private const val KEY_COUNTING_MODE = "countingMode"
     }
 }

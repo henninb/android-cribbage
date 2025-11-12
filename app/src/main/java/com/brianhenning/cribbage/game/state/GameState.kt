@@ -90,7 +90,8 @@ data class HandCountingState(
     val isInHandCountingPhase: Boolean = false,
     val countingPhase: CountingPhase = CountingPhase.NONE,
     val handScores: HandScores = HandScores(),
-    val waitingForDialogDismissal: Boolean = false
+    val waitingForDialogDismissal: Boolean = false,
+    val waitingForManualInput: Boolean = false
 )
 
 /**

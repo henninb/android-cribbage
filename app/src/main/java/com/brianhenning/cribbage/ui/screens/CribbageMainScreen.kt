@@ -134,7 +134,25 @@ fun CribbageMainScreen(
                             isPlayerDealer = uiState.isPlayerDealer,
                             currentCountingPhase = countingState.countingPhase,
                             handScores = countingState.handScores,
-                            onDialogDismissed = { viewModel.dismissHandCountingDialog() }
+                            waitingForManualInput = countingState.waitingForManualInput,
+                            onDialogDismissed = { viewModel.dismissHandCountingDialog() },
+                            onManualPointsSubmitted = { points, onValidationResult ->
+                                val result = viewModel.submitManualCount(points)
+                                when (result) {
+                                    is CribbageGameViewModel.ManualCountValidationResult.Incorrect -> {
+                                        onValidationResult(
+                                            "Incorrect! You entered ${result.userPoints} points",
+                                            result.correctPoints
+                                        )
+                                    }
+                                    is CribbageGameViewModel.ManualCountValidationResult.Error -> {
+                                        onValidationResult(result.message, null)
+                                    }
+                                    is CribbageGameViewModel.ManualCountValidationResult.Correct -> {
+                                        onValidationResult(null, null)
+                                    }
+                                }
+                            }
                         )
                     }
                 }

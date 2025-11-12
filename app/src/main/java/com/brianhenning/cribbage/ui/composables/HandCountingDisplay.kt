@@ -29,46 +29,114 @@ fun HandCountingDisplay(
     isPlayerDealer: Boolean,
     currentCountingPhase: CountingPhase,
     handScores: HandScores,
+    waitingForManualInput: Boolean,
     onDialogDismissed: () -> Unit,
+    onManualPointsSubmitted: (Int, (String?, Int?) -> Unit) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showDialog by remember { mutableStateOf<ScoreDialogData?>(null) }
+    var showManualDialog by remember { mutableStateOf<ManualDialogData?>(null) }
+    var validationError by remember { mutableStateOf<String?>(null) }
+    var correctAnswer by remember { mutableStateOf<Int?>(null) }
 
-    // Show dialog when a hand is completed
-    LaunchedEffect(currentCountingPhase, handScores) {
-        when (currentCountingPhase) {
-            CountingPhase.NON_DEALER -> {
-                handScores.nonDealerBreakdown?.let { breakdown ->
-                    showDialog = ScoreDialogData(
-                        title = if (isPlayerDealer) "Opponent's Hand" else "Your Hand",
-                        hand = if (isPlayerDealer) opponentHand else playerHand,
-                        breakdown = breakdown
-                    )
+    // Show manual input dialog when waiting for manual input
+    LaunchedEffect(currentCountingPhase, waitingForManualInput) {
+        if (waitingForManualInput) {
+            // Clear validation error when showing dialog for new hand
+            validationError = null
+            correctAnswer = null
+
+            when (currentCountingPhase) {
+                CountingPhase.NON_DEALER -> {
+                    if (!isPlayerDealer) { // Player is non-dealer
+                        showManualDialog = ManualDialogData(
+                            title = "Your Hand",
+                            hand = playerHand
+                        )
+                    }
                 }
-            }
-            CountingPhase.DEALER -> {
-                handScores.dealerBreakdown?.let { breakdown ->
-                    showDialog = ScoreDialogData(
-                        title = if (isPlayerDealer) "Your Hand" else "Opponent's Hand",
-                        hand = if (isPlayerDealer) playerHand else opponentHand,
-                        breakdown = breakdown
-                    )
+                CountingPhase.DEALER -> {
+                    if (isPlayerDealer) { // Player is dealer
+                        showManualDialog = ManualDialogData(
+                            title = "Your Hand",
+                            hand = playerHand
+                        )
+                    }
                 }
-            }
-            CountingPhase.CRIB -> {
-                handScores.cribBreakdown?.let { breakdown ->
-                    showDialog = ScoreDialogData(
-                        title = if (isPlayerDealer) "Your Crib" else "Opponent's Crib",
-                        hand = cribHand,
-                        breakdown = breakdown
-                    )
+                CountingPhase.CRIB -> {
+                    if (isPlayerDealer) { // Crib belongs to dealer
+                        showManualDialog = ManualDialogData(
+                            title = "Your Crib",
+                            hand = cribHand
+                        )
+                    }
                 }
+                else -> {}
             }
-            else -> {}
+        } else {
+            showManualDialog = null
+            validationError = null
+            correctAnswer = null
         }
     }
 
-    // Only show the dialog - no background display
+    // Show automatic dialog when a hand is completed (not manual mode)
+    LaunchedEffect(currentCountingPhase, handScores, waitingForManualInput) {
+        if (!waitingForManualInput) {
+            when (currentCountingPhase) {
+                CountingPhase.NON_DEALER -> {
+                    handScores.nonDealerBreakdown?.let { breakdown ->
+                        showDialog = ScoreDialogData(
+                            title = if (isPlayerDealer) "Opponent's Hand" else "Your Hand",
+                            hand = if (isPlayerDealer) opponentHand else playerHand,
+                            breakdown = breakdown
+                        )
+                    }
+                }
+                CountingPhase.DEALER -> {
+                    handScores.dealerBreakdown?.let { breakdown ->
+                        showDialog = ScoreDialogData(
+                            title = if (isPlayerDealer) "Your Hand" else "Opponent's Hand",
+                            hand = if (isPlayerDealer) playerHand else opponentHand,
+                            breakdown = breakdown
+                        )
+                    }
+                }
+                CountingPhase.CRIB -> {
+                    handScores.cribBreakdown?.let { breakdown ->
+                        showDialog = ScoreDialogData(
+                            title = if (isPlayerDealer) "Your Crib" else "Opponent's Crib",
+                            hand = cribHand,
+                            breakdown = breakdown
+                        )
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+
+    // Show manual counting dialog when waiting for manual input
+    showManualDialog?.let { dialogData ->
+        ManualCountingDialog(
+            title = dialogData.title,
+            hand = dialogData.hand,
+            starterCard = starterCard,
+            validationError = validationError,
+            correctAnswer = correctAnswer,
+            onPointsSubmitted = { points ->
+                onManualPointsSubmitted(points) { error, correct ->
+                    validationError = error
+                    correctAnswer = correct
+                }
+            },
+            onDismiss = {
+                // Don't allow dismissing without entering points
+            }
+        )
+    }
+
+    // Show automatic counting dialog when a hand is completed
     showDialog?.let { dialogData ->
         ScoreBreakdownDialog(
             title = dialogData.title,
@@ -87,6 +155,11 @@ data class ScoreDialogData(
     val title: String,
     val hand: List<CribbageCard>,
     val breakdown: DetailedScoreBreakdown
+)
+
+data class ManualDialogData(
+    val title: String,
+    val hand: List<CribbageCard>
 )
 
 enum class CountingPhase {
