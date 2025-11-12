@@ -167,6 +167,7 @@ fun PeggingRoundAcknowledgment(
                 val availableWidth = screenWidth - 64f // Account for card padding and modal padding
                 val (minOverlapDp, maxOverlapDp) = when (pile.size) {
                     in 4..6 -> 30f to 45f // moderate overlap for 4–6 cards
+                    in 7..8 -> 10f to 75f // aggressive overlap for 7-8 cards
                     else -> 10f to 65f
                 }
 
@@ -388,12 +389,16 @@ fun GameAreaContent(
                         val configuration = LocalConfiguration.current
                         val screenWidth = configuration.screenWidthDp.toFloat()
                         val availableWidth = screenWidth - 32f // Account for card padding
+                        val maxOverlapDp = when (peggingPile.size) {
+                            in 7..8 -> 75f // aggressive overlap for 7-8 cards
+                            else -> 55f
+                        }
                         val (overlap, scale) = calculateCardOverlapAndScale(
                             cardCount = peggingPile.size,
                             cardWidth = CardSize.Medium.width.value,
                             availableWidth = availableWidth,
                             minOverlap = 10f,
-                            maxOverlap = 55f
+                            maxOverlap = maxOverlapDp
                         )
 
                         LazyRow(
