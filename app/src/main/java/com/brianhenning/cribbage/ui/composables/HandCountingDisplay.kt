@@ -196,16 +196,22 @@ fun ScoreBreakdownDialog(
             usePlatformDefaultWidth = false
         )
     ) {
-        Card(
-            modifier = modifier
-                .fillMaxWidth(0.95f)
-                .fillMaxHeight(0.90f),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 120.dp, start = 8.dp, end = 8.dp, bottom = 48.dp),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Card(
+                modifier = modifier
+                    .fillMaxWidth(0.95f)
+                    .fillMaxHeight(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -261,7 +267,13 @@ fun ScoreBreakdownDialog(
                                 )
 
                                 LazyRow(
-                                    horizontalArrangement = Arrangement.spacedBy((-35).dp),  // Overlap cards
+                                    horizontalArrangement = Arrangement.spacedBy(
+                                        when {
+                                            hand.size >= 7 -> (-45).dp  // More overlap for 7+ cards
+                                            hand.size >= 5 -> (-40).dp  // Medium overlap for 5-6 cards
+                                            else -> (-35).dp            // Default overlap for 4 or fewer
+                                        }
+                                    ),
                                     contentPadding = PaddingValues(horizontal = 12.dp)
                                 ) {
                                     items(hand) { card ->
@@ -447,6 +459,7 @@ fun ScoreBreakdownDialog(
                     )
                 }
             }
+        }
         }
     }
 }
