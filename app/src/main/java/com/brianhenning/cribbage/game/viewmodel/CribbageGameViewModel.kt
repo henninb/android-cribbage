@@ -291,6 +291,29 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             return
         }
 
+        // Validate that playing this card won't exceed 31
+        val newCount = peggingState.peggingCount + card.getValue()
+        if (newCount > 31) {
+            Log.w(TAG, "playCard() - ILLEGAL MOVE: Card ${card.getSymbol()} (value ${card.getValue()}) " +
+                    "would make count $newCount (current: ${peggingState.peggingCount})")
+            _uiState.update { state ->
+                state.copy(
+                    gameStatus = "⚠️ Illegal move! ${card.getSymbol()} would exceed 31 " +
+                            "(count: ${peggingState.peggingCount} + ${card.getValue()} = $newCount)"
+                )
+            }
+            // Reset warning message after 3 seconds
+            viewModelScope.launch {
+                delay(3000)
+                _uiState.update { state ->
+                    state.copy(
+                        gameStatus = if (state.peggingState?.isPlayerTurn == true) "Your turn" else "Opponent's turn"
+                    )
+                }
+            }
+            return
+        }
+
         Log.d(TAG, "playCard() called - cardIndex=$cardIndex, card=$card, " +
                 "currentCount=${peggingState.peggingCount}")
 
