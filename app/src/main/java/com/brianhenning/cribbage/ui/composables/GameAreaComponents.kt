@@ -69,7 +69,7 @@ internal fun calculateCardOverlapAndScale(
 
     // If we don't fit even with max overlap, we need to scale down
     val scaleNeeded = availableWidth / minTotalWidth
-    return Pair(maxOverlap, scaleNeeded.coerceIn(0.65f, 1f)) // Don't scale smaller than 65%
+    return Pair(maxOverlap, scaleNeeded.coerceIn(0.55f, 1f)) // Allow scaling down to 55% for better fit
 }
 
 /**
@@ -166,9 +166,13 @@ fun PeggingRoundAcknowledgment(
                 val screenWidth = configuration.screenWidthDp.toFloat()
                 val availableWidth = screenWidth - 64f // Account for card padding and modal padding
                 val (minOverlapDp, maxOverlapDp) = when (pile.size) {
-                    in 4..6 -> 30f to 45f // moderate overlap for 4–6 cards
-                    in 7..8 -> 10f to 75f // aggressive overlap for 7-8 cards
-                    else -> 10f to 65f
+                    in 1..3 -> 20f to 35f // light overlap for 1-3 cards
+                    4 -> 25f to 45f // moderate overlap for 4 cards
+                    5 -> 30f to 55f // more overlap for 5 cards
+                    6 -> 35f to 62f // more overlap for 6 cards
+                    7 -> 45f to 78f // very aggressive overlap for 7 cards
+                    8 -> 50f to 83f // maximum overlap for 8 cards
+                    else -> 45f to 78f
                 }
 
                 val (overlap, scale) = calculateCardOverlapAndScale(
@@ -389,15 +393,20 @@ fun GameAreaContent(
                         val configuration = LocalConfiguration.current
                         val screenWidth = configuration.screenWidthDp.toFloat()
                         val availableWidth = screenWidth - 32f // Account for card padding
-                        val maxOverlapDp = when (peggingPile.size) {
-                            in 7..8 -> 75f // aggressive overlap for 7-8 cards
-                            else -> 55f
+                        val (minOverlapDp, maxOverlapDp) = when (peggingPile.size) {
+                            in 1..3 -> 20f to 35f // light overlap for 1-3 cards
+                            4 -> 25f to 45f // moderate overlap for 4 cards
+                            5 -> 30f to 55f // more overlap for 5 cards
+                            6 -> 35f to 62f // more overlap for 6 cards
+                            7 -> 45f to 78f // very aggressive overlap for 7 cards
+                            8 -> 50f to 83f // maximum overlap for 8 cards
+                            else -> 45f to 78f
                         }
                         val (overlap, scale) = calculateCardOverlapAndScale(
                             cardCount = peggingPile.size,
                             cardWidth = CardSize.Medium.width.value,
                             availableWidth = availableWidth,
-                            minOverlap = 10f,
+                            minOverlap = minOverlapDp,
                             maxOverlap = maxOverlapDp
                         )
 

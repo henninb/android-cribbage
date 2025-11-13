@@ -134,8 +134,10 @@ fun ManualCountingDialog(
                                 LazyRow(
                                     horizontalArrangement = Arrangement.spacedBy(
                                         when {
-                                            hand.size >= 7 -> (-25).dp  // Less overlap for 7+ cards to fit on screen
-                                            hand.size >= 5 -> (-30).dp  // Less overlap for 5-6 cards
+                                            hand.size >= 8 -> (-55).dp  // Most aggressive overlap for 8 cards
+                                            hand.size >= 7 -> (-50).dp  // Very aggressive overlap for 7 cards
+                                            hand.size >= 6 -> (-45).dp  // Aggressive overlap for 6 cards
+                                            hand.size >= 5 -> (-40).dp  // More overlap for 5 cards
                                             else -> (-35).dp            // Default overlap for 4 or fewer
                                         }
                                     ),

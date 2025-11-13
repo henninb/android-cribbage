@@ -1098,7 +1098,20 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             // Count non-dealer hand based on mode
             if (isManualCountingMode && nonDealerIsPlayer) {
                 // Manual mode for player's non-dealer hand - wait for user to enter points
-                // The submitManualCount() function will handle the rest
+                // Wait for user to submit manual count (waitingForManualInput becomes false)
+                while (_uiState.value.handCountingState?.waitingForManualInput == true &&
+                    _uiState.value.handCountingState?.countingPhase == CountingPhase.NON_DEALER) {
+                    delay(100)
+                }
+
+                // Wait for user to dismiss the breakdown dialog (waitingForDialogDismissal becomes false)
+                while (_uiState.value.handCountingState?.waitingForDialogDismissal == true &&
+                    _uiState.value.handCountingState?.countingPhase == CountingPhase.NON_DEALER) {
+                    delay(100)
+                }
+
+                // Progress to next phase (dealer hand)
+                progressToNextCountingPhase()
                 return@launch
             }
 
@@ -1358,6 +1371,20 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                     )
                 )
             }
+
+            // Wait for user to submit manual count (waitingForManualInput becomes false)
+            while (_uiState.value.handCountingState?.waitingForManualInput == true &&
+                _uiState.value.handCountingState?.countingPhase == CountingPhase.DEALER) {
+                delay(100)
+            }
+
+            // Wait for user to dismiss the breakdown dialog (waitingForDialogDismissal becomes false)
+            while (_uiState.value.handCountingState?.waitingForDialogDismissal == true &&
+                _uiState.value.handCountingState?.countingPhase == CountingPhase.DEALER) {
+                delay(100)
+            }
+
+            progressToNextCountingPhase()
         } else {
             // Automatic counting for opponent or when in automatic mode
             val result = handCountingManager.countDealerHand(
@@ -1413,6 +1440,20 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                     )
                 )
             }
+
+            // Wait for user to submit manual count (waitingForManualInput becomes false)
+            while (_uiState.value.handCountingState?.waitingForManualInput == true &&
+                _uiState.value.handCountingState?.countingPhase == CountingPhase.CRIB) {
+                delay(100)
+            }
+
+            // Wait for user to dismiss the breakdown dialog (waitingForDialogDismissal becomes false)
+            while (_uiState.value.handCountingState?.waitingForDialogDismissal == true &&
+                _uiState.value.handCountingState?.countingPhase == CountingPhase.CRIB) {
+                delay(100)
+            }
+
+            progressToNextCountingPhase()
         } else {
             // Automatic counting for opponent crib or when in automatic mode
             val result = handCountingManager.countCrib(
