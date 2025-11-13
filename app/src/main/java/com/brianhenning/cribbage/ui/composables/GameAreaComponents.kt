@@ -306,7 +306,7 @@ fun GameAreaContent(
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     // Opponent hand (face down)
                     CompactHandDisplay(
@@ -317,7 +317,8 @@ fun GameAreaContent(
                         cardSize = CardSize.Medium
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    // Spacer to match pegging phase vertical layout (count + starter card height)
+                    Spacer(modifier = Modifier.height(60.dp))
 
                     // Status message
                     Text(
@@ -327,7 +328,8 @@ fun GameAreaContent(
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    // Spacer to account for pegging pile area (even when empty)
+                    Spacer(modifier = Modifier.height(48.dp))
 
                     // Player hand (selectable)
                     PlayerHandCompact(
