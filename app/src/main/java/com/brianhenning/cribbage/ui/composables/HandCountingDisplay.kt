@@ -188,6 +188,7 @@ fun ScoreBreakdownDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(

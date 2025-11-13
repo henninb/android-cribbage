@@ -91,7 +91,9 @@ data class HandCountingState(
     val countingPhase: CountingPhase = CountingPhase.NONE,
     val handScores: HandScores = HandScores(),
     val waitingForDialogDismissal: Boolean = false,
-    val waitingForManualInput: Boolean = false
+    val waitingForManualInput: Boolean = false,
+    val pendingScorePoints: Int? = null, // Points to award when dialog is dismissed
+    val pendingScoreIsForPlayer: Boolean? = null // Whether pending points are for player
 )
 
 /**

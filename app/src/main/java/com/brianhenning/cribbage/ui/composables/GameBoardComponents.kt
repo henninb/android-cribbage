@@ -331,7 +331,7 @@ fun CompactScoreHeader(
                                 .align(Alignment.CenterEnd)
                                 .padding(end = 8.dp)
                         ) {
-                            PeggingScoreAnimation(
+                            ScoreAnimation(
                                 points = playerScoreAnimation.points,
                                 isPlayer = playerScoreAnimation.isPlayer,
                                 onAnimationComplete = { onAnimationComplete(true) }
@@ -365,7 +365,7 @@ fun CompactScoreHeader(
                                 .align(Alignment.CenterStart)
                                 .padding(start = 8.dp)
                         ) {
-                            PeggingScoreAnimation(
+                            ScoreAnimation(
                                 points = opponentScoreAnimation.points,
                                 isPlayer = opponentScoreAnimation.isPlayer,
                                 onAnimationComplete = { onAnimationComplete(false) }

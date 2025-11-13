@@ -19,6 +19,7 @@ import com.brianhenning.cribbage.shared.domain.model.Card
 import com.brianhenning.cribbage.shared.domain.model.Rank
 import com.brianhenning.cribbage.ui.composables.CountingPhase
 import com.brianhenning.cribbage.ui.composables.GamePhase
+import com.brianhenning.cribbage.ui.composables.ScoreAnimationState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -865,13 +866,59 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
      * Clears the waitingForDialogDismissal flag so the counting coroutine can proceed.
      */
     fun dismissHandCountingDialog() {
-        Log.d(TAG, "dismissHandCountingDialog() called - current phase: ${_uiState.value.handCountingState?.countingPhase}")
-        _uiState.update { state ->
-            state.copy(
-                handCountingState = state.handCountingState?.copy(
-                    waitingForDialogDismissal = false
-                )
+        val currentState = _uiState.value
+        val handCountingState = currentState.handCountingState
+        Log.d(TAG, "dismissHandCountingDialog() called - current phase: ${handCountingState?.countingPhase}")
+
+        // Apply pending score and trigger animation when dialog is dismissed
+        val pendingPoints = handCountingState?.pendingScorePoints
+        val isForPlayer = handCountingState?.pendingScoreIsForPlayer
+
+        if (pendingPoints != null && isForPlayer != null && pendingPoints > 0) {
+            val newPlayerScore = if (isForPlayer) {
+                currentState.playerScore + pendingPoints
+            } else {
+                currentState.playerScore
+            }
+            val newOpponentScore = if (!isForPlayer) {
+                currentState.opponentScore + pendingPoints
+            } else {
+                currentState.opponentScore
+            }
+
+            val animation = ScoreAnimationState(
+                points = pendingPoints,
+                isPlayer = isForPlayer
             )
+
+            _uiState.update { state ->
+                state.copy(
+                    playerScore = newPlayerScore,
+                    opponentScore = newOpponentScore,
+                    playerScoreAnimation = if (isForPlayer) animation else null,
+                    opponentScoreAnimation = if (!isForPlayer) animation else null,
+                    handCountingState = state.handCountingState?.copy(
+                        waitingForDialogDismissal = false,
+                        pendingScorePoints = null,
+                        pendingScoreIsForPlayer = null
+                    )
+                )
+            }
+
+            // Check for game over after applying score
+            viewModelScope.launch {
+                checkAndHandleGameOver()
+            }
+        } else {
+            _uiState.update { state ->
+                state.copy(
+                    handCountingState = state.handCountingState?.copy(
+                        waitingForDialogDismissal = false,
+                        pendingScorePoints = null,
+                        pendingScoreIsForPlayer = null
+                    )
+                )
+            }
         }
     }
 
@@ -1063,34 +1110,18 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 startResult.handScores
             )
 
-            // Update scores and state
-            val newPlayerScore = if (nonDealerResult.isForPlayer) {
-                currentState.playerScore + nonDealerResult.pointsAwarded
-            } else {
-                currentState.playerScore
-            }
-            val newOpponentScore = if (!nonDealerResult.isForPlayer) {
-                currentState.opponentScore + nonDealerResult.pointsAwarded
-            } else {
-                currentState.opponentScore
-            }
-
+            // Store pending score (don't update actual score until dialog is dismissed)
             _uiState.update { state ->
                 state.copy(
-                    playerScore = newPlayerScore,
-                    opponentScore = newOpponentScore,
                     handCountingState = state.handCountingState?.copy(
                         handScores = nonDealerResult.updatedHandScores,
                         waitingForDialogDismissal = true,
-                        waitingForManualInput = false
-                    ),
-                    playerScoreAnimation = if (nonDealerResult.isForPlayer) nonDealerResult.animation else null,
-                    opponentScoreAnimation = if (!nonDealerResult.isForPlayer) nonDealerResult.animation else null
+                        waitingForManualInput = false,
+                        pendingScorePoints = nonDealerResult.pointsAwarded,
+                        pendingScoreIsForPlayer = nonDealerResult.isForPlayer
+                    )
                 )
             }
-
-            // Check for game over
-            if (checkAndHandleGameOver()) return@launch
 
             // Wait for user to dismiss non-dealer dialog
             while (_uiState.value.handCountingState?.waitingForDialogDismissal == true &&
@@ -1192,40 +1223,17 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
             else -> return ManualCountValidationResult.Error("Invalid phase")
         }
 
-        // Update scores
-        val newPlayerScore = if (result.isForPlayer) {
-            currentState.playerScore + result.pointsAwarded
-        } else {
-            currentState.playerScore
-        }
-
-        val newOpponentScore = if (!result.isForPlayer) {
-            currentState.opponentScore + result.pointsAwarded
-        } else {
-            currentState.opponentScore
-        }
-
-        // Update state - no longer waiting for manual input
+        // Store pending score (don't update actual score until dialog is dismissed)
         _uiState.update { state ->
             state.copy(
-                playerScore = newPlayerScore,
-                opponentScore = newOpponentScore,
                 handCountingState = state.handCountingState?.copy(
                     handScores = result.updatedHandScores,
                     waitingForManualInput = false,
-                    waitingForDialogDismissal = false
-                ),
-                playerScoreAnimation = if (result.isForPlayer) result.animation else null,
-                opponentScoreAnimation = if (!result.isForPlayer) result.animation else null
+                    waitingForDialogDismissal = true, // Show breakdown dialog and wait for dismiss
+                    pendingScorePoints = result.pointsAwarded,
+                    pendingScoreIsForPlayer = result.isForPlayer
+                )
             )
-        }
-
-        // Check for game over and progress to next phase
-        viewModelScope.launch {
-            if (checkAndHandleGameOver()) return@launch
-
-            delay(500)
-            progressToNextCountingPhase()
         }
 
         return ManualCountValidationResult.Correct(points)
@@ -1359,33 +1367,18 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 handCountingState.handScores
             )
 
-            val newPlayerScore = if (result.isForPlayer) {
-                _uiState.value.playerScore + result.pointsAwarded
-            } else {
-                _uiState.value.playerScore
-            }
-
-            val newOpponentScore = if (!result.isForPlayer) {
-                _uiState.value.opponentScore + result.pointsAwarded
-            } else {
-                _uiState.value.opponentScore
-            }
-
+            // Store pending score (don't update actual score until dialog is dismissed)
             _uiState.update { state ->
                 state.copy(
-                    playerScore = newPlayerScore,
-                    opponentScore = newOpponentScore,
                     handCountingState = state.handCountingState?.copy(
                         handScores = result.updatedHandScores,
                         waitingForDialogDismissal = true,
-                        waitingForManualInput = false
-                    ),
-                    playerScoreAnimation = if (result.isForPlayer) result.animation else null,
-                    opponentScoreAnimation = if (!result.isForPlayer) result.animation else null
+                        waitingForManualInput = false,
+                        pendingScorePoints = result.pointsAwarded,
+                        pendingScoreIsForPlayer = result.isForPlayer
+                    )
                 )
             }
-
-            if (checkAndHandleGameOver()) return
 
             // Wait for user to dismiss dialog
             while (_uiState.value.handCountingState?.waitingForDialogDismissal == true &&
@@ -1429,33 +1422,18 @@ class CribbageGameViewModel(application: Application) : AndroidViewModel(applica
                 handCountingState.handScores
             )
 
-            val newPlayerScore = if (result.isForPlayer) {
-                _uiState.value.playerScore + result.pointsAwarded
-            } else {
-                _uiState.value.playerScore
-            }
-
-            val newOpponentScore = if (!result.isForPlayer) {
-                _uiState.value.opponentScore + result.pointsAwarded
-            } else {
-                _uiState.value.opponentScore
-            }
-
+            // Store pending score (don't update actual score until dialog is dismissed)
             _uiState.update { state ->
                 state.copy(
-                    playerScore = newPlayerScore,
-                    opponentScore = newOpponentScore,
                     handCountingState = state.handCountingState?.copy(
                         handScores = result.updatedHandScores,
                         waitingForDialogDismissal = true,
-                        waitingForManualInput = false
-                    ),
-                    playerScoreAnimation = if (result.isForPlayer) result.animation else null,
-                    opponentScoreAnimation = if (!result.isForPlayer) result.animation else null
+                        waitingForManualInput = false,
+                        pendingScorePoints = result.pointsAwarded,
+                        pendingScoreIsForPlayer = result.isForPlayer
+                    )
                 )
             }
-
-            if (checkAndHandleGameOver()) return
 
             // Wait for user to dismiss dialog
             while (_uiState.value.handCountingState?.waitingForDialogDismissal == true &&

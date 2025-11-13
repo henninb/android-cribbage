@@ -102,11 +102,12 @@ fun ThirtyOneBannerAnimation(
 }
 
 /**
- * Pegging Score Animation
+ * Score Animation
  * Shows a "+X" animation that pops up and fades out
+ * Used for both pegging and hand counting scores
  */
 @Composable
-fun PeggingScoreAnimation(
+fun ScoreAnimation(
     points: Int,
     isPlayer: Boolean,
     onAnimationComplete: () -> Unit,
@@ -168,4 +169,22 @@ fun PeggingScoreAnimation(
                 }
         )
     }
+}
+
+/**
+ * Deprecated: Use ScoreAnimation instead
+ * Alias for backward compatibility
+ */
+@Deprecated(
+    message = "Use ScoreAnimation instead",
+    replaceWith = ReplaceWith("ScoreAnimation(points, isPlayer, onAnimationComplete, modifier)")
+)
+@Composable
+fun PeggingScoreAnimation(
+    points: Int,
+    isPlayer: Boolean,
+    onAnimationComplete: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    ScoreAnimation(points, isPlayer, onAnimationComplete, modifier)
 }
