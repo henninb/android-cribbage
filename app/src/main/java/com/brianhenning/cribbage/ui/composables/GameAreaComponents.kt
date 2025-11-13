@@ -1,6 +1,7 @@
 package com.brianhenning.cribbage.ui.composables
 
 import androidx.compose.animation.AnimatedVisibility
+import com.brianhenning.cribbage.game.state.GamePhase
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut

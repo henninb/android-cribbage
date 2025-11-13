@@ -17,8 +17,8 @@ import com.brianhenning.cribbage.game.state.ScoreManager
 import com.brianhenning.cribbage.game.state.WinnerModalData
 import com.brianhenning.cribbage.shared.domain.model.Card
 import com.brianhenning.cribbage.shared.domain.model.Rank
+import com.brianhenning.cribbage.game.state.GamePhase
 import com.brianhenning.cribbage.ui.composables.CountingPhase
-import com.brianhenning.cribbage.ui.composables.GamePhase
 import com.brianhenning.cribbage.ui.composables.ScoreAnimationState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
